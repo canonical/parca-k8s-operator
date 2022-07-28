@@ -1,0 +1,37 @@
+# Copyright 2022 Jon Seager
+# See LICENSE file for licensing details.
+name: parca-k8s
+
+display-name: Parca
+
+summary: Parca continuous profiling tool.
+
+description: |
+  Continuous profiling for analysis of CPU and memory usage, down to the line number and throughout
+  time. Saving infrastructure cost, improving performance, and increasing reliability.
+
+containers:
+  parca:
+    resource: parca-image
+    mounts:
+      - storage: profiles
+        location: /var/lib/parca
+
+resources:
+  parca-image:
+    type: oci-image
+    description: OCI image for parca
+    # Included for simplicity in integration tests
+    upstream-source: ghcr.io/parca-dev/parca:main-27f77d7a
+
+storage:
+  profiles:
+    type: filesystem
+
+requires:
+  profiling-endpoint:
+    interface: prometheus_scrape
+
+provides:
+  metrics-endpoint:
+    interface: prometheus_scrape
