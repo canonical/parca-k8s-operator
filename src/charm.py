@@ -63,11 +63,12 @@ class ParcaOperatorCharm(CharmBase):
         container = event.workload
         # Configure Parca by writing the config file to the container
         scrape_config = self.profiling_consumer.jobs()
-        self._configure(self.config, scrape_config, restart=False)
+        self._configure(scrape_config, restart=False)
 
         # Define an initial Pebble layer
         container.add_layer("parca", self._pebble_layer, combine=True)
         container.replan()
+        self.unit.set_workload_version(self.version)
         self.unit.status = ActiveStatus()
 
     def _update_status(self, _):
@@ -81,7 +82,7 @@ class ParcaOperatorCharm(CharmBase):
 
         # Try to configure Parca
         if self.container.can_connect():
-            self._configure(self.config, scrape_config)
+            self._configure(scrape_config)
             self.unit.status = ActiveStatus()
         else:
             self.unit.status = WaitingStatus("waiting for container")

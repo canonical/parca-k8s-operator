@@ -57,6 +57,36 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
+    @patch("charm.ParcaOperatorCharm.version", "v0.12.0")
+    def test_pebble_ready(self):
+        self.harness.container_pebble_ready("parca")
+        expected_plan = {
+            "services": {
+                "parca": {
+                    "summary": "parca",
+                    "startup": "enabled",
+                    "override": "replace",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-in-memory=true --storage-active-memory=4294967296",
+                }
+            }
+        }
+        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), expected_plan)
+        self.assertTrue(self.harness.charm.container.get_service("parca").is_running())
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+        self.assertEqual(self.harness.get_workload_version(), "v0.12.0")
+
+    @patch("ops.model.Container.exec")
+    def test_update_status(self, exec):
+        self.harness.set_can_connect("parca", True)
+
+        exec.return_value = MockExec("p, v v0.12.0 (commit: deadbeef)\n")
+        self.harness.charm.on.update_status.emit()
+        self.assertEqual(self.harness.get_workload_version(), "v0.12.0")
+
+        exec.return_value = MockExec("p, v v0.13.0 (commit: deadbeef)\n")
+        self.harness.charm.on.update_status.emit()
+        self.assertEqual(self.harness.get_workload_version(), "v0.13.0")
+
     @patch("ops.model.Container.exec")
     def test_parca_version_next(self, exec):
         self.harness.set_can_connect("parca", True)
