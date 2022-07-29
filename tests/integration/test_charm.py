@@ -16,8 +16,12 @@ UNIT_0 = f"{PARCA}/0"
 
 
 @mark.abort_on_fail
-async def test_deploy(ops_test: OpsTest, parca_charm):
-    await ops_test.model.deploy(await parca_charm, application_name=PARCA)
+async def test_deploy(ops_test: OpsTest, parca_charm, parca_oci_image):
+    await ops_test.model.deploy(
+        await parca_charm,
+        resources={"parca-image": parca_oci_image},
+        application_name=PARCA,
+    )
     # issuing dummy update_status just to trigger an event
     async with ops_test.fast_forward():
         await ops_test.model.wait_for_idle(apps=[PARCA], status="active", timeout=1000)
