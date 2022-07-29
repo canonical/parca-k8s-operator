@@ -16,7 +16,6 @@ UNIT_0 = f"{PARCA}/0"
 
 
 @mark.abort_on_fail
-@mark.skip_if_deployed
 async def test_deploy(ops_test: OpsTest, parca_charm):
     await ops_test.model.deploy(await parca_charm, application_name=PARCA)
     # issuing dummy update_status just to trigger an event
