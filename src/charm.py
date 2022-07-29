@@ -90,7 +90,7 @@ class ParcaOperatorCharm(CharmBase):
     def _on_profiling_targets_changed(self, _):
         """Update the Parca scrape configuration according to present relations."""
         self.unit.status = MaintenanceStatus("reconfiguring parca")
-        self._configure(self.config, self.profiling_consumer.jobs())
+        self._configure(self.profiling_consumer.jobs())
         self.unit.status = ActiveStatus()
 
     def _configure(self, scrape_configs=[], *, restart=True):
