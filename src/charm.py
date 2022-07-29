@@ -55,6 +55,13 @@ class ParcaOperatorCharm(CharmBase):
             relation_name="metrics-endpoint",
         )
 
+        # The self_profiling_endpoint_provider enables Parca to profile itself
+        self.self_profiling_endpoint_provider = MetricsEndpointProvider(
+            self,
+            jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
+            relation_name="self-profiling-endpoint",
+        )
+        
         self.container = self.unit.get_container("parca")
 
     def _parca_pebble_ready(self, event):

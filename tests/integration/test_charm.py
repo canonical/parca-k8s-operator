@@ -40,8 +40,7 @@ async def test_application_is_up(ops_test: OpsTest):
 @mark.abort_on_fail
 async def test_profiling_endpoint_relation(ops_test: OpsTest):
     await asyncio.gather(
-        # Test charm to ensure that the relation works properly on Kubernetes (juju-introspect)
-        # is machines only
+        # Test charm to ensure that the relation works properly on Kubernetes
         ops_test.model.deploy(
             "prometheus-scrape-target-k8s",
             channel="edge",
@@ -77,8 +76,6 @@ async def test_profiling_relation_is_configured(ops_test: OpsTest):
 @mark.abort_on_fail
 async def test_metrics_endpoint_relation(ops_test: OpsTest):
     await asyncio.gather(
-        # Test charm to ensure that the relation works properly on Kubernetes (juju-introspect)
-        # is machines only
         ops_test.model.deploy(
             "prometheus-k8s",
             channel="edge",
