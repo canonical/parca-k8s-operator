@@ -3,7 +3,6 @@
 
 import json
 import unittest
-from io import StringIO
 from unittest.mock import patch
 
 import ops.testing
@@ -51,7 +50,7 @@ class MockExec:
         self.stderr = stderr
 
     def wait_output(self):
-        return StringIO(self.stdout), StringIO(self.stderr)
+        return self.stdout, self.stderr
 
 
 class TestCharm(unittest.TestCase):

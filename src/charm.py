@@ -115,7 +115,7 @@ class ParcaOperatorCharm(CharmBase):
             except pebble.ExecError as e:
                 raise e
 
-            splits = stdout.read().split(" ")
+            splits = stdout.split(" ")
             # If we're not on a 'proper' released version, include the first few digits of
             # the commit we're build from
             if "-next" in splits[2]:
