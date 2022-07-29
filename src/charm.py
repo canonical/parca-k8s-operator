@@ -20,7 +20,7 @@ from lightkube.models.core_v1 import ServicePort
 from ops import pebble
 from ops.charm import CharmBase
 from ops.main import main
-from ops.model import ActiveStatus, Container, MaintenanceStatus, WaitingStatus
+from ops.model import ActiveStatus, MaintenanceStatus, WaitingStatus
 from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class ParcaOperatorCharm(CharmBase):
             relation_name="metrics-endpoint",
         )
 
-        self.container: Container = self.unit.get_container("parca")
+        self.container = self.unit.get_container("parca")
 
     def _parca_pebble_ready(self, event):
         """Define and start a workload using the Pebble API."""
@@ -64,7 +64,7 @@ class ParcaOperatorCharm(CharmBase):
         # Configure Parca by writing the config file to the container
         scrape_config = self.profiling_consumer.jobs()
         self._configure(self.config, scrape_config, restart=False)
-        
+
         # Define an initial Pebble layer
         container.add_layer("parca", self._pebble_layer, combine=True)
         container.replan()
@@ -78,7 +78,7 @@ class ParcaOperatorCharm(CharmBase):
         """Update the configuration files, restart parca."""
         self.unit.status = MaintenanceStatus("reconfiguring parca")
         scrape_config = self.profiling_consumer.jobs()
-        
+
         # Try to configure Parca
         if self.container.can_connect():
             self._configure(self.config, scrape_config)
@@ -91,14 +91,16 @@ class ParcaOperatorCharm(CharmBase):
         self.unit.status = MaintenanceStatus("reconfiguring parca")
         self._configure(self.config, self.profiling_consumer.jobs())
         self.unit.status = ActiveStatus()
-    
+
     def _configure(self, scrape_configs=[], *, restart=True):
         """Configure Parca in the container. Restart Parca by default."""
         # Write the config file
         parca_config = ParcaConfig(scrape_configs)
         if self.container.can_connect():
             # TODO(jnsgruk): add user/group details when container is updated
-            self.container.push(DEFAULT_CONFIG_PATH, str(parca_config), make_dirs=True, permissions=0o644)
+            self.container.push(
+                DEFAULT_CONFIG_PATH, str(parca_config), make_dirs=True, permissions=0o644
+            )
             if restart:
                 self.container.restart("parca")
 
@@ -106,12 +108,12 @@ class ParcaOperatorCharm(CharmBase):
     def version(self) -> str:
         """Reports the version of Parca."""
         if self.container.can_connect():
-            process = self.container.exec(['parca', '--version'], encoding="utf-8")
+            process = self.container.exec(["parca", "--version"], encoding="utf-8")
             try:
                 stdout, _ = process.wait_output()
             except pebble.ExecError as e:
                 raise e
-            
+
             splits = stdout.read().split(" ")
             # If we're not on a 'proper' released version, include the first few digits of
             # the commit we're build from
@@ -122,17 +124,18 @@ class ParcaOperatorCharm(CharmBase):
     @property
     def _pebble_layer(self) -> Layer:
         """Returns a Pebble layer for Parca based on the current configuration."""
-        return Layer({
-            "services": {
-                "parca": {
-                    "override": "replace",
-                    "summary": "parca",
-                    "command": parca_command_line(self.config),
-                    "startup": "enabled",
-                }
-            },
-        })
-
+        return Layer(
+            {
+                "services": {
+                    "parca": {
+                        "override": "replace",
+                        "summary": "parca",
+                        "command": parca_command_line(self.config),
+                        "startup": "enabled",
+                    }
+                },
+            }
+        )
 
 
 if __name__ == "__main__":  # pragma: nocover

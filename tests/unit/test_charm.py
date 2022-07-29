@@ -40,43 +40,86 @@ SCRAPE_JOBS = [
     },
 ]
 
+
 class MockExec:
     def __init__(self, stdout, stderr=""):
         self.stdout = stdout
         self.stderr = stderr
-    
+
     def wait_output(self):
         return StringIO(self.stdout), StringIO(self.stderr)
 
 
 class TestCharm(unittest.TestCase):
-    @patch("charm.KubernetesServicePatch", lambda x,y: True)
+    @patch("charm.KubernetesServicePatch", lambda x, y: True)
     def setUp(self):
         self.harness = Harness(ParcaOperatorCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
-    @patch("parca.Container.exec")
+    @patch("ops.model.Container.exec")
     def test_parca_version_next(self, exec):
         self.harness.set_can_connect("parca", True)
         exec.return_value = MockExec("parca, version v0.12.0-next (commit: deadbeef)\n")
         self.assertEqual(self.harness.charm.version, "v0.12.0-next+deadbe")
 
-    @patch("parca.Container.exec")
+    @patch("ops.model.Container.exec")
     def test_parca_version_tagged(self, exec):
         self.harness.set_can_connect("parca", True)
         exec.return_value = MockExec("parca, version v0.13.0 (commit: deadbeef")
         self.assertEqual(self.harness.charm.version, "v0.13.0")
 
-    @patch("parca.Container.exec")
+    @patch("ops.model.Container.exec")
     def test_parca_version_tagged(self, exec):
         exec.side_effect = ExecError("foobar", 1, "", "")
         try:
             self.harness.charm.version
         except ExecError as e:
-            self.assertEqual("non-zero exit code 1 executing 'foobar', stdout='', stderr=''", str(e))
+            self.assertEqual(
+                "non-zero exit code 1 executing 'foobar', stdout='', stderr=''", str(e)
+            )
 
-   
+    def test_parca_pebble_layer_default_config(self):
+        expected = {
+            "services": {
+                "parca": {
+                    "summary": "parca",
+                    "startup": "enabled",
+                    "override": "replace",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-in-memory=true --storage-active-memory=4294967296",
+                }
+            }
+        }
+        self.assertEqual(expected, self.harness.charm._pebble_layer.to_dict())
+
+    def test_parca_pebble_layer_adjusted_memory(self):
+        self.harness.update_config({"storage-persist": False, "memory-storage-limit": 1024})
+        expected = {
+            "services": {
+                "parca": {
+                    "summary": "parca",
+                    "startup": "enabled",
+                    "override": "replace",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-in-memory=true --storage-active-memory=1073741824",
+                }
+            }
+        }
+        self.assertEqual(expected, self.harness.charm._pebble_layer.to_dict())
+
+    def test_parca_pebble_layer_storage_persist(self):
+        self.harness.update_config({"storage-persist": True, "memory-storage-limit": 1024})
+        expected = {
+            "services": {
+                "parca": {
+                    "summary": "parca",
+                    "startup": "enabled",
+                    "override": "replace",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-in-memory=false --storage-persist --storage-path=/var/lib/parca",
+                }
+            }
+        }
+        self.assertEqual(expected, self.harness.charm._pebble_layer.to_dict())
+
     # @patch("charm.snap.hold_refresh")
     # @patch("parca.Parca.version", new_callable=PropertyMock(return_value="v0.12.0"))
     # def test_update_status(self, _, hold):
