@@ -109,7 +109,7 @@ class ParcaOperatorCharm(CharmBase):
     def version(self) -> str:
         """Reports the version of Parca."""
         if self.container.can_connect():
-            process = self.container.exec(["parca", "--version"], encoding="utf-8")
+            process = self.container.exec(["/parca", "--version"], encoding="utf-8")
             try:
                 stdout, _ = process.wait_output()
             except pebble.ExecError as e:
