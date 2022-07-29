@@ -44,15 +44,7 @@ SCRAPE_JOBS = [
 ]
 
 
-class MockExec:
-    def __init__(self, stdout, stderr=""):
-        self.stdout = stdout
-        self.stderr = stderr
-
-    def wait_output(self):
-        return self.stdout, self.stderr
-
-
+@patch("charm.ParcaOperatorCharm._fetch_version", lambda x: "p, v v0.12.0 (commit: deadbeef")
 class TestCharm(unittest.TestCase):
     @patch("charm.KubernetesServicePatch", lambda x, y: True)
     def setUp(self):
@@ -60,7 +52,6 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
-    @patch("charm.ParcaOperatorCharm.version", "v0.12.0")
     def test_pebble_ready(self):
         self.harness.container_pebble_ready("parca")
         self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
@@ -68,33 +59,22 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
         self.assertEqual(self.harness.get_workload_version(), "v0.12.0")
 
-    @patch("ops.model.Container.exec")
-    def test_update_status(self, exec):
+    def test_update_status(self):
         self.harness.set_can_connect("parca", True)
-
-        exec.return_value = MockExec("p, v v0.12.0 (commit: deadbeef)\n")
         self.harness.charm.on.update_status.emit()
         self.assertEqual(self.harness.get_workload_version(), "v0.12.0")
-
-        exec.return_value = MockExec("p, v v0.13.0 (commit: deadbeef)\n")
-        self.harness.charm.on.update_status.emit()
-        self.assertEqual(self.harness.get_workload_version(), "v0.13.0")
 
     def test_config_changed_container_not_ready(self):
         self.harness.update_config({"storage-persist": False, "memory-storage-limit": 1024})
         self.assertEqual(self.harness.charm.unit.status, WaitingStatus("waiting for container"))
 
-    @patch("ops.model.Container.exec")
-    def test_config_changed_container_ready(self, exec):
-        exec.return_value = MockExec("p, v v0.13.0 (commit: deadbeef)\n")
+    def test_config_changed_container_ready(self):
         self.harness.container_pebble_ready("parca")
         self.harness.set_can_connect("parca", True)
         self.harness.update_config({"storage-persist": False, "memory-storage-limit": 1024})
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
 
-    @patch("ops.model.Container.exec")
-    def test_configure(self, exec):
-        exec.return_value = MockExec("p, v v0.13.0 (commit: deadbeef)\n")
+    def test_configure(self):
         self.harness.container_pebble_ready("parca")
         self.harness.charm._configure()
 
@@ -116,28 +96,6 @@ class TestCharm(unittest.TestCase):
             "scrape_configs": [{"foobar": "baz"}],
         }
         self.assertEqual(yaml.safe_load(config.read()), expected)
-
-    @patch("ops.model.Container.exec")
-    def test_parca_version_next(self, exec):
-        self.harness.set_can_connect("parca", True)
-        exec.return_value = MockExec("parca, version v0.12.0-next (commit: deadbeef)\n")
-        self.assertEqual(self.harness.charm.version, "v0.12.0-next+deadbe")
-
-    @patch("ops.model.Container.exec")
-    def test_parca_version_tagged(self, exec):
-        self.harness.set_can_connect("parca", True)
-        exec.return_value = MockExec("parca, version v0.13.0 (commit: deadbeef")
-        self.assertEqual(self.harness.charm.version, "v0.13.0")
-
-    @patch("ops.model.Container.exec")
-    def test_parca_version_error(self, exec):
-        exec.side_effect = ExecError("foobar", 1, "", "")
-        try:
-            self.harness.charm.version
-        except ExecError as e:
-            self.assertEqual(
-                "non-zero exit code 1 executing 'foobar', stdout='', stderr=''", str(e)
-            )
 
     def test_parca_pebble_layer_default_config(self):
         self.assertEqual(DEFAULT_PLAN, self.harness.charm._pebble_layer.to_dict())
@@ -169,6 +127,15 @@ class TestCharm(unittest.TestCase):
             }
         }
         self.assertEqual(expected, self.harness.charm._pebble_layer.to_dict())
+
+    def test_version_not_started(self):
+        vstr = self.harness.charm.version
+        self.assertEqual(vstr, "")
+
+    def test_version(self):
+        self.harness.set_can_connect("parca", True)
+        vstr = self.harness.charm.version
+        self.assertEqual(vstr, "v0.12.0")
 
     def test_profiling_endpoint_relation(self):
         # Create a relation to an app named "profiled-app"
@@ -245,3 +212,37 @@ class TestCharm(unittest.TestCase):
             "prometheus_scrape_unit_name": "parca-k8s/0",
         }
         self.assertEqual(unit_data, expected)
+
+
+class MockExec:
+    def __init__(self, stdout, stderr=""):
+        self.stdout = stdout
+        self.stderr = stderr
+
+    def wait_output(self):
+        return self.stdout, self.stderr
+
+
+class TestVersionFetch(unittest.TestCase):
+    @patch("charm.KubernetesServicePatch", lambda x, y: True)
+    def setUp(self):
+        self.harness = Harness(ParcaOperatorCharm)
+        self.addCleanup(self.harness.cleanup)
+        self.harness.begin()
+
+    @patch("ops.model.Container.exec")
+    def test_fetch_version_error(self, exec):
+        exec.side_effect = ExecError("foobar", 1, "", "")
+        try:
+            self.harness.charm._fetch_version()
+        except ExecError as e:
+            self.assertEqual(
+                "non-zero exit code 1 executing 'foobar', stdout='', stderr=''", str(e)
+            )
+
+    @patch("ops.model.Container.exec")
+    def test_fetch_version_success(self, exec):
+        return_str = "p, v v0.12.0 (commit: deadbeef"
+        exec.return_value = MockExec(return_str)
+        version = self.harness.charm._fetch_version()
+        self.assertEqual(version, return_str)

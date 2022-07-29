@@ -11,6 +11,7 @@ from charms.parca.v0.parca_config import (
     DEFAULT_CONFIG_PATH,
     ParcaConfig,
     parca_command_line,
+    parse_version,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import (
     MetricsEndpointConsumer,
@@ -61,7 +62,7 @@ class ParcaOperatorCharm(CharmBase):
             jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
             relation_name="self-profiling-endpoint",
         )
-        
+
         self.container = self.unit.get_container("parca")
 
     def _parca_pebble_ready(self, event):
@@ -116,18 +117,9 @@ class ParcaOperatorCharm(CharmBase):
     def version(self) -> str:
         """Reports the version of Parca."""
         if self.container.can_connect():
-            process = self.container.exec(["/parca", "--version"], encoding="utf-8")
-            try:
-                stdout, _ = process.wait_output()
-            except pebble.ExecError as e:
-                raise e
-
-            splits = stdout.split(" ")
-            # If we're not on a 'proper' released version, include the first few digits of
-            # the commit we're build from
-            if "-next" in splits[2]:
-                return f"{splits[2]}+{splits[4][:6]}"
-            return splits[2]
+            raw_version = self._fetch_version()
+            return parse_version(raw_version)
+        return ""
 
     @property
     def _pebble_layer(self) -> Layer:
@@ -144,6 +136,15 @@ class ParcaOperatorCharm(CharmBase):
                 },
             }
         )
+
+    def _fetch_version(self):
+        """Run parca in the remote container and grab the version."""
+        process = self.container.exec(["/parca", "--version"], encoding="utf-8")
+        try:
+            stdout, _ = process.wait_output()
+            return stdout
+        except pebble.ExecError as e:
+            raise e
 
 
 if __name__ == "__main__":  # pragma: nocover
