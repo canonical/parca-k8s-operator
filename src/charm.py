@@ -110,7 +110,7 @@ class ParcaOperatorCharm(CharmBase):
             self.container.push(
                 DEFAULT_CONFIG_PATH, str(parca_config), make_dirs=True, permissions=0o644
             )
-            if restart:
+            if self.container.get_services("parca") and restart:
                 self.container.restart("parca")
 
     @property
