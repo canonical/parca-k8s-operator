@@ -80,6 +80,7 @@ async def test_metrics_endpoint_relation(ops_test: OpsTest):
         ops_test.model.deploy(
             "prometheus-k8s",
             channel="edge",
+            trust=True,
             application_name="prometheus",
         ),
         ops_test.model.wait_for_idle(
