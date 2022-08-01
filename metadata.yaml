@@ -31,6 +31,9 @@ storage:
 requires:
   profiling-endpoint:
     interface: prometheus_scrape
+  ingress:
+    interface: ingress
+    limit: 1
 
 provides:
   metrics-endpoint:

@@ -17,6 +17,7 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (
     MetricsEndpointConsumer,
     MetricsEndpointProvider,
 )
+from charms.traefik_k8s.v1.ingress import IngressPerAppRequirer
 from lightkube.models.core_v1 import ServicePort
 from ops import pebble
 from ops.charm import CharmBase
@@ -62,6 +63,8 @@ class ParcaOperatorCharm(CharmBase):
             jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
             relation_name="self-profiling-endpoint",
         )
+
+        self._ingress = IngressPerAppRequirer(self, port=7070)
 
         self.container = self.unit.get_container("parca")
 
