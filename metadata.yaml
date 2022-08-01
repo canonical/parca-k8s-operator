@@ -36,6 +36,8 @@ requires:
     limit: 1
 
 provides:
+  grafana-dashboard:
+    interface: grafana_dashboard
   metrics-endpoint:
     interface: prometheus_scrape
   self-profiling-endpoint:

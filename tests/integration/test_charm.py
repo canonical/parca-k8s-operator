@@ -97,3 +97,28 @@ async def test_metrics_endpoint_relation(ops_test: OpsTest):
             timeout=1000,
         ),
     )
+
+
+@mark.abort_on_fail
+async def test_grafana_dashboard_relation(ops_test: OpsTest):
+    await asyncio.gather(
+        ops_test.model.deploy(
+            "grafana-k8s",
+            channel="edge",
+            trust=True,
+            application_name="grafana",
+        ),
+        ops_test.model.wait_for_idle(
+            apps=["grafana"], status="active", raise_on_blocked=True, timeout=1000
+        ),
+    )
+
+    await asyncio.gather(
+        ops_test.model.relate(f"{PARCA}:grafana-dashboard", "grafana"),
+        ops_test.model.wait_for_idle(
+            apps=[PARCA, "grafana"],
+            status="active",
+            raise_on_blocked=True,
+            timeout=1000,
+        ),
+    )

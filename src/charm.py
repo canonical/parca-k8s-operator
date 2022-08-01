@@ -6,6 +6,7 @@
 
 import logging
 
+from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
 from charms.parca.v0.parca_config import (
     DEFAULT_CONFIG_PATH,
@@ -63,6 +64,9 @@ class ParcaOperatorCharm(CharmBase):
             jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
             relation_name="self-profiling-endpoint",
         )
+
+        # Allow Parca to provide dashboards to Grafana over a relation
+        self._grafana_dashboard_provider = GrafanaDashboardProvider(self)
 
         self._ingress = IngressPerAppRequirer(self, port=7070)
 
