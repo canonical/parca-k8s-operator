@@ -52,7 +52,6 @@ async def test_ingress_functions_correctly(ops_test):
     assert r.status_code == 200
 
 
-
 async def _retrieve_proxied_endpoints(ops_test, traefik_application_name):
     traefik_application = ops_test.model.applications[traefik_application_name]
     traefik_first_unit = next(iter(traefik_application.units))
