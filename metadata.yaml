@@ -22,7 +22,7 @@ resources:
     type: oci-image
     description: OCI image for parca
     # Included for simplicity in integration tests
-    upstream-source: ghcr.io/parca-dev/parca:main-1d5c79bb
+    upstream-source: ghcr.io/parca-dev/parca:main-9d1ecea1
 
 storage:
   profiles:
@@ -31,8 +31,13 @@ storage:
 requires:
   profiling-endpoint:
     interface: parca_scrape
+  ingress:
+    interface: ingress
+    limit: 1
 
 provides:
+  grafana-dashboard:
+    interface: grafana_dashboard
   metrics-endpoint:
     interface: prometheus_scrape
   self-profiling-endpoint:

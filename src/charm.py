@@ -6,6 +6,7 @@
 
 import logging
 
+from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
 from charms.parca.v0.parca_config import (
     DEFAULT_CONFIG_PATH,
@@ -18,6 +19,7 @@ from charms.parca.v0.parca_scrape import (
     ProfilingEndpointProvider,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.traefik_k8s.v1.ingress import IngressPerAppRequirer
 from lightkube.models.core_v1 import ServicePort
 from ops import pebble
 from ops.charm import CharmBase
@@ -61,6 +63,11 @@ class ParcaOperatorCharm(CharmBase):
             jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
             relation_name="self-profiling-endpoint",
         )
+
+        # Allow Parca to provide dashboards to Grafana over a relation
+        self._grafana_dashboard_provider = GrafanaDashboardProvider(self)
+
+        self._ingress = IngressPerAppRequirer(self, port=7070)
 
         self.container = self.unit.get_container("parca")
 
@@ -109,7 +116,7 @@ class ParcaOperatorCharm(CharmBase):
             self.container.push(
                 DEFAULT_CONFIG_PATH, str(parca_config), make_dirs=True, permissions=0o644
             )
-            if restart:
+            if self.container.get_services("parca") and restart:
                 self.container.restart("parca")
 
     @property
