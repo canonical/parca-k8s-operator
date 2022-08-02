@@ -43,7 +43,7 @@ async def test_application_is_up(ops_test: OpsTest):
 async def test_profiling_endpoint_relation(ops_test: OpsTest):
     await asyncio.gather(
         # Test charm to ensure that the relation works properly on Kubernetes
-        ops_test.model.deploy("zinc-k8s",channel="edge",application_name="zinc-k8s"),
+        ops_test.model.deploy("zinc-k8s", channel="edge", application_name="zinc-k8s"),
         ops_test.model.wait_for_idle(
             apps=["zinc-k8s"], status="active", raise_on_blocked=True, timeout=1000
         ),
