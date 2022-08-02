@@ -13,10 +13,11 @@ from charms.parca.v0.parca_config import (
     parca_command_line,
     parse_version,
 )
-from charms.prometheus_k8s.v0.prometheus_scrape import (
-    MetricsEndpointConsumer,
-    MetricsEndpointProvider,
+from charms.parca.v0.parca_scrape import (
+    ProfilingEndpointConsumer,
+    ProfilingEndpointProvider,
 )
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from lightkube.models.core_v1 import ServicePort
 from ops import pebble
 from ops.charm import CharmBase
@@ -44,20 +45,18 @@ class ParcaOperatorCharm(CharmBase):
 
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation
-        self.profiling_consumer = MetricsEndpointConsumer(self, relation_name="profiling-endpoint")
+        self.profiling_consumer = ProfilingEndpointConsumer(self)
         self.framework.observe(
             self.profiling_consumer.on.targets_changed, self._on_profiling_targets_changed
         )
 
         # The metrics_endpoint_provider enables Parca to be scraped by Prometheus for metrics
         self.metrics_endpoint_provider = MetricsEndpointProvider(
-            self,
-            jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
-            relation_name="metrics-endpoint",
+            self, jobs=[{"static_configs": [{"targets": ["*:7070"]}]}]
         )
 
         # The self_profiling_endpoint_provider enables Parca to profile itself
-        self.self_profiling_endpoint_provider = MetricsEndpointProvider(
+        self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
             jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
             relation_name="self-profiling-endpoint",

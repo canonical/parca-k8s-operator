@@ -44,19 +44,14 @@ async def test_application_is_up(ops_test: OpsTest):
 async def test_profiling_endpoint_relation(ops_test: OpsTest):
     await asyncio.gather(
         # Test charm to ensure that the relation works properly on Kubernetes
-        ops_test.model.deploy(
-            "prometheus-scrape-target-k8s",
-            channel="edge",
-            application_name="target",
-            config={"targets": "192.168.233.11:6000"},
-        ),
+        ops_test.model.deploy("zinc-k8s",channel="edge",application_name="zinc-k8s"),
         ops_test.model.wait_for_idle(
-            apps=["target"], status="active", raise_on_blocked=True, timeout=1000
+            apps=["zinc-k8s"], status="active", raise_on_blocked=True, timeout=1000
         ),
     )
 
     await asyncio.gather(
-        ops_test.model.relate(PARCA, "target"),
+        ops_test.model.relate(PARCA, "zinc-k8s"),
         ops_test.model.wait_for_idle(
             apps=[PARCA],
             status="active",
@@ -73,7 +68,7 @@ async def test_profiling_relation_is_configured(ops_test: OpsTest):
     unit = list(status.applications[PARCA].units)[0]
     address = status["applications"][PARCA]["units"][unit]["public-address"]
     response = requests.get(f"http://{address}:7070/metrics")
-    assert "target_external_jobs" in response.text
+    assert "zinc" in response.text
 
 
 @mark.abort_on_fail

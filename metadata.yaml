@@ -30,10 +30,10 @@ storage:
 
 requires:
   profiling-endpoint:
-    interface: prometheus_scrape
+    interface: parca_scrape
 
 provides:
   metrics-endpoint:
     interface: prometheus_scrape
   self-profiling-endpoint:
-    interface: prometheus_scrape
+    interface: parca_scrape
