@@ -39,5 +39,5 @@ $ juju config parca-k8s memory-storage-limit=8192
 If you wish to enable the **experimental** storage persistence, you can do as such:
 
 ```bash
-$ juju config parca-k8s storage-persist=true
+$ juju config parca-k8s enable-persistence=true
 ```

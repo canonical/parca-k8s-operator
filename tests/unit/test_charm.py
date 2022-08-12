@@ -23,7 +23,7 @@ DEFAULT_PLAN = {
             "summary": "parca",
             "startup": "enabled",
             "override": "replace",
-            "command": "/parca --config-path=/etc/parca/parca.yaml --storage-in-memory=true --storage-active-memory=4294967296",
+            "command": "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=4294967296",
         }
     }
 }
@@ -66,13 +66,13 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.get_workload_version(), "v0.12.0")
 
     def test_config_changed_container_not_ready(self):
-        self.harness.update_config({"storage-persist": False, "memory-storage-limit": 1024})
+        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
         self.assertEqual(self.harness.charm.unit.status, WaitingStatus("waiting for container"))
 
     def test_config_changed_container_ready(self):
         self.harness.container_pebble_ready("parca")
         self.harness.set_can_connect("parca", True)
-        self.harness.update_config({"storage-persist": False, "memory-storage-limit": 1024})
+        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
 
     def test_configure(self):
@@ -102,28 +102,28 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(DEFAULT_PLAN, self.harness.charm._pebble_layer.to_dict())
 
     def test_parca_pebble_layer_adjusted_memory(self):
-        self.harness.update_config({"storage-persist": False, "memory-storage-limit": 1024})
+        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
         expected = {
             "services": {
                 "parca": {
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-in-memory=true --storage-active-memory=1073741824",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=1073741824",
                 }
             }
         }
         self.assertEqual(expected, self.harness.charm._pebble_layer.to_dict())
 
     def test_parca_pebble_layer_storage_persist(self):
-        self.harness.update_config({"storage-persist": True, "memory-storage-limit": 1024})
+        self.harness.update_config({"enable-persistence": True, "memory-storage-limit": 1024})
         expected = {
             "services": {
                 "parca": {
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-in-memory=false --storage-persist --storage-path=/var/lib/parca",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --enable-persistence --storage-path=/var/lib/parca",
                 }
             }
         }
