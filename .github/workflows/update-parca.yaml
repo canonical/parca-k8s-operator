@@ -1,0 +1,53 @@
+name: Auto-update Parca Container
+on:
+  # Manual trigger
+  workflow_dispatch:
+  # Check regularly the upstream every day at 12:00
+  schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  update-parca:
+    name: Check Parca version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Bump Parca
+        id: bump
+        run: |
+          # Define URL to scrape for package versions
+          package_url="https://github.com/parca-dev/parca/pkgs/container/parca"
+
+          # Get the later Parca container image
+          next_parca="$(curl -sL "$package_url" | grep -m1 -Po 'tag=\Kmain-[0-9a-f]{8}')"
+
+          # Bump the metadata.yaml file to the latest version
+          sed -i -e "s/main-[0-9a-f]\{8\}/$next_parca/g" metadata.yaml
+
+          # Output the next version
+          echo "::set-output name=version::$next_parca"
+
+      - uses: tibdex/github-app-token@v1
+        id: generate-token
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_KEY }}
+
+      - name: Create a PR for local changes
+        uses: peter-evans/create-pull-request@v4
+        id: cpr
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          commit-message: "chore: bump parca version to parca/${{ steps.bump.outputs.version }}"
+          committer: "Github Actions <github-actions@github.com>"
+          author: "Github Actions <github-actions@github.com>"
+          title: "Bump Parca version"
+          body: Automated action to bump to container to parca/${{ steps.bump.outputs.version }}.
+          branch: "auto-parca-${{ steps.bump.outputs.version }}"
+          delete-branch: true
+          reviewers: jnsgruk
+          assignees: jnsgruk
