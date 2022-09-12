@@ -39,6 +39,8 @@ jobs:
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: microk8s
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
       - name: Run integration tests
         run: tox -e integration
 
