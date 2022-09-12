@@ -39,8 +39,15 @@ jobs:
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: microk8s
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
+
+      # On migrating the runner base to 22.04, LXD containers were unable
+      # to access the internet.
+      # https://github.com/docker/for-linux/issues/103
+      - name: Fix iptables rules to avoid Docker/LXD clash
+        run: |
+          sudo iptables -F FORWARD
+          sudo iptables -P FORWARD ACCEPT
+
       - name: Run integration tests
         run: tox -e integration
 
