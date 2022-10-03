@@ -96,6 +96,7 @@ class ParcaOperatorCharm(CharmBase):
 
         # Try to configure Parca
         if self.container.can_connect():
+            self.container.add_layer("parca", self._pebble_layer, combine=True)
             self._configure(scrape_config)
             self.unit.status = ActiveStatus()
         else:

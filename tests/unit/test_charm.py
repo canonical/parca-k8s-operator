@@ -69,10 +69,39 @@ class TestCharm(unittest.TestCase):
         self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
         self.assertEqual(self.harness.charm.unit.status, WaitingStatus("waiting for container"))
 
-    def test_config_changed_container_ready(self):
+    def test_config_changed_persistence(self):
         self.harness.container_pebble_ready("parca")
         self.harness.set_can_connect("parca", True)
-        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
+        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
+        self.harness.update_config({"enable-persistence": True, "memory-storage-limit": 1024})
+        expected_plan = {
+            "services": {
+                "parca": {
+                    "summary": "parca",
+                    "startup": "enabled",
+                    "override": "replace",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --enable-persistence --storage-path=/var/lib/parca",
+                }
+            }
+        }
+        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), expected_plan)
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+
+    def test_config_changed_active_memory(self):
+        self.harness.container_pebble_ready("parca")
+        self.harness.set_can_connect("parca", True)
+        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 2048})
+        expected_plan = {
+            "services": {
+                "parca": {
+                    "summary": "parca",
+                    "startup": "enabled",
+                    "override": "replace",
+                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=2147483648",
+                }
+            }
+        }
+        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), expected_plan)
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
 
     def test_configure(self):
