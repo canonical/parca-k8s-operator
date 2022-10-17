@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -29,7 +29,7 @@ jobs:
           sed -i -e "s/main-[0-9a-f]\{8\}/$next_parca/g" metadata.yaml
 
           # Output the next version
-          echo "::set-output name=version::$next_parca"
+          echo "version=$next_parca" >> $GITHUB_OUTPUT
 
       - uses: tibdex/github-app-token@v1
         id: generate-token
