@@ -1,9 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:base", ":disableDependencyDashboard"],
-  "packageRules": [
+  "regexManagers": [
     {
-      "fileMatch": ["tox.ini"]
+      "fileMatch": ["^tox.ini$"],
+      "matchStrings": ["(?<depName>.*?)==(?<currentValue>.*?)\\s"],
+      "datasourceTemplate": "pypi"
     }
   ]
 }
