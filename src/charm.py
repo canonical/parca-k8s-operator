@@ -14,10 +14,7 @@ from charms.parca.v0.parca_config import (
     parca_command_line,
     parse_version,
 )
-from charms.parca.v0.parca_scrape import (
-    ProfilingEndpointConsumer,
-    ProfilingEndpointProvider,
-)
+from charms.parca.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.traefik_k8s.v1.ingress import IngressPerAppRequirer
 from lightkube.models.core_v1 import ServicePort
