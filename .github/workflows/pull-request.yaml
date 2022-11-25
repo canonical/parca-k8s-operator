@@ -9,6 +9,10 @@ on:
       - ".github/workflows/update-parca.yaml"
       - ".gitignore"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     uses: ./.github/workflows/build-and-test.yaml
