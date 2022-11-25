@@ -17,13 +17,10 @@ log_cli_level = "INFO"
 line-length = 99
 target-version = ["py38"]
 
-[tool.isort]
-profile = "black"
-
 # Linting tools configuration
 [tool.ruff]
 line-length = 99
-select = ["E", "W", "F", "C", "N", "D"]
+select = ["E", "W", "F", "C", "N", "D", "I001"]
 extend-ignore = [
     "D203",
     "D204",
