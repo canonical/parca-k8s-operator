@@ -7,5 +7,4 @@ module.exports = {
   platform: "github",
   includeForks: true,
   repositories: ["jnsgruk/parca-k8s-operator"],
-  baseBranches: ["tox-bot"],
 }
