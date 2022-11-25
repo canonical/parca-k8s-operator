@@ -3,9 +3,10 @@
   "extends": ["config:base", ":disableDependencyDashboard"],
   "regexManagers": [
     {
-      "fileMatch": ["^tox.ini$"],
-      "matchStrings": ["(?<depName>.*?)==(?<currentValue>.*?)\\s"],
-      "datasourceTemplate": "pypi"
+      "fileMatch": ["tox.ini"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+)\n\\s+(?<depName>.*?)==(?<currentValue>.*?)\\n"
+      ]
     }
   ]
 }
