@@ -83,7 +83,7 @@ class ParcaOperatorCharm(CharmBase):
         self.unit.status = ActiveStatus()
 
     def _update_status(self, _):
-        """Performed on an interval dictated by model config."""
+        """Handle the update status hook on an interval dictated by model config."""
         self.unit.set_workload_version(self.version)
 
     def _config_changed(self, _):
@@ -119,7 +119,7 @@ class ParcaOperatorCharm(CharmBase):
 
     @property
     def version(self) -> str:
-        """Reports the version of Parca."""
+        """Report the version of Parca."""
         if self.container.can_connect():
             raw_version = self._fetch_version()
             return parse_version(raw_version)
@@ -127,7 +127,7 @@ class ParcaOperatorCharm(CharmBase):
 
     @property
     def _pebble_layer(self) -> Layer:
-        """Returns a Pebble layer for Parca based on the current configuration."""
+        """Return a Pebble layer for Parca based on the current configuration."""
         return Layer(
             {
                 "services": {
