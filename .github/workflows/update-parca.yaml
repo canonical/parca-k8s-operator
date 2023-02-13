@@ -2,9 +2,9 @@ name: Auto-update Parca Container
 on:
   # Manual trigger
   workflow_dispatch:
-  # Check regularly the upstream every day at 12:00
+  # Check regularly the upstream every Monday at 12:00
   schedule:
-    - cron: "0 12 * * *"
+    - cron: "0 12 * * Mon"
 
 jobs:
   update-parca:
