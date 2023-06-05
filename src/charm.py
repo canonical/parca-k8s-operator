@@ -6,6 +6,7 @@
 
 import logging
 
+import ops
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
 from charms.parca.v0.parca_config import (
@@ -18,16 +19,11 @@ from charms.parca.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEnd
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.traefik_k8s.v1.ingress import IngressPerAppRequirer
 from lightkube.models.core_v1 import ServicePort
-from ops import pebble
-from ops.charm import CharmBase
-from ops.main import main
-from ops.model import ActiveStatus, MaintenanceStatus, WaitingStatus
-from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
 
 
-class ParcaOperatorCharm(CharmBase):
+class ParcaOperatorCharm(ops.CharmBase):
     """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
     def __init__(self, *args):
@@ -80,7 +76,7 @@ class ParcaOperatorCharm(CharmBase):
         container.add_layer("parca", self._pebble_layer, combine=True)
         container.replan()
         self.unit.set_workload_version(self.version)
-        self.unit.status = ActiveStatus()
+        self.unit.status = ops.ActiveStatus()
 
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
@@ -88,22 +84,22 @@ class ParcaOperatorCharm(CharmBase):
 
     def _config_changed(self, _):
         """Update the configuration files, restart parca."""
-        self.unit.status = MaintenanceStatus("reconfiguring parca")
+        self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
         scrape_config = self.profiling_consumer.jobs()
 
         # Try to configure Parca
         if self.container.can_connect():
             self.container.add_layer("parca", self._pebble_layer, combine=True)
             self._configure(scrape_config)
-            self.unit.status = ActiveStatus()
+            self.unit.status = ops.ActiveStatus()
         else:
-            self.unit.status = WaitingStatus("waiting for container")
+            self.unit.status = ops.WaitingStatus("waiting for container")
 
     def _on_profiling_targets_changed(self, _):
         """Update the Parca scrape configuration according to present relations."""
-        self.unit.status = MaintenanceStatus("reconfiguring parca")
+        self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
         self._configure(self.profiling_consumer.jobs())
-        self.unit.status = ActiveStatus()
+        self.unit.status = ops.ActiveStatus()
 
     def _configure(self, scrape_configs=[], *, restart=True):
         """Configure Parca in the container. Restart Parca by default."""
@@ -126,9 +122,9 @@ class ParcaOperatorCharm(CharmBase):
         return ""
 
     @property
-    def _pebble_layer(self) -> Layer:
+    def _pebble_layer(self) -> ops.pebble.Layer:
         """Return a Pebble layer for Parca based on the current configuration."""
-        return Layer(
+        return ops.pebble.Layer(
             {
                 "services": {
                     "parca": {
@@ -147,9 +143,9 @@ class ParcaOperatorCharm(CharmBase):
         try:
             stdout, _ = process.wait_output()
             return stdout
-        except pebble.ExecError as e:
+        except ops.ExecError as e:
             raise e
 
 
 if __name__ == "__main__":  # pragma: nocover
-    main(ParcaOperatorCharm)
+    ops.main(ParcaOperatorCharm)
