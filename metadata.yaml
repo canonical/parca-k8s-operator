@@ -22,7 +22,7 @@ resources:
     type: oci-image
     description: OCI image for parca
     # Included for simplicity in integration tests
-    upstream-source: ghcr.io/parca-dev/parca:main-1688964357-3b2ccd34
+    upstream-source: ghcr.io/parca-dev/parca:main-1689583711-68e90653
 
 storage:
   profiles:
