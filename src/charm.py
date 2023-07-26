@@ -17,7 +17,7 @@ from charms.parca.v0.parca_config import (
 )
 from charms.parca.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
-from charms.traefik_k8s.v1.ingress import IngressPerAppRequirer
+from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from lightkube.models.core_v1 import ServicePort
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,9 @@ class ParcaOperatorCharm(ops.CharmBase):
         # Allow Parca to provide dashboards to Grafana over a relation
         self._grafana_dashboard_provider = GrafanaDashboardProvider(self)
 
-        self._ingress = IngressPerAppRequirer(self, port=7070)
+        self._ingress = IngressPerAppRequirer(
+            self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=7070
+        )
 
         self.container = self.unit.get_container("parca")
 
