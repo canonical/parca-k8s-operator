@@ -18,7 +18,6 @@ from charms.parca.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEnd
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
-
 logger = logging.getLogger(__name__)
 
 
