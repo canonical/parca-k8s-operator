@@ -50,7 +50,7 @@ async def test_profiling_endpoint_relation(ops_test: OpsTest):
     )
 
     await asyncio.gather(
-        ops_test.model.relate(PARCA, "zinc-k8s"),
+        ops_test.model.integrate(PARCA, "zinc-k8s"),
         ops_test.model.wait_for_idle(
             apps=[PARCA],
             status="active",
@@ -84,7 +84,7 @@ async def test_metrics_endpoint_relation(ops_test: OpsTest):
     )
 
     await asyncio.gather(
-        ops_test.model.relate(f"{PARCA}:metrics-endpoint", "prometheus"),
+        ops_test.model.integrate(f"{PARCA}:metrics-endpoint", "prometheus"),
         ops_test.model.wait_for_idle(
             apps=[PARCA, "prometheus"],
             status="active",
@@ -109,7 +109,7 @@ async def test_grafana_dashboard_relation(ops_test: OpsTest):
     )
 
     await asyncio.gather(
-        ops_test.model.relate(f"{PARCA}:grafana-dashboard", "grafana"),
+        ops_test.model.integrate(f"{PARCA}:grafana-dashboard", "grafana"),
         ops_test.model.wait_for_idle(
             apps=[PARCA, "grafana"],
             status="active",

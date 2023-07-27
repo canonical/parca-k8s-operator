@@ -34,12 +34,12 @@ async def test_ingress_traefik_k8s(ops_test, parca_charm, parca_oci_image):
     )
 
     # Create the relation
-    await ops_test.model.add_relation(f"{PARCA}:ingress", TRAEFIK)
+    await ops_test.model.integrate(f"{PARCA}:ingress", TRAEFIK)
     # Wait for the two apps to quiesce
     await ops_test.model.wait_for_idle(apps=apps, status="active", timeout=1000)
 
     result = await _retrieve_proxied_endpoints(ops_test, TRAEFIK)
-    assert result.get(PARCA, None) == {"url": f"http://{ops_test.model_name}-{PARCA}.foo.bar:80/"}
+    assert result.get(PARCA, None) == {"url": f"http://{ops_test.model_name}-{PARCA}.foo.bar/"}
 
 
 async def test_ingress_functions_correctly(ops_test):
