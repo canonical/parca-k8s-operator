@@ -8,7 +8,6 @@ import logging
 
 import ops
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
-from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
 from charms.parca.v0.parca_config import (
     DEFAULT_CONFIG_PATH,
     ParcaConfig,
@@ -18,13 +17,15 @@ from charms.parca.v0.parca_config import (
 from charms.parca.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
-from lightkube.models.core_v1 import ServicePort
+
 
 logger = logging.getLogger(__name__)
 
 
 class ParcaOperatorCharm(ops.CharmBase):
     """Charmed Operator to deploy Parca - a continuous profiling tool."""
+
+    _port = 7070
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -33,10 +34,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.framework.observe(self.on.parca_pebble_ready, self._parca_pebble_ready)
         self.framework.observe(self.on.config_changed, self._config_changed)
         self.framework.observe(self.on.update_status, self._update_status)
-
-        # Patch the Kubernetes service to contain the correct port
-        port = ServicePort(7070, name=f"{self.app.name}")
-        self.service_patcher = KubernetesServicePatch(self, [port])
 
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation
@@ -47,13 +44,13 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # The metrics_endpoint_provider enables Parca to be scraped by Prometheus for metrics
         self.metrics_endpoint_provider = MetricsEndpointProvider(
-            self, jobs=[{"static_configs": [{"targets": ["*:7070"]}]}]
+            self, jobs=[{"static_configs": [{"targets": [f"*:{self._port}"]}]}]
         )
 
         # The self_profiling_endpoint_provider enables Parca to profile itself
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
-            jobs=[{"static_configs": [{"targets": ["*:7070"]}]}],
+            jobs=[{"static_configs": [{"targets": [f"*:{self._port}"]}]}],
             relation_name="self-profiling-endpoint",
         )
 
@@ -78,6 +75,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         container.add_layer("parca", self._pebble_layer, combine=True)
         container.replan()
         self.unit.set_workload_version(self.version)
+        self.unit.open_port(protocol="tcp", port=self._port)
         self.unit.status = ops.ActiveStatus()
 
     def _update_status(self, _):

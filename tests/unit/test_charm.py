@@ -46,7 +46,6 @@ SCRAPE_JOBS = [
 
 @patch("charm.ParcaOperatorCharm._fetch_version", lambda x: "p, v v0.12.0 (commit: deadbeef")
 class TestCharm(unittest.TestCase):
-    @patch("charm.KubernetesServicePatch", lambda x, y: True)
     def setUp(self):
         self.harness = Harness(ParcaOperatorCharm)
         self.addCleanup(self.harness.cleanup)
@@ -260,7 +259,6 @@ class MockExec:
 
 
 class TestVersionFetch(unittest.TestCase):
-    @patch("charm.KubernetesServicePatch", lambda x, y: True)
     def setUp(self):
         self.harness = Harness(ParcaOperatorCharm)
         self.addCleanup(self.harness.cleanup)
