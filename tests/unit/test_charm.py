@@ -9,11 +9,10 @@ from uuid import uuid4
 
 import ops.testing
 import yaml
+from charm import ParcaOperatorCharm
 from ops.model import ActiveStatus, WaitingStatus
 from ops.pebble import ExecError
 from ops.testing import Harness
-
-from charm import ParcaOperatorCharm
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
