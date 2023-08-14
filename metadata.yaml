@@ -45,3 +45,5 @@ provides:
     interface: prometheus_scrape
   self-profiling-endpoint:
     interface: parca_scrape
+  parca-store-endpoint:
+    interface: parca_store

@@ -15,6 +15,7 @@ from charms.parca.v0.parca_config import (
     parse_version,
 )
 from charms.parca.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
+from charms.parca.v0.parca_store import ParcaStoreEndpointProvider
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
@@ -58,6 +59,10 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         self._ingress = IngressPerAppRequirer(
             self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=7070
+        )
+
+        self.parca_store_endpoint = ParcaStoreEndpointProvider(
+            charm=self, port=7070, insecure=True
         )
 
         self.container = self.unit.get_container("parca")
