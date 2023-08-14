@@ -9,10 +9,11 @@ from uuid import uuid4
 
 import ops.testing
 import yaml
-from charm import ParcaOperatorCharm
 from ops.model import ActiveStatus, WaitingStatus
 from ops.pebble import ExecError
 from ops.testing import Harness
+
+from charm import ParcaOperatorCharm
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -240,6 +241,22 @@ class TestCharm(unittest.TestCase):
         expected = {
             "prometheus_scrape_unit_address": "10.10.10.10",
             "prometheus_scrape_unit_name": "parca-k8s/0",
+        }
+        self.assertEqual(unit_data, expected)
+
+    @patch("ops.model.Model.get_binding", lambda *args: MockBinding("10.10.10.10"))
+    def test_parca_store_relation(self):
+        self.harness.set_leader(True)
+        # Create a relation to an app named "parca-agent"
+        rel_id = self.harness.add_relation("parca-store-endpoint", "parca-agent")
+        # Add a parca-agent unit
+        self.harness.add_relation_unit(rel_id, "parca-agent/0")
+        # Grab the unit data from the relation
+        unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.app.name)
+        # Ensure that the unit set its targets correctly
+        expected = {
+            "remote-store-address": "10.10.10.10:7070",
+            "remote-store-insecure": "true",
         }
         self.assertEqual(unit_data, expected)
 
