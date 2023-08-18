@@ -45,7 +45,7 @@ jobs:
           commit-message: "chore: bump container version to `parca/${{ steps.bump.outputs.version }}`"
           committer: "Github Actions <github-actions@github.com>"
           author: "Github Actions <github-actions@github.com>"
-          title: "Bump Parca container to `parca/${{ steps.bump.outputs.version }}`"
+          title: "chore(deps): bump Parca container to `parca/${{ steps.bump.outputs.version }}`"
           body: Automated action to bump to container to `parca/${{ steps.bump.outputs.version }}`.
           branch: "auto-parca-${{ steps.bump.outputs.version }}"
           delete-branch: true
