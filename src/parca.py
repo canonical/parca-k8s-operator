@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # This pattern is for parsing the Parca version from the HTML page returned by Parca.
 # A bit hacky, but the API is more complex to use (gRPC) and the version string
 # reported by the Prometheus metrics is wrong at the time of writing.
-VERSION_PATTERN = re.compile('APP_VERSION="([0-9]+[.][0-9]+[.][0-9]+)"')
+VERSION_PATTERN = re.compile('APP_VERSION="v([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)"')
 
 
 class Parca:
