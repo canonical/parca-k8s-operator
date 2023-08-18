@@ -3,7 +3,6 @@
 
 import json
 import unittest
-from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -11,7 +10,6 @@ import ops.testing
 import yaml
 from charm import ParcaOperatorCharm
 from ops.model import ActiveStatus, WaitingStatus
-from ops.pebble import ExecError
 from ops.testing import Harness
 
 ops.testing.SIMULATE_CAN_CONNECT = True
@@ -44,11 +42,12 @@ SCRAPE_JOBS = [
 ]
 
 
-@patch("charm.ParcaOperatorCharm._fetch_version", lambda x: "p, v v0.12.0 (commit: deadbeef")
+@patch("parca.Parca.version", "v0.12.0")
 class TestCharm(unittest.TestCase):
     def setUp(self):
         self.harness = Harness(ParcaOperatorCharm)
         self.addCleanup(self.harness.cleanup)
+        self.harness.add_network("10.10.10.10")
         self.harness.begin()
 
     def test_pebble_ready(self):
@@ -104,7 +103,7 @@ class TestCharm(unittest.TestCase):
 
     def test_configure(self):
         self.harness.container_pebble_ready("parca")
-        self.harness.charm._configure()
+        self.harness.charm._configure_parca()
 
         config = self.harness.charm.container.pull("/etc/parca/parca.yaml")
         expected = {
@@ -115,18 +114,11 @@ class TestCharm(unittest.TestCase):
         }
         self.assertEqual(yaml.safe_load(config.read()), expected)
 
-        self.harness.charm._configure(scrape_configs=[{"foobar": "baz"}])
-        config = self.harness.charm.container.pull("/etc/parca/parca.yaml")
-        expected = {
-            "object_storage": {
-                "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
-            },
-            "scrape_configs": [{"foobar": "baz"}],
-        }
-        self.assertEqual(yaml.safe_load(config.read()), expected)
-
     def test_parca_pebble_layer_default_config(self):
-        self.assertEqual(DEFAULT_PLAN, self.harness.charm._pebble_layer.to_dict())
+        self.assertEqual(
+            DEFAULT_PLAN,
+            self.harness.charm.parca.pebble_layer(self.harness.charm.config),
+        )
 
     def test_parca_pebble_layer_adjusted_memory(self):
         self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
@@ -140,7 +132,9 @@ class TestCharm(unittest.TestCase):
                 }
             }
         }
-        self.assertEqual(expected, self.harness.charm._pebble_layer.to_dict())
+        self.assertEqual(
+            expected, self.harness.charm.parca.pebble_layer(self.harness.charm.config)
+        )
 
     def test_parca_pebble_layer_storage_persist(self):
         self.harness.update_config({"enable-persistence": True, "memory-storage-limit": 1024})
@@ -154,15 +148,13 @@ class TestCharm(unittest.TestCase):
                 }
             }
         }
-        self.assertEqual(expected, self.harness.charm._pebble_layer.to_dict())
-
-    def test_version_not_started(self):
-        vstr = self.harness.charm.version
-        self.assertEqual(vstr, "")
+        self.assertEqual(
+            expected, self.harness.charm.parca.pebble_layer(self.harness.charm.config)
+        )
 
     def test_version(self):
         self.harness.set_can_connect("parca", True)
-        vstr = self.harness.charm.version
+        vstr = self.harness.charm.parca.version
         self.assertEqual(vstr, "v0.12.0")
 
     def test_profiling_endpoint_relation(self):
@@ -223,7 +215,6 @@ class TestCharm(unittest.TestCase):
         ]
         self.assertEqual(self.harness.charm.profiling_consumer.jobs(), expected)
 
-    @patch("ops.model.Model.get_binding", lambda *args: MockBinding("10.10.10.10"))
     def test_metrics_endpoint_relation(
         self,
     ):
@@ -243,7 +234,6 @@ class TestCharm(unittest.TestCase):
         }
         self.assertEqual(unit_data, expected)
 
-    @patch("ops.model.Model.get_binding", lambda *args: MockBinding("10.10.10.10"))
     def test_parca_store_relation(self):
         self.harness.set_leader(True)
         # Create a relation to an app named "parca-agent"
@@ -258,41 +248,3 @@ class TestCharm(unittest.TestCase):
             "remote-store-insecure": "true",
         }
         self.assertEqual(unit_data, expected)
-
-
-class MockBinding:
-    def __init__(self, addr):
-        self.network = SimpleNamespace(bind_address=addr)
-
-
-class MockExec:
-    def __init__(self, stdout, stderr=""):
-        self.stdout = stdout
-        self.stderr = stderr
-
-    def wait_output(self):
-        return self.stdout, self.stderr
-
-
-class TestVersionFetch(unittest.TestCase):
-    def setUp(self):
-        self.harness = Harness(ParcaOperatorCharm)
-        self.addCleanup(self.harness.cleanup)
-        self.harness.begin()
-
-    @patch("ops.model.Container.exec")
-    def test_fetch_version_error(self, exec):
-        exec.side_effect = ExecError("foobar", 1, "", "")
-        try:
-            self.harness.charm._fetch_version()
-        except ExecError as e:
-            self.assertEqual(
-                "non-zero exit code 1 executing 'foobar', stdout='', stderr=''", str(e)
-            )
-
-    @patch("ops.model.Container.exec")
-    def test_fetch_version_success(self, exec):
-        return_str = "p, v v0.12.0 (commit: deadbeef"
-        exec.return_value = MockExec(return_str)
-        version = self.harness.charm._fetch_version()
-        self.assertEqual(version, return_str)
