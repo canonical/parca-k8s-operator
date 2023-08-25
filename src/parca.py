@@ -22,6 +22,8 @@ class Parca:
     """Class representing Parca running in a container under Pebble."""
 
     _port = 7070
+    # Seconds to wait in between requests to version endpoint
+    _version_retry_wait = 3
 
     def pebble_layer(self, config) -> dict:
         """Return a Pebble layer for Parca based on the current configuration."""
@@ -59,11 +61,10 @@ class Parca:
         while True:
             try:
                 res = urllib.request.urlopen(f"http://localhost:{self._port}")
-                text = res.read().decode()
-                m = VERSION_PATTERN.search(text)
+                m = VERSION_PATTERN.search(res.read().decode())
                 return m.groups()[0]
             except Exception:
-                if retries == 3:
-                    raise
+                if retries == 2:
+                    return ""
                 retries += 1
-                time.sleep(3)
+                time.sleep(self._version_retry_wait)
