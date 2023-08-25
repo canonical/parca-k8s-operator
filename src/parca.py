@@ -25,14 +25,14 @@ class Parca:
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
-    def pebble_layer(self, config) -> dict:
+    def pebble_layer(self, config, store_config=None) -> dict:
         """Return a Pebble layer for Parca based on the current configuration."""
         return {
             "services": {
                 "parca": {
                     "override": "replace",
                     "summary": "parca",
-                    "command": parca_command_line(config),
+                    "command": parca_command_line(app_config=config, store_config=store_config),
                     "startup": "enabled",
                 }
             },
@@ -50,10 +50,7 @@ class Parca:
     @property
     def version(self) -> str:
         """Report the version of Parca."""
-        try:
-            return self._fetch_version()
-        except Exception:
-            return ""
+        return self._fetch_version()
 
     def _fetch_version(self) -> str:
         """Fetch the version from the running workload using the Parca API."""
