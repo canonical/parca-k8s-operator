@@ -37,6 +37,8 @@ requires:
   ingress:
     interface: ingress
     limit: 1
+  external-parca-store-endpoint:
+    interface: parca_store
 
 provides:
   grafana-dashboard:

@@ -55,36 +55,60 @@ class ParcaOperatorCharm(ops.CharmBase):
         self._grafana_dashboard_provider = GrafanaDashboardProvider(self)
 
         self._ingress = IngressPerAppRequirer(
-            self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=7070
+            self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=self.parca.port
         )
 
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
             charm=self, port=7070, insecure=True
         )
 
-    def _parca_pebble_ready(self, event):
+        # Enable the option to send profiles to a remote store (i.e. Polar Signals Cloud)
+        self.framework.observe(
+            self.on.external_parca_store_endpoint_relation_changed, self._configure_remote_store
+        )
+        self.framework.observe(
+            self.on.external_parca_store_endpoint_relation_broken, self._configure_remote_store
+        )
+
+    def _parca_pebble_ready(self, _):
         """Define and start a workload using the Pebble API."""
-        # Configure Parca by writing the config file to the container
-        self._configure_parca(restart=False)
-        # Define an initial Pebble layer
-        event.workload.add_layer("parca", self.parca.pebble_layer(self.config), combine=True)
-        event.workload.replan()
-        self.unit.set_workload_version(self.parca.version)
-        self.unit.open_port(protocol="tcp", port=self.parca.port)
-        self.unit.status = ops.ActiveStatus()
+        self._configure_and_start()
+
+    def _config_changed(self, _):
+        """Update the configuration files, restart parca."""
+        self._configure_and_start()
 
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
         self.unit.set_workload_version(self.parca.version)
 
-    def _config_changed(self, _):
-        """Update the configuration files, restart parca."""
+    def _configure_and_start(self, *, update_static_config=True, remove_store=False):
+        """Start Parca having (re)configured it with the relevant jobs."""
         self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
 
-        # Try to configure Parca
         if self.container.can_connect():
-            self.container.add_layer("parca", self.parca.pebble_layer(self.config), combine=True)
-            self._configure_parca()
+            if update_static_config:
+                scrape_configs = self.profiling_consumer.jobs()
+                parca_config = self.parca.generate_config(scrape_configs)
+                self.container.push(
+                    DEFAULT_CONFIG_PATH, str(parca_config), make_dirs=True, permissions=0o644
+                )
+
+            # If we're in a relation broken event, ensure we actually remove the store config
+            store_config = {} if remove_store else self._remote_store_config
+
+            # Add an updated Pebble layer to the container
+            # Add a config hash to the layer so if the config changes, replan restarts the service
+            self.container.add_layer(
+                "parca",
+                self.parca.pebble_layer(self.config, store_config),
+                combine=True,
+            )
+
+            self.container.replan()
+
+            self.unit.set_workload_version(self.parca.version)
+            self.unit.open_port(protocol="tcp", port=self.parca.port)
             self.unit.status = ops.ActiveStatus()
         else:
             self.unit.status = ops.WaitingStatus("waiting for container")
@@ -92,21 +116,24 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _on_profiling_targets_changed(self, _):
         """Update the Parca scrape configuration according to present relations."""
         self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
-        self._configure_parca()
+        self._configure_and_start()
         self.unit.status = ops.ActiveStatus()
 
-    def _configure_parca(self, *, restart=True):
-        """Configure Parca in the container. Restart Parca by default."""
-        scrape_configs = self.profiling_consumer.jobs()
-        parca_config = self.parca.generate_config(scrape_configs)
+    def _configure_remote_store(self, event):
+        """Configure store with credentials passed over parca-external-store-endpoint relation."""
+        self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
+        remove_store = isinstance(event, ops.RelationBrokenEvent)
+        self._configure_and_start(update_static_config=False, remove_store=remove_store)
+        self.unit.status = ops.ActiveStatus()
 
-        if self.container.can_connect():
-            # TODO(jnsgruk): add user/group details when container is updated
-            self.container.push(
-                DEFAULT_CONFIG_PATH, str(parca_config), make_dirs=True, permissions=0o644
-            )
-            if self.container.get_services("parca") and restart:
-                self.container.restart("parca")
+    @property
+    def _remote_store_config(self) -> dict:
+        """Report the remote store config from the external store relation if present."""
+        if relation := self.model.get_relation("external-parca-store-endpoint"):
+            keys = ["remote-store-address", "remote-store-bearer-token", "remote-store-insecure"]
+            return {k: relation.data[relation.app].get(k, "") for k in keys}
+        else:
+            return {}
 
 
 if __name__ == "__main__":  # pragma: nocover
