@@ -48,6 +48,9 @@ class TestCharm(unittest.TestCase):
         self.harness = Harness(ParcaOperatorCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.add_network("10.10.10.10")
+        rel_id = self.harness.add_relation("parca-peers", "parca-k8s/0")
+        self.harness.add_relation_unit(rel_id, "parca-k8s/0")
+        self.maxDiff = None
         self.harness.begin()
 
     def test_pebble_ready(self):
@@ -103,7 +106,6 @@ class TestCharm(unittest.TestCase):
 
     def test_configure(self):
         self.harness.container_pebble_ready("parca")
-        self.harness.charm._configure_parca()
 
         config = self.harness.charm.container.pull("/etc/parca/parca.yaml")
         expected = {
@@ -133,7 +135,8 @@ class TestCharm(unittest.TestCase):
             }
         }
         self.assertEqual(
-            expected, self.harness.charm.parca.pebble_layer(self.harness.charm.config)
+            expected,
+            self.harness.charm.parca.pebble_layer(self.harness.charm.config),
         )
 
     def test_parca_pebble_layer_storage_persist(self):
@@ -149,7 +152,8 @@ class TestCharm(unittest.TestCase):
             }
         }
         self.assertEqual(
-            expected, self.harness.charm.parca.pebble_layer(self.harness.charm.config)
+            expected,
+            self.harness.charm.parca.pebble_layer(self.harness.charm.config),
         )
 
     def test_version(self):
@@ -248,3 +252,33 @@ class TestCharm(unittest.TestCase):
             "remote-store-insecure": "true",
         }
         self.assertEqual(unit_data, expected)
+
+    def test_parca_external_store_relation(self):
+        # Start the charm and ensure that the default pebble plan is loaded
+        self.harness.set_leader(True)
+        self.harness.container_pebble_ready("parca")
+        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
+
+        # Create a relation to an app named "parca-agent"
+        rel_id = self.harness.add_relation("external-parca-store-endpoint", "pscloud")
+        # Add a parca-agent unit
+        self.harness.add_relation_unit(rel_id, "pscloud/0")
+        expected = {
+            "remote-store-address": "grpc.polarsignals.com:443",
+            "remote-store-bearer-token": "deadbeef",
+            "remote-store-insecure": "false",
+        }
+        # Simulate the remote unit adding some data to the relation
+        self.harness.update_relation_data(rel_id, "pscloud", expected)
+        self.assertEqual(self.harness.charm._remote_store_config, expected)
+
+        # Check the Parca is started with the correct command including store flags
+        expected_command = "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
+        self.assertEqual(
+            self.harness.charm.container.get_plan().to_dict()["services"]["parca"]["command"],
+            expected_command,
+        )
+
+        # Remove the relation and ensure the plan is reverted to not include store flags
+        self.harness.remove_relation(rel_id)
+        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
