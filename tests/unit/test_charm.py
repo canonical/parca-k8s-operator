@@ -270,7 +270,7 @@ class TestCharm(unittest.TestCase):
         }
         # Simulate the remote unit adding some data to the relation
         self.harness.update_relation_data(rel_id, "pscloud", expected)
-        self.assertEqual(self.harness.charm._remote_store_config, expected)
+        self.assertEqual(self.harness.charm.store_requirer.config, expected)
 
         # Check the Parca is started with the correct command including store flags
         expected_command = "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
