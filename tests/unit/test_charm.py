@@ -48,8 +48,7 @@ class TestCharm(unittest.TestCase):
         self.harness = Harness(ParcaOperatorCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.add_network("10.10.10.10")
-        rel_id = self.harness.add_relation("parca-peers", "parca-k8s/0")
-        self.harness.add_relation_unit(rel_id, "parca-k8s/0")
+        self.harness.add_relation("parca-peers", "parca-k8s/0", unit_data={})
         self.maxDiff = None
         self.harness.begin()
 
@@ -163,23 +162,14 @@ class TestCharm(unittest.TestCase):
 
     def test_profiling_endpoint_relation(self):
         # Create a relation to an app named "profiled-app"
-        rel_id = self.harness.add_relation("profiling-endpoint", "profiled-app")
-        # Simulate that "profiled-app" has provided the data we're expecting
-        self.harness.update_relation_data(
-            rel_id,
+        self.harness.add_relation(
+            "profiling-endpoint",
             "profiled-app",
-            {
+            app_data={
                 "scrape_metadata": json.dumps(SCRAPE_METADATA),
                 "scrape_jobs": json.dumps(SCRAPE_JOBS),
             },
-        )
-        # Add a unit to the relation
-        self.harness.add_relation_unit(rel_id, "profiled-app/0")
-        # Simulate the remote unit adding its details for scraping
-        self.harness.update_relation_data(
-            rel_id,
-            "profiled-app/0",
-            {
+            unit_data={
                 "parca_scrape_unit_address": "1.1.1.1",
                 "parca_scrape_unit_name": "profiled-app/0",
             },
@@ -223,9 +213,7 @@ class TestCharm(unittest.TestCase):
         self,
     ):
         # Create a relation to an app named "prometheus"
-        rel_id = self.harness.add_relation("metrics-endpoint", "prometheus")
-        # Add a prometheus unit
-        self.harness.add_relation_unit(rel_id, "prometheus/0")
+        rel_id = self.harness.add_relation("metrics-endpoint", "prometheus", unit_data={})
         # Ugly re-init workaround: manually call `set_scrape_job_spec`
         # https://github.com/canonical/operator/issues/736
         self.harness.charm.metrics_endpoint_provider.set_scrape_job_spec()
@@ -241,9 +229,7 @@ class TestCharm(unittest.TestCase):
     def test_parca_store_relation(self):
         self.harness.set_leader(True)
         # Create a relation to an app named "parca-agent"
-        rel_id = self.harness.add_relation("parca-store-endpoint", "parca-agent")
-        # Add a parca-agent unit
-        self.harness.add_relation_unit(rel_id, "parca-agent/0")
+        rel_id = self.harness.add_relation("parca-store-endpoint", "parca-agent", unit_data={})
         # Grab the unit data from the relation
         unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.app.name)
         # Ensure that the unit set its targets correctly
@@ -259,17 +245,16 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("parca")
         self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
 
-        # Create a relation to an app named "parca-agent"
-        rel_id = self.harness.add_relation("external-parca-store-endpoint", "pscloud")
-        # Add a parca-agent unit
-        self.harness.add_relation_unit(rel_id, "pscloud/0")
         expected = {
             "remote-store-address": "grpc.polarsignals.com:443",
             "remote-store-bearer-token": "deadbeef",
             "remote-store-insecure": "false",
         }
-        # Simulate the remote unit adding some data to the relation
-        self.harness.update_relation_data(rel_id, "pscloud", expected)
+
+        # Create a relation to an app named "parca-agent"
+        rel_id = self.harness.add_relation(
+            "external-parca-store-endpoint", "pscloud", app_data=expected
+        )
         self.assertEqual(self.harness.charm.store_requirer.config, expected)
 
         # Check the Parca is started with the correct command including store flags
