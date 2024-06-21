@@ -1,4 +1,4 @@
 ops==2.14.0
-lightkube==0.15.2
+lightkube==0.15.3
 lightkube-models==1.30.0.8
 jsonschema==4.22.0
