@@ -49,3 +49,7 @@ provides:
     interface: parca_scrape
   parca-store-endpoint:
     interface: parca_store
+
+peers:
+  parca-peers:
+    interface: parca_peers
