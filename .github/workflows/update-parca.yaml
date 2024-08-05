@@ -25,8 +25,8 @@ jobs:
           # Get the later Parca container image
           next_parca="$(curl -sL "$package_url" | grep -m1 -Po 'tag=\Kmain-[0-9]{10}-[0-9a-f]{8}')"
 
-          # Bump the metadata.yaml file to the latest version
-          sed -i -e "s/main-[0-9]\{10\}-[0-9a-f]\{8\}/$next_parca/g" metadata.yaml
+          # Bump the charmcraft.yaml file to the latest version
+          sed -i -e "s/main-[0-9]\{10\}-[0-9a-f]\{8\}/$next_parca/g" charmcraft.yaml
 
           # Output the next version
           echo "version=$next_parca" >> $GITHUB_OUTPUT
