@@ -18,7 +18,7 @@ PARCA = "parca"
 async def test_deploy(ops_test: OpsTest, parca_charm, parca_oci_image):
     await asyncio.gather(
         ops_test.model.deploy(
-            parca_charm,
+            await parca_charm,
             resources={"parca-image": parca_oci_image},
             application_name=PARCA,
         ),
