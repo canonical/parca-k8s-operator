@@ -16,9 +16,11 @@ PARCA = "parca"
 
 @mark.abort_on_fail
 async def test_deploy(ops_test: OpsTest, parca_charm, parca_oci_image):
+    charm = await parca_charm
+
     await asyncio.gather(
         ops_test.model.deploy(
-            parca_charm,
+            charm,
             resources={"parca-image": parca_oci_image},
             application_name=PARCA,
         ),
