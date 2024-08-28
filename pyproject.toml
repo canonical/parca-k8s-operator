@@ -1,4 +1,31 @@
 # Testing tools configuration
+[project]
+name = "parca-k8s-operator"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+dependencies = [
+    "ops",
+    "lightkube",
+    "lightkube-models",
+    "jsonschema",
+    "pydantic < 2",
+    "cosl",
+]
+
+[project.optional-dependencies]
+dev = [
+    "cosl",
+    "coverage[toml]",
+    "juju",
+    "pydantic",
+    "pytest-operator",
+    "pytest",
+    "ruff",
+    "tenacity",
+    "sh",
+]
+
 [tool.coverage.run]
 branch = true
 
@@ -6,6 +33,7 @@ branch = true
 show_missing = true
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 minversion = "6.0"
 log_cli_level = "INFO"
 
