@@ -15,8 +15,10 @@ parts:
   charm:
     build-snaps:
       - rustup
+      - astral-uv
     override-build: |
       rustup toolchain install stable
+      make generate-requirements
       craftctl default
 
 assumes:
