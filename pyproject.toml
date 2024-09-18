@@ -9,7 +9,7 @@ dependencies = [
     "lightkube",
     "lightkube-models",
     "jsonschema",
-    "pydantic < 2",
+    "pydantic <3",
     "cosl",
 ]
 
