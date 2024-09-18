@@ -38,7 +38,7 @@ jobs:
           private_key: ${{ secrets.APP_KEY }}
 
       - name: Create a PR for local changes
-        uses: peter-evans/create-pull-request@6cd32fd93684475c31847837f87bb135d40a2b79 # v7
+        uses: peter-evans/create-pull-request@7a8aeac749996aed943101d8e7dfb0cecc06197e # v7
         id: cpr
         with:
           token: ${{ steps.generate-token.outputs.token }}
