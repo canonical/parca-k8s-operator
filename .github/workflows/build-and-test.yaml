@@ -59,7 +59,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Setup operator environment
-        uses: charmed-kubernetes/actions-operator@main
+        uses: charmed-kubernetes/actions-operator@issues/82/ubuntu-24.04-runner
         with:
           provider: microk8s
           channel: 1.28-strict/stable
