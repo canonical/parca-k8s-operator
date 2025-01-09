@@ -2,6 +2,7 @@ PROJECT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 SRC := $(PROJECT)src
 TESTS := $(PROJECT)tests
+LIB := $(PROJECT)lib
 ALL := $(SRC) $(TESTS)
 
 export PYTHONPATH = $(PROJECT):$(PROJECT)/lib:$(SRC)
@@ -31,6 +32,16 @@ unit:
 		-v \
 		-s \
 		$(ARGS)
+	uv run --all-extras \
+		coverage run \
+		--source=$(SRC) \
+		--append \
+		-m pytest \
+		--tb native \
+		--verbose \
+		--capture=no \
+		$(TESTS)/scenario \
+		$(ARGS)
 	uv run --all-extras coverage report
 
 integration:
@@ -41,3 +52,8 @@ integration:
 		--ignore=$(TESTS)/unit \
 		--log-cli-level=INFO \
 		$(ARGS)
+
+static:
+	uv run --all-extras pyright $(SRC) 
+	# TODO: uncomment when static failures in parca-operator are fixed
+	# $(LIB)
