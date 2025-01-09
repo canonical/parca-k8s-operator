@@ -24,6 +24,7 @@ dev = [
     "ruff",
     "tenacity",
     "sh",
+    "pyright",
 ]
 
 [tool.coverage.run]

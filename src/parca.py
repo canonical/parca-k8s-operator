@@ -9,6 +9,7 @@ import time
 import urllib.request
 
 from charms.parca.v0.parca_config import ParcaConfig, parca_command_line
+from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
 
@@ -25,18 +26,22 @@ class Parca:
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
-    def pebble_layer(self, config, store_config=None) -> dict:
+    def pebble_layer(self, config, store_config={}) -> Layer:
         """Return a Pebble layer for Parca based on the current configuration."""
-        return {
-            "services": {
-                "parca": {
-                    "override": "replace",
-                    "summary": "parca",
-                    "command": parca_command_line(app_config=config, store_config=store_config),
-                    "startup": "enabled",
-                }
-            },
-        }
+        return Layer(
+            {
+                "services": {
+                    "parca": {
+                        "override": "replace",
+                        "summary": "parca",
+                        "command": parca_command_line(
+                            app_config=config, store_config=store_config
+                        ),
+                        "startup": "enabled",
+                    }
+                },
+            }
+        )
 
     def generate_config(self, scrape_configs=[]):
         """Generate a Parca configuration."""
@@ -59,6 +64,8 @@ class Parca:
             try:
                 res = urllib.request.urlopen(f"http://localhost:{self._port}")
                 m = VERSION_PATTERN.search(res.read().decode())
+                if m is None:
+                    return ""
                 return m.groups()[0]
             except Exception:
                 if retries == 2:
