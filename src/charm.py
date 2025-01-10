@@ -5,7 +5,6 @@
 """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
 import logging
-from pathlib import Path
 
 import ops
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -25,12 +24,9 @@ from parca import Parca
 
 logger = logging.getLogger(__name__)
 
-CA_CERT_PATH = Path("/usr/local/share/ca-certificates/ca.crt")
-
 
 @trace_charm(
     tracing_endpoint="charm_tracing_endpoint",
-    server_cert="server_cert",
     extra_types=[
         Parca,
         ProfilingEndpointConsumer,
@@ -49,9 +45,18 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         self.container = self.unit.get_container("parca")
         self.parca = Parca()
+
+        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
+        self.framework.observe(self.on.config_changed, self._configure_and_start)
+        self.framework.observe(self.on.update_status, self._update_status)
+
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation.
         self.profiling_consumer = ProfilingEndpointConsumer(self)
+        self.framework.observe(
+            self.profiling_consumer.on.targets_changed, self._configure_and_start
+        )
+
         self._scrape_targets = [{"static_configs": [{"targets": [f"*:{self.parca.port}"]}]}]
 
         # The metrics_endpoint_provider enables Parca to be scraped by Prometheus for metrics.
@@ -82,16 +87,10 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.charm_tracing = TracingEndpointRequirer(
             self, relation_name="charm-tracing", protocols=["otlp_http"]
         )
-        self.charm_tracing_endpoint, self.server_cert = charm_tracing_config(
-            self.charm_tracing, CA_CERT_PATH
-        )
+        # TODO: pass CA path once TLS support is added
+        # https://github.com/canonical/parca-k8s-operator/issues/362
+        self.charm_tracing_endpoint, _ = charm_tracing_config(self.charm_tracing, None)
 
-        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
-        self.framework.observe(self.on.config_changed, self._configure_and_start)
-        self.framework.observe(self.on.update_status, self._update_status)
-        self.framework.observe(
-            self.profiling_consumer.on.targets_changed, self._configure_and_start
-        )
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
 
