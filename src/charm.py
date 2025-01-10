@@ -5,6 +5,7 @@
 """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
 import logging
+from pathlib import Path
 
 import ops
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -16,13 +17,30 @@ from charms.parca.v0.parca_store import (
     RemoveStoreEvent,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
+from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
 from parca import Parca
 
 logger = logging.getLogger(__name__)
 
+CA_CERT_PATH = Path("/usr/local/share/ca-certificates/ca.crt")
 
+
+@trace_charm(
+    tracing_endpoint="charm_tracing_endpoint",
+    server_cert="server_cert",
+    extra_types=[
+        Parca,
+        ProfilingEndpointConsumer,
+        MetricsEndpointProvider,
+        ProfilingEndpointProvider,
+        GrafanaDashboardProvider,
+        ParcaStoreEndpointProvider,
+        ParcaStoreEndpointRequirer,
+    ],
+)
 class ParcaOperatorCharm(ops.CharmBase):
     """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
@@ -31,18 +49,9 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         self.container = self.unit.get_container("parca")
         self.parca = Parca()
-
-        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
-        self.framework.observe(self.on.config_changed, self._configure_and_start)
-        self.framework.observe(self.on.update_status, self._update_status)
-
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation.
         self.profiling_consumer = ProfilingEndpointConsumer(self)
-        self.framework.observe(
-            self.profiling_consumer.on.targets_changed, self._configure_and_start
-        )
-
         self._scrape_targets = [{"static_configs": [{"targets": [f"*:{self.parca.port}"]}]}]
 
         # The metrics_endpoint_provider enables Parca to be scraped by Prometheus for metrics.
@@ -69,8 +78,26 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"
         )
+        # Enable charm tracing
+        self.charm_tracing = TracingEndpointRequirer(
+            self, relation_name="charm-tracing", protocols=["otlp_http"]
+        )
+        self.charm_tracing_endpoint, self.server_cert = charm_tracing_config(
+            self.charm_tracing, CA_CERT_PATH
+        )
+
+        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
+        self.framework.observe(self.on.config_changed, self._configure_and_start)
+        self.framework.observe(self.on.update_status, self._update_status)
+        self.framework.observe(
+            self.profiling_consumer.on.targets_changed, self._configure_and_start
+        )
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
+
+    ##########################
+    # === EVENT HANDLERS === #
+    ##########################
 
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
