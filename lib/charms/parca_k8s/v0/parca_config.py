@@ -21,6 +21,8 @@ yaml_config = str(ParcaConfig())
 cmd = parca_command_line(app_config)
 ```
 """
+from typing import Optional
+
 import yaml
 
 # The unique Charmhub library identifier, never change it
@@ -31,7 +33,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 
 DEFAULT_BIN_PATH = "/parca"
@@ -45,6 +47,7 @@ def parca_command_line(
     bin_path: str = DEFAULT_BIN_PATH,
     config_path: str = DEFAULT_CONFIG_PATH,
     profile_path: str = DEFAULT_PROFILE_PATH,
+    path_prefix: Optional[str] = None,
     store_config: dict = None,
 ) -> str:
     """Generate a valid Parca command line.
@@ -54,9 +57,20 @@ def parca_command_line(
         bin_path: Path to the Parca binary to be started.
         config_path: Path to the Parca YAML configuration file.
         profile_path: Path to profile storage directory.
+        path_prefix: Path prefix to configure parca server with.
         store_config: Configuration to send profiles to a remote store
     """
-    cmd = [str(bin_path), f"--config-path={config_path}"]
+    cmd = [str(bin_path),
+           f"--config-path={config_path}",
+           ]
+
+    if path_prefix:
+        if not path_prefix.startswith("/"):
+            # parca will blow up if you try this
+            raise ValueError("invalid path_prefix: should start with a slash.")
+        # quote path_prefix so we don't have to escape the slashes
+        path_prefix_option = f"--path-prefix='{path_prefix}'"
+        cmd.append(path_prefix_option)
 
     # Render the template files with the correct values
 
