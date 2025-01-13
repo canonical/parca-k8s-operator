@@ -6,7 +6,7 @@
 This library has been transferred to the `parca-k8s` charm.
 If you are using this library, please replace it with the new one:
 
-    charmcraft fetch-lib charms.parca-k8s.v0.parca_config
+    charmcraft fetch-lib charms.parca_k8s.v0.parca_config
 """
 
 # The unique Charmhub library identifier, never change it
@@ -22,5 +22,5 @@ LIBPATCH = 6
 
 raise ImportError(
     "This library has been migrated to the `parca-k8s` charm. "
-    "Delete it and replace it with the equivalent `charms.parca-k8s.v0.parca_config`."
+    "Delete it and replace it with the equivalent `charms.parca_k8s.v0.parca_config`."
 )
