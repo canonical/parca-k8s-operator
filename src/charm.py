@@ -8,9 +8,9 @@ import logging
 
 import ops
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
-from charms.parca.v0.parca_config import DEFAULT_CONFIG_PATH as CONFIG_PATH
-from charms.parca.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
-from charms.parca.v0.parca_store import (
+from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH as CONFIG_PATH
+from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
+from charms.parca_k8s.v0.parca_store import (
     ParcaStoreEndpointProvider,
     ParcaStoreEndpointRequirer,
     RemoveStoreEvent,
