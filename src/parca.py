@@ -27,7 +27,7 @@ class Parca:
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
-    def pebble_layer(self, config, store_config=None, path_prefix:Optional[str]=None) -> Layer:
+    def pebble_layer(self, config, store_config=None, path_prefix: Optional[str] = None) -> Layer:
         """Return a Pebble layer for Parca based on the current configuration."""
         return Layer(
             {
@@ -38,7 +38,7 @@ class Parca:
                         "command": parca_command_line(
                             app_config=config,
                             store_config=store_config or {},
-                            path_prefix=path_prefix
+                            path_prefix=path_prefix,
                         ),
                         "startup": "enabled",
                     }

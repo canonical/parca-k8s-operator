@@ -752,6 +752,24 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/34/db/3f9884051be5df318e3f1d9e67737295b34d045a135147de8a49afa88f9b/ops-2.17.1-py3-none-any.whl", hash = "sha256:0fabc45740d59619c3265328f51f71f99b06557e22493cdd32d10c2b25bcd553", size = 176831 },
 ]
 
+[package.optional-dependencies]
+testing = [
+    { name = "ops-scenario" },
+]
+
+[[package]]
+name = "ops-scenario"
+version = "7.0.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ops" },
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1b/ee/59323da3ea693f6e1001f30c600dcd5cdb7703c5b79a684c3379327bf8f9/ops_scenario-7.0.5.tar.gz", hash = "sha256:7ef7af6d026a29f93d54f394f6757170317a85cbfa755dab1303b94610a29b82", size = 260175 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/94/aa9b6f5cce795583820c4bbffa50df5c4245095b92e075930f4cb42b0021/ops_scenario-7.0.5-py3-none-any.whl", hash = "sha256:9f06c1989a62181e4952cbfe2002cbaa1290dc1d203245a6b1ce2f96e132615b", size = 74106 },
+]
+
 [[package]]
 name = "packaging"
 version = "24.2"
@@ -793,6 +811,7 @@ dev = [
     { name = "cosl" },
     { name = "coverage", extra = ["toml"] },
     { name = "juju" },
+    { name = "ops", extra = ["testing"] },
     { name = "pydantic" },
     { name = "pyright" },
     { name = "pytest" },
@@ -812,6 +831,7 @@ requires-dist = [
     { name = "lightkube" },
     { name = "lightkube-models" },
     { name = "ops" },
+    { name = "ops", extras = ["testing"], marker = "extra == 'dev'" },
     { name = "pydantic", specifier = "<3" },
     { name = "pydantic", marker = "extra == 'dev'" },
     { name = "pyright", marker = "extra == 'dev'" },

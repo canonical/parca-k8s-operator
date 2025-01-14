@@ -25,6 +25,7 @@ dev = [
     "tenacity",
     "sh",
     "pyright",
+    "ops[testing]"
 ]
 
 [tool.coverage.run]

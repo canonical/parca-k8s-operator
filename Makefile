@@ -32,16 +32,6 @@ unit:
 		-v \
 		-s \
 		$(ARGS)
-	uv run --all-extras \
-		coverage run \
-		--source=$(SRC) \
-		--append \
-		-m pytest \
-		--tb native \
-		--verbose \
-		--capture=no \
-		$(TESTS)/scenario \
-		$(ARGS)
 	uv run --all-extras coverage report
 
 integration:

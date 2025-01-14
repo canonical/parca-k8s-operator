@@ -74,12 +74,16 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
 
+        # ensure we reconfigure on ingress changes, so that the path-prefix is updated
+        self.framework.observe(self.ingress.on.ready, self._configure_and_start)
+        self.framework.observe(self.ingress.on.revoked, self._configure_and_start)
+
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
         self.unit.set_workload_version(self.parca.version)
 
     @property
-    def _external_url_path(self)->Optional[str]:
+    def _external_url_path(self) -> Optional[str]:
         """The path part of our external url if we are ingressed, else None.
 
         This is used to configure the parca server so it can resolve its internal links.
@@ -104,8 +108,9 @@ class ParcaOperatorCharm(ops.CharmBase):
 
             # Add an updated Pebble layer to the container
             # Add a config hash to the layer so if the config changes, replan restarts the service
-            layer = self.parca.pebble_layer(self.config, store_conf,
-                                            path_prefix=self._external_url_path)
+            layer = self.parca.pebble_layer(
+                self.config, store_conf, path_prefix=self._external_url_path
+            )
             self.container.add_layer("parca", layer, combine=True)
             self.container.replan()
 
