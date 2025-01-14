@@ -91,7 +91,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         if not self.ingress.is_ready():
             return None
         external_url = urlparse(self.ingress.url)
-        return external_url.path or None
+        return str(external_url.path) or None
 
     def _configure_and_start(self, event):
         """Start Parca having (re)configured it with the relevant jobs."""
