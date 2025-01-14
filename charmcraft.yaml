@@ -50,7 +50,12 @@ requires:
     limit: 1
   external-parca-store-endpoint:
     interface: parca_store
-
+  charm-tracing:
+    description: |
+      Enables sending charm traces to a distributed tracing backend such as Tempo.
+    limit: 1
+    interface: tracing
+    
 provides:
   grafana-dashboard:
     interface: grafana_dashboard

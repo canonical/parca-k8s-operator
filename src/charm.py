@@ -16,6 +16,8 @@ from charms.parca_k8s.v0.parca_store import (
     RemoveStoreEvent,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
+from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
 from parca import Parca
@@ -23,6 +25,18 @@ from parca import Parca
 logger = logging.getLogger(__name__)
 
 
+@trace_charm(
+    tracing_endpoint="charm_tracing_endpoint",
+    extra_types=[
+        Parca,
+        ProfilingEndpointConsumer,
+        MetricsEndpointProvider,
+        ProfilingEndpointProvider,
+        GrafanaDashboardProvider,
+        ParcaStoreEndpointProvider,
+        ParcaStoreEndpointRequirer,
+    ],
+)
 class ParcaOperatorCharm(ops.CharmBase):
     """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
@@ -69,8 +83,20 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"
         )
+        # Enable charm tracing
+        self.charm_tracing = TracingEndpointRequirer(
+            self, relation_name="charm-tracing", protocols=["otlp_http"]
+        )
+        # TODO: pass CA path once TLS support is added
+        # https://github.com/canonical/parca-k8s-operator/issues/362
+        self.charm_tracing_endpoint, _ = charm_tracing_config(self.charm_tracing, None)
+
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
+
+    ##########################
+    # === EVENT HANDLERS === #
+    ##########################
 
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
