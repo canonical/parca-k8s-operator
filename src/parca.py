@@ -8,7 +8,7 @@ import re
 import time
 import urllib.request
 
-from charms.parca.v0.parca_config import ParcaConfig, parca_command_line
+from charms.parca_k8s.v0.parca_config import ParcaConfig, parca_command_line
 from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
