@@ -117,6 +117,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         if not self.ingress.is_ready():
             return None
         external_url = urlparse(self.ingress.url)
+        # external_url.path already includes a trailing /
         return str(external_url.path) or None
 
     def _configure_and_start(self, event):

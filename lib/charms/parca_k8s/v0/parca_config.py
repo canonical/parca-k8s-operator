@@ -57,7 +57,7 @@ def parca_command_line(
         bin_path: Path to the Parca binary to be started.
         config_path: Path to the Parca YAML configuration file.
         profile_path: Path to profile storage directory.
-        path_prefix: Path prefix to configure parca server with.
+        path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
     """
     cmd = [str(bin_path),
