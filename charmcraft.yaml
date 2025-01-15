@@ -43,6 +43,9 @@ storage:
     type: filesystem
 
 requires:
+  catalogue:
+    interface: catalogue
+    description: Display parca entry in the COS catalogue frontend.
   profiling-endpoint:
     interface: parca_scrape
   ingress:

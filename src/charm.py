@@ -79,7 +79,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self,
             item=CatalogueItem(
                 "Parca UI",
-                icon="bar-chart",
+                icon="apm-trace",
                 url=self.external_url,
                 description="""Continuous profiling backend. Allows you to collect, store,
                  query and visualize profiles from your distributed deployment.""",
