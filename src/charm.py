@@ -8,6 +8,7 @@ import logging
 
 import ops
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
+from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH as CONFIG_PATH
 from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.parca_k8s.v0.parca_store import (
@@ -90,6 +91,10 @@ class ParcaOperatorCharm(ops.CharmBase):
         # TODO: pass CA path once TLS support is added
         # https://github.com/canonical/parca-k8s-operator/issues/362
         self.charm_tracing_endpoint, _ = charm_tracing_config(self.charm_tracing, None)
+
+        self.grafana_source_provider = GrafanaSourceProvider(
+            self, source_type="parca", source_port=str(self.parca.port)
+        )
 
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
