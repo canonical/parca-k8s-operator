@@ -5,8 +5,11 @@
 """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
 import logging
+import socket
 
 import ops
+
+from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH as CONFIG_PATH
 from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
@@ -19,7 +22,6 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
-
 from parca import Parca
 
 logger = logging.getLogger(__name__)
@@ -73,6 +75,22 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.ingress = IngressPerAppRequirer(
             self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=self.parca.port
         )
+        name = "Grafana",
+        url = self.external_url,
+        description = (
+            "Grafana allows you to query, visualize, alert on, and "
+            "visualize metrics from mixed datasources in configurable "
+            "dashboards for observability."
+        ),
+
+        self.catalogue = CatalogueConsumer(
+            self,
+            item=CatalogueItem(
+                "Parca UI",
+                icon="bar-chart",
+                url=self.external_url,
+                description="""Continuous profiling backend. Allows you to collect, store,  
+                query and visualize profiles from your distributed deployment."""))
 
         # Enable Parca agents or Parca servers to use this instance as a store.
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
@@ -93,6 +111,25 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
+
+    @property
+    def _scheme(self) -> str:
+        # TODO: replace with this when integrating TLS
+        # return "https" if self.cert_handler.cert else "http"
+        return "http"
+
+    @property
+    def internal_url(self) -> str:
+        """Return workload's internal URL.
+
+        Used for ingress."""
+        return f"{self._scheme}://{socket.getfqdn()}:{self.parca.port}"
+
+    @property
+    def external_url(self) -> str:
+        """Return the external hostname if configured, else the internal one."""
+        return self.ingress.url or self.internal_url
+
 
     ##########################
     # === EVENT HANDLERS === #
