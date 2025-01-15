@@ -5,10 +5,12 @@
 """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
 import logging
+import socket
 from typing import Optional
 from urllib.parse import urlparse
 
 import ops
+from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH as CONFIG_PATH
@@ -76,6 +78,16 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.ingress = IngressPerAppRequirer(
             self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=self.parca.port
         )
+        self.catalogue = CatalogueConsumer(
+            self,
+            item=CatalogueItem(
+                "Parca UI",
+                icon="chart-areaspline",
+                url=self.external_url,
+                description="""Continuous profiling backend. Allows you to collect, store,
+                 query and visualize profiles from your distributed deployment.""",
+            ),
+        )
 
         # Enable Parca agents or Parca servers to use this instance as a store.
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
@@ -104,6 +116,25 @@ class ParcaOperatorCharm(ops.CharmBase):
         # ensure we reconfigure on ingress changes, so that the path-prefix is updated
         self.framework.observe(self.ingress.on.ready, self._configure_and_start)
         self.framework.observe(self.ingress.on.revoked, self._configure_and_start)
+
+    @property
+    def _scheme(self) -> str:
+        # TODO: replace with this when integrating TLS
+        # return "https" if self.cert_handler.cert else "http"
+        return "http"
+
+    @property
+    def internal_url(self) -> str:
+        """Return workload's internal URL.
+
+        Used for ingress.
+        """
+        return f"{self._scheme}://{socket.getfqdn()}:{self.parca.port}"
+
+    @property
+    def external_url(self) -> str:
+        """Return the external hostname if configured, else the internal one."""
+        return self.ingress.url or self.internal_url
 
     ##########################
     # === EVENT HANDLERS === #
