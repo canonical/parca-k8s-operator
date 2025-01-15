@@ -5,6 +5,8 @@
 """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
 import logging
+from typing import Optional
+from urllib.parse import urlparse
 
 import ops
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -99,6 +101,10 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
 
+        # ensure we reconfigure on ingress changes, so that the path-prefix is updated
+        self.framework.observe(self.ingress.on.ready, self._configure_and_start)
+        self.framework.observe(self.ingress.on.revoked, self._configure_and_start)
+
     ##########################
     # === EVENT HANDLERS === #
     ##########################
@@ -107,13 +113,25 @@ class ParcaOperatorCharm(ops.CharmBase):
         """Handle the update status hook on an interval dictated by model config."""
         self.unit.set_workload_version(self.parca.version)
 
+    @property
+    def _external_url_path(self) -> Optional[str]:
+        """The path part of our external url if we are ingressed, else None.
+
+        This is used to configure the parca server so it can resolve its internal links.
+        """
+        if not self.ingress.is_ready():
+            return None
+        external_url = urlparse(self.ingress.url)
+        # external_url.path already includes a trailing /
+        return str(external_url.path) or None
+
     def _configure_and_start(self, event):
         """Start Parca having (re)configured it with the relevant jobs."""
         self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
 
         if self.container.can_connect():
             # Grab the scrape configs and push a generated config file into the container
-            # Parca will automatically reload it's config on changes
+            # Parca will automatically reload its config on changes
             config = self.parca.generate_config(self.profiling_consumer.jobs())
             self.container.push(CONFIG_PATH, str(config), make_dirs=True, permissions=0o644)
 
@@ -122,7 +140,9 @@ class ParcaOperatorCharm(ops.CharmBase):
 
             # Add an updated Pebble layer to the container
             # Add a config hash to the layer so if the config changes, replan restarts the service
-            layer = self.parca.pebble_layer(self.config, store_conf)
+            layer = self.parca.pebble_layer(
+                self.config, store_conf, path_prefix=self._external_url_path
+            )
             self.container.add_layer("parca", layer, combine=True)
             self.container.replan()
 
