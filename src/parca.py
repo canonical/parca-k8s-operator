@@ -7,6 +7,7 @@ import logging
 import re
 import time
 import urllib.request
+from typing import Optional
 
 from charms.parca_k8s.v0.parca_config import ParcaConfig, parca_command_line
 from ops.pebble import Layer
@@ -26,7 +27,7 @@ class Parca:
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
-    def pebble_layer(self, config, store_config={}) -> Layer:
+    def pebble_layer(self, config, store_config=None, path_prefix: Optional[str] = None) -> Layer:
         """Return a Pebble layer for Parca based on the current configuration."""
         return Layer(
             {
@@ -35,7 +36,9 @@ class Parca:
                         "override": "replace",
                         "summary": "parca",
                         "command": parca_command_line(
-                            app_config=config, store_config=store_config
+                            app_config=config,
+                            store_config=store_config or {},
+                            path_prefix=path_prefix,
                         ),
                         "startup": "enabled",
                     }

@@ -62,6 +62,8 @@ requires:
 provides:
   grafana-dashboard:
     interface: grafana_dashboard
+  grafana-source:
+    interface: grafana_datasource
   metrics-endpoint:
     interface: prometheus_scrape
   self-profiling-endpoint:
