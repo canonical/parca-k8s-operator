@@ -70,7 +70,7 @@ provides:
   grafana-source:
     interface: grafana_datasource
     description: |
-      This integration configures this parca server as a grafana datasource on a grafana instance.
+      This integration configures this parca server as a datasource on a grafana instance.
   metrics-endpoint:
     interface: prometheus_scrape
     description: |
