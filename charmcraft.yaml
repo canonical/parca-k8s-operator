@@ -45,11 +45,17 @@ storage:
 requires:
   profiling-endpoint:
     interface: parca_scrape
+    description: |
+      Integration to configure parca to scrape a profiling endpoint from a related charm.
   ingress:
     interface: ingress
     limit: 1
+    description: |
+      Expose parca's UI and push API endpoint over an ingress.
   external-parca-store-endpoint:
     interface: parca_store
+    description: |
+      Push profiles from this parca server to a remote parca server.
   charm-tracing:
     description: |
       Enables sending charm traces to a distributed tracing backend such as Tempo.
@@ -59,14 +65,24 @@ requires:
 provides:
   grafana-dashboard:
     interface: grafana_dashboard
+    description: |
+      This integration provisions a grafana dashboard to monitor this charm.
   grafana-source:
     interface: grafana_datasource
+    description: |
+      This integration configures this parca server as a grafana datasource on a grafana instance.
   metrics-endpoint:
     interface: prometheus_scrape
+    description: |
+      Endpoint to allow prometheus metrics to be scraped from this parca instance.
   self-profiling-endpoint:
     interface: parca_scrape
+    description: |
+      The profiling endpoint at which profiles for this parca instance are served.
   parca-store-endpoint:
     interface: parca_store
+    description: |
+      Endpoint at which profiles can be pushed by, for example, a remote parca server or parca-agent.
 
 peers:
   parca-peers:
