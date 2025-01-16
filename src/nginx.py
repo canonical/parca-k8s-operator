@@ -33,23 +33,24 @@ class Address:
 
 class Nginx:
     """Nginx workload."""
-
+    port = NGINX_PORT
     _name = "nginx"
     config_path = NGINX_CONFIG
 
-    def __init__(self, container: Container, server_name: str, address: Address):
+    def __init__(self, container: Container, server_name: str, address: Address, path_prefix: Optional[str] = None):
         self._container = container
         self._server_name = server_name
+        self._path_prefix = path_prefix
         self._address = address
 
     @property
     def are_certificates_on_disk(self) -> bool:
         """Return True if the certificates files are on disk."""
         return (
-            self._container.can_connect()
-            and self._container.exists(CERT_PATH)
-            and self._container.exists(KEY_PATH)
-            and self._container.exists(CA_CERT_PATH)
+                self._container.can_connect()
+                and self._container.exists(CERT_PATH)
+                and self._container.exists(KEY_PATH)
+                and self._container.exists(CA_CERT_PATH)
         )
 
     def configure_tls(self, private_key: str, server_cert: str, ca_cert: str) -> None:
@@ -69,9 +70,9 @@ class Nginx:
             )
 
             if (
-                current_server_cert == server_cert
-                and current_private_key == private_key
-                and current_ca_cert == ca_cert
+                    current_server_cert == server_cert
+                    and current_private_key == private_key
+                    and current_ca_cert == ca_cert
             ):
                 # No update needed
                 return
@@ -126,7 +127,9 @@ class Nginx:
     def configure_pebble_layer(self) -> None:
         """Configure pebble layer."""
         if self._container.can_connect():
-            new_config = NginxConfig(self._server_name, self.are_certificates_on_disk).config(
+            new_config = NginxConfig(self._server_name,
+                                     self.are_certificates_on_disk,
+                                     path_prefix=self._path_prefix).config(
                 self._address
             )
             should_restart: bool = self._has_config_changed(new_config)
@@ -159,16 +162,13 @@ class Nginx:
 
 class NginxPrometheusExporter:
     """Nginx prometheus exporter."""
+    port = NGINX_PROMETHEUS_EXPORTER_PORT
 
     def __init__(
-        self,
-        container: Container,
-        nginx_port: int = NGINX_PORT,
-        port: int = NGINX_PROMETHEUS_EXPORTER_PORT,
+            self,
+            container: Container,
     ) -> None:
         self._container = container
-        self.port = port
-        self._nginx_port = nginx_port
 
     def configure_pebble_layer(self) -> None:
         """Configure pebble layer."""
@@ -180,10 +180,10 @@ class NginxPrometheusExporter:
     def are_certificates_on_disk(self) -> bool:
         """Return True if the certificates files are on disk."""
         return (
-            self._container.can_connect()
-            and self._container.exists(CERT_PATH)
-            and self._container.exists(KEY_PATH)
-            and self._container.exists(CA_CERT_PATH)
+                self._container.can_connect()
+                and self._container.exists(CERT_PATH)
+                and self._container.exists(KEY_PATH)
+                and self._container.exists(CA_CERT_PATH)
         )
 
     @property
@@ -199,7 +199,7 @@ class NginxPrometheusExporter:
                         "override": "replace",
                         "summary": "nginx prometheus exporter",
                         "command": f"nginx-prometheus-exporter --no-nginx.ssl-verify --web.listen-address=:{self.port}  "
-                        f"--nginx.scrape-uri={scheme}://127.0.0.1:{self._nginx_port}/status",
+                                   f"--nginx.scrape-uri={scheme}://127.0.0.1:{NGINX_PORT}/status",
                         "startup": "enabled",
                     }
                 },
@@ -210,9 +210,11 @@ class NginxPrometheusExporter:
 class NginxConfig:
     """Nginx config builder."""
 
-    def __init__(self, server_name: str, tls: bool):
+    def __init__(self, server_name: str, tls: bool,
+                 path_prefix: Optional[str] = None):
         self._tls = tls
         self.server_name = server_name
+        self._path_prefix = path_prefix
         self.dns_IP_address = _get_dns_ip_address()
 
     def config(self, address: Address) -> str:
@@ -306,7 +308,7 @@ class NginxConfig:
                 {
                     "directive": "server",
                     "args": [
-                        f"localhost:{address.port}",
+                        f"127.0.0.1:{address.port}",
                         # TODO: uncomment the below arg when nginx version >= 1.27.3
                         #  "resolve"
                     ],
@@ -315,31 +317,50 @@ class NginxConfig:
         }
 
     def _locations(self, upstream: str, tls: bool) -> List[Dict[str, Any]]:
-        s = "s" if tls else ""
-        protocol = f"http{s}"
+        prefix = self._path_prefix  # starts with /
+
+        protocol = f"http{'s' if tls else ''}"
+        proxy_block = [
+            {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}/"]},
+            {
+                "directive": "proxy_pass",
+                "args": ["$backend"],
+            },
+            # if a server is down, no need to wait for a long time to pass on
+            # the request to the next available one
+            {
+                "directive": "proxy_connect_timeout",
+                "args": ["5s"],
+            },
+        ]
+        redirect_block = [
+            {
+                "directive": "return",
+                "args": ["302", prefix],
+            }
+        ]
         nginx_locations = [
             {
                 "directive": "location",
                 "args": ["/"],
-                "block": [
-                    {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
-                    {
-                        "directive": "proxy_pass",
-                        "args": ["$backend"],
-                    },
-                    # if a server is down, no need to wait for a long time to pass on the request to the next available server
-                    {
-                        "directive": "proxy_connect_timeout",
-                        "args": ["5s"],
-                    },
-                ],
+                "block": redirect_block,
+            },
+            {
+                "directive": "location",
+                "args": [prefix],
+                "block": proxy_block,
+            },
+            {
+                "directive": "location",
+                "args": [prefix + "/"],
+                "block": redirect_block,
             }
         ]
         return nginx_locations
 
     def _resolver(
-        self,
-        custom_resolver: Optional[str] = None,
+            self,
+            custom_resolver: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         # pass a custom resolver, such as kube-dns.kube-system.svc.cluster.local.
         if custom_resolver:
@@ -365,20 +386,13 @@ class NginxConfig:
         return []
 
     def _listen(self, port: int, ssl: bool) -> List[Dict[str, Any]]:
-        directives = []
-        directives.append({"directive": "listen", "args": self._listen_args(port, False, ssl)})
-        directives.append({"directive": "listen", "args": self._listen_args(port, True, ssl)})
+        directives = [
+            {"directive": "listen", "args": [f"{port}"] + (["ssl"] if ssl else [])
+             },
+            {"directive": "listen", "args": [f"[::]:{port}"] + (["ssl"] if ssl else [])
+             }
+        ]
         return directives
-
-    def _listen_args(self, port: int, ipv6: bool, ssl: bool) -> List[str]:
-        args = []
-        if ipv6:
-            args.append(f"[::]:{port}")
-        else:
-            args.append(f"{port}")
-        if ssl:
-            args.append("ssl")
-        return args
 
     def _build_server_config(self, port: int, upstream: str, tls: bool = False) -> Dict[str, Any]:
         auth_enabled = False

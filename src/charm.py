@@ -10,6 +10,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import ops
+
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
@@ -24,8 +25,7 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
-
-from nginx import Address, Nginx, NginxPrometheusExporter
+from nginx import Address, Nginx, NginxPrometheusExporter, NGINX_PORT
 from parca import Parca
 
 logger = logging.getLogger(__name__)
@@ -48,17 +48,9 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.unit.set_ports(8080, 7070)
         self.container = self.unit.get_container("parca")
         self.parca = Parca()
-        self.nginx = Nginx(
-            container=self.unit.get_container("nginx"),
-            server_name=socket.getfqdn(),
-            address=Address(name="parca", port=self.parca.port),
-        )
-        self.nginx_exporter = NginxPrometheusExporter(
-            container=self.unit.get_container("nginx-prometheus-exporter"),
-        )
-
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation.
         self.profiling_consumer = ProfilingEndpointConsumer(self)
@@ -66,7 +58,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.profiling_consumer.on.targets_changed, self._configure_and_start
         )
 
-        self._scrape_targets = [{"static_configs": [{"targets": [f"*:{self.parca.port}"]}]}]
+        self._scrape_targets = [{"static_configs": [{"targets": [f"*:{NGINX_PORT}"]}]}]
 
         # The metrics_endpoint_provider enables Parca to be scraped by Prometheus for metrics.
         self.metrics_endpoint_provider = MetricsEndpointProvider(self, jobs=self._scrape_targets)
@@ -80,8 +72,19 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
 
         self.ingress = IngressPerAppRequirer(
-            self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=self.parca.port
+            self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=NGINX_PORT
         )
+        # this needs to be instantiated after `ingress` is
+        self.nginx = Nginx(
+            container=self.unit.get_container("nginx"),
+            server_name=socket.getfqdn(),
+            address=Address(name="parca", port=self.parca.port),
+            path_prefix=self._external_url_path
+        )
+        self.nginx_exporter = NginxPrometheusExporter(
+            container=self.unit.get_container("nginx-prometheus-exporter"),
+        )
+
         self.catalogue = CatalogueConsumer(
             self,
             item=CatalogueItem(
@@ -198,7 +201,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.container.replan()
 
             self.unit.set_workload_version(self.parca.version)
-            self.unit.open_port(protocol="tcp", port=self.parca.port)
             self.unit.status = ops.ActiveStatus()
         else:
             self.unit.status = ops.WaitingStatus("waiting for container")
