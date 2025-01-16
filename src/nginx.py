@@ -33,11 +33,18 @@ class Address:
 
 class Nginx:
     """Nginx workload."""
+
     port = NGINX_PORT
     _name = "nginx"
     config_path = NGINX_CONFIG
 
-    def __init__(self, container: Container, server_name: str, address: Address, path_prefix: Optional[str] = None):
+    def __init__(
+        self,
+        container: Container,
+        server_name: str,
+        address: Address,
+        path_prefix: Optional[str] = None,
+    ):
         self._container = container
         self._server_name = server_name
         self._path_prefix = path_prefix
@@ -47,10 +54,10 @@ class Nginx:
     def are_certificates_on_disk(self) -> bool:
         """Return True if the certificates files are on disk."""
         return (
-                self._container.can_connect()
-                and self._container.exists(CERT_PATH)
-                and self._container.exists(KEY_PATH)
-                and self._container.exists(CA_CERT_PATH)
+            self._container.can_connect()
+            and self._container.exists(CERT_PATH)
+            and self._container.exists(KEY_PATH)
+            and self._container.exists(CA_CERT_PATH)
         )
 
     def configure_tls(self, private_key: str, server_cert: str, ca_cert: str) -> None:
@@ -70,9 +77,9 @@ class Nginx:
             )
 
             if (
-                    current_server_cert == server_cert
-                    and current_private_key == private_key
-                    and current_ca_cert == ca_cert
+                current_server_cert == server_cert
+                and current_private_key == private_key
+                and current_ca_cert == ca_cert
             ):
                 # No update needed
                 return
@@ -127,11 +134,9 @@ class Nginx:
     def configure_pebble_layer(self) -> None:
         """Configure pebble layer."""
         if self._container.can_connect():
-            new_config = NginxConfig(self._server_name,
-                                     self.are_certificates_on_disk,
-                                     path_prefix=self._path_prefix).config(
-                self._address
-            )
+            new_config = NginxConfig(
+                self._server_name, self.are_certificates_on_disk, path_prefix=self._path_prefix
+            ).config(self._address)
             should_restart: bool = self._has_config_changed(new_config)
             self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
             self._container.add_layer("nginx", self.layer, combine=True)
@@ -162,11 +167,12 @@ class Nginx:
 
 class NginxPrometheusExporter:
     """Nginx prometheus exporter."""
+
     port = NGINX_PROMETHEUS_EXPORTER_PORT
 
     def __init__(
-            self,
-            container: Container,
+        self,
+        container: Container,
     ) -> None:
         self._container = container
 
@@ -180,10 +186,10 @@ class NginxPrometheusExporter:
     def are_certificates_on_disk(self) -> bool:
         """Return True if the certificates files are on disk."""
         return (
-                self._container.can_connect()
-                and self._container.exists(CERT_PATH)
-                and self._container.exists(KEY_PATH)
-                and self._container.exists(CA_CERT_PATH)
+            self._container.can_connect()
+            and self._container.exists(CERT_PATH)
+            and self._container.exists(KEY_PATH)
+            and self._container.exists(CA_CERT_PATH)
         )
 
     @property
@@ -199,7 +205,7 @@ class NginxPrometheusExporter:
                         "override": "replace",
                         "summary": "nginx prometheus exporter",
                         "command": f"nginx-prometheus-exporter --no-nginx.ssl-verify --web.listen-address=:{self.port}  "
-                                   f"--nginx.scrape-uri={scheme}://127.0.0.1:{NGINX_PORT}/status",
+                        f"--nginx.scrape-uri={scheme}://127.0.0.1:{NGINX_PORT}/status",
                         "startup": "enabled",
                     }
                 },
@@ -210,8 +216,7 @@ class NginxPrometheusExporter:
 class NginxConfig:
     """Nginx config builder."""
 
-    def __init__(self, server_name: str, tls: bool,
-                 path_prefix: Optional[str] = None):
+    def __init__(self, server_name: str, tls: bool, path_prefix: Optional[str] = None):
         self._tls = tls
         self.server_name = server_name
         self._path_prefix = path_prefix
@@ -321,7 +326,7 @@ class NginxConfig:
 
         protocol = f"http{'s' if tls else ''}"
         proxy_block = [
-            {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}/"]},
+            {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
             {
                 "directive": "proxy_pass",
                 "args": ["$backend"],
@@ -343,24 +348,22 @@ class NginxConfig:
             {
                 "directive": "location",
                 "args": ["/"],
-                "block": redirect_block,
+                "block": redirect_block if prefix else proxy_block,
             },
-            {
-                "directive": "location",
-                "args": [prefix],
-                "block": proxy_block,
-            },
-            {
-                "directive": "location",
-                "args": [prefix + "/"],
-                "block": redirect_block,
-            }
         ]
+        if prefix:
+            nginx_locations.append(
+                {
+                    "directive": "location",
+                    "args": [prefix],
+                    "block": proxy_block,
+                }
+            )
         return nginx_locations
 
     def _resolver(
-            self,
-            custom_resolver: Optional[str] = None,
+        self,
+        custom_resolver: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         # pass a custom resolver, such as kube-dns.kube-system.svc.cluster.local.
         if custom_resolver:
@@ -387,10 +390,8 @@ class NginxConfig:
 
     def _listen(self, port: int, ssl: bool) -> List[Dict[str, Any]]:
         directives = [
-            {"directive": "listen", "args": [f"{port}"] + (["ssl"] if ssl else [])
-             },
-            {"directive": "listen", "args": [f"[::]:{port}"] + (["ssl"] if ssl else [])
-             }
+            {"directive": "listen", "args": [f"{port}"] + (["ssl"] if ssl else [])},
+            {"directive": "listen", "args": [f"[::]:{port}"] + (["ssl"] if ssl else [])},
         ]
         return directives
 
