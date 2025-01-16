@@ -2,8 +2,7 @@ from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
-from ops import ActiveStatus
-from ops.testing import Context, Container
+from ops.testing import Container, Context
 
 from charm import ParcaOperatorCharm
 
@@ -22,9 +21,7 @@ def parca_charm(tmp_path):
     with ExitStack() as stack:
         stack.enter_context(patch("lightkube.core.client.GenericSyncClient"))
         stack.enter_context(patch("nginx.Nginx.are_certificates_on_disk", False))
-        stack.enter_context(patch(
-                "nginx.CA_CERT_PATH", str(tmp_path / "ca.tmp")
-            ))
+        stack.enter_context(patch("nginx.CA_CERT_PATH", str(tmp_path / "ca.tmp")))
         yield ParcaOperatorCharm
 
 
@@ -39,6 +36,7 @@ def nginx_container():
         "nginx",
         can_connect=True,
     )
+
 
 @pytest.fixture(scope="function")
 def parca_container():

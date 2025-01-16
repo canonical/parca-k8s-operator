@@ -10,7 +10,6 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import ops
-
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
@@ -25,7 +24,8 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
-from nginx import Nginx, NginxPrometheusExporter, NginxConfig, Address
+
+from nginx import Address, Nginx, NginxPrometheusExporter
 from parca import Parca
 
 logger = logging.getLogger(__name__)
@@ -53,15 +53,11 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.nginx = Nginx(
             container=self.unit.get_container("nginx"),
             server_name=socket.getfqdn(),
-            address=Address(name="parca", port=self.parca.port)
+            address=Address(name="parca", port=self.parca.port),
         )
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container("nginx-prometheus-exporter"),
         )
-
-        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
-        self.framework.observe(self.on.config_changed, self._configure_and_start)
-        self.framework.observe(self.on.update_status, self._update_status)
 
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation.
@@ -118,12 +114,22 @@ class ParcaOperatorCharm(ops.CharmBase):
             self, source_type="parca", source_port=str(self.parca.port)
         )
 
+        # conditional logic
+        # we must configure and start when pebble-ready or config-changed show up
+        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
+        self.framework.observe(self.on.config_changed, self._configure_and_start)
+        # we may reconfigure if the store config has changed
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
-
-        # ensure we reconfigure on ingress changes, so that the path-prefix is updated
+        # we may reconfigure on ingress changes, so that the path-prefix is updated
         self.framework.observe(self.ingress.on.ready, self._configure_and_start)
         self.framework.observe(self.ingress.on.revoked, self._configure_and_start)
+
+        # generic status check
+        self.framework.observe(self.on.update_status, self._update_status)
+
+        # unconditional logic
+        self._reconcile()
 
     @property
     def _scheme(self) -> str:
@@ -144,9 +150,10 @@ class ParcaOperatorCharm(ops.CharmBase):
         """Return the external hostname if configured, else the internal one."""
         return self.ingress.url or self.internal_url
 
-    ##########################
-    # === EVENT HANDLERS === #
-    ##########################
+    def _reconcile(self):
+        """Unconditional logic to run regardless of the event we're processing."""
+        self.nginx.configure_pebble_layer()
+        self.nginx_exporter.configure_pebble_layer()
 
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
@@ -166,6 +173,11 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _configure_and_start(self, event):
         """Start Parca having (re)configured it with the relevant jobs."""
+        # TODO:
+        #  - call this method from _reconcile
+        #  - remove all observers
+        #  - check for config changes by pulling from the container and comparing
+        #  - only set maintenance if there are changes
         self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
 
         if self.container.can_connect():

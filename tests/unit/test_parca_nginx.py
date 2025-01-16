@@ -7,17 +7,15 @@ from unittest.mock import patch
 
 import pytest
 
-from nginx import NginxConfig, _get_dns_ip_address, Address
+from nginx import Address, NginxConfig, _get_dns_ip_address
 
 logger = logging.getLogger(__name__)
 sample_dns_ip = "198.18.0.0"
 
+
 @pytest.mark.parametrize(
     "address",
-    (
-        Address("foo", 123),
-        Address("bar", 42)
-    ),
+    (Address("foo", 123), Address("bar", 42)),
 )
 def test_nginx_config_is_list_before_crossplane(context, nginx_container, address):
     nginx = NginxConfig("localhost", False)
@@ -27,10 +25,7 @@ def test_nginx_config_is_list_before_crossplane(context, nginx_container, addres
 
 @pytest.mark.parametrize(
     "address",
-    (
-        Address("foo", 123),
-        Address("bar", 42)
-    ),
+    (Address("foo", 123), Address("bar", 42)),
 )
 def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, address):
     nginx = NginxConfig("localhost", False)
@@ -40,10 +35,7 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, address)
 
 @pytest.mark.parametrize(
     "address",
-    (
-        Address("foo", 123),
-        Address("bar", 42)
-    ),
+    (Address("foo", 123), Address("bar", 42)),
 )
 @pytest.mark.parametrize("tls", (True, False))
 @pytest.mark.parametrize("hostname", ("localhost", "foobarhost"))
