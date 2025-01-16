@@ -5,7 +5,7 @@ import json
 import unittest
 from unittest.mock import patch
 from uuid import uuid4
-
+import socket
 import ops.testing
 import yaml
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
@@ -225,7 +225,7 @@ class TestCharm(unittest.TestCase):
         unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.unit.name)
         # Ensure that the unit set its targets correctly
         expected = {
-            "prometheus_scrape_unit_address": "10.10.10.10",
+            "prometheus_scrape_unit_address": socket.getfqdn(),
             "prometheus_scrape_unit_name": "parca-k8s/0",
         }
         self.assertEqual(unit_data, expected)
@@ -238,7 +238,7 @@ class TestCharm(unittest.TestCase):
         unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.app.name)
         # Ensure that the unit set its targets correctly
         expected = {
-            "remote-store-address": f"10.10.10.10:{NGINX_PORT}",
+            "remote-store-address": f"{socket.getfqdn()}:{NGINX_PORT}",
             "remote-store-insecure": "true",
         }
         self.assertEqual(unit_data, expected)
