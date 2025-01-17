@@ -13,6 +13,9 @@ platforms:
 
 parts:
   charm:
+    # for the CI not to mess up the package, we need this
+    charm-requirements:
+      - requirements.txt
     build-snaps:
       - rustup
       - astral-uv
