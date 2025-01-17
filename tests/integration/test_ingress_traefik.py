@@ -17,14 +17,14 @@ PARCA = "parca"
 
 @pytest.mark.abort_on_fail
 @pytest.mark.setup
-async def test_setup(ops_test, parca_charm, parca_oci_image):
+async def test_setup(ops_test, parca_charm, parca_resources):
     """Test that Parca can be related with Traefik for ingress."""
     apps = [PARCA, TRAEFIK]
 
     await asyncio.gather(
         ops_test.model.deploy(
             parca_charm,
-            resources={"parca-image": parca_oci_image},
+            resources=parca_resources,
             application_name=PARCA,
         ),
         ops_test.model.deploy(

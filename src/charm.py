@@ -68,8 +68,9 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # Prometheus scraping config. We scrape the nginx exporter and parca (over nginx)
         self.metrics_endpoint_provider = MetricsEndpointProvider(
-            self, jobs=_format_scrape_target(NGINX_PROMETHEUS_EXPORTER_PORT) +
-                       _format_scrape_target(NGINX_PORT)
+            self,
+            jobs=_format_scrape_target(NGINX_PROMETHEUS_EXPORTER_PORT)
+            + _format_scrape_target(NGINX_PORT),
         )
 
         # The self_profiling_endpoint_provider enables Parca to profile itself.

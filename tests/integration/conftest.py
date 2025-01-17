@@ -16,6 +16,8 @@ async def parca_charm(ops_test: OpsTest):
 
 
 @fixture(scope="module")
-def parca_oci_image(ops_test: OpsTest):
-    meta = yaml.safe_load(Path("./charmcraft.yaml").read_text())
-    return meta["resources"]["parca-image"]["upstream-source"]
+def parca_resources():
+    charmcraft = yaml.safe_load(Path("./charmcraft.yaml").read_text())
+    return {
+        resource: meta["upstream-source"] for resource, meta in charmcraft["resources"].items()
+    }
