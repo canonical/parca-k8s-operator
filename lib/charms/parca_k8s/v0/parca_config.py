@@ -33,7 +33,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 2
+LIBPATCH = 3
 
 DEFAULT_BIN_PATH = "/parca"
 DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
@@ -41,7 +41,7 @@ DEFAULT_PROFILE_PATH = "/var/lib/parca"
 
 
 def parca_command_line(
-        http_address: str = "7070",
+        http_address: str = ":7070",
         app_config: dict = None,
         *,
         bin_path: str = DEFAULT_BIN_PATH,

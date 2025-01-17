@@ -25,8 +25,14 @@ from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
-from nginx import NGINX_PORT, Address, Nginx, NginxPrometheusExporter
-from parca import Parca
+from nginx import (
+    NGINX_PORT,
+    NGINX_PROMETHEUS_EXPORTER_PORT,
+    Address,
+    Nginx,
+    NginxPrometheusExporter,
+)
+from parca import PARCA_PORT, Parca
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +54,8 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self._fqdn = socket.getfqdn()
+
         self.unit.set_ports(8080)
         self.container = self.unit.get_container("parca")
         self.parca = Parca()
@@ -58,27 +66,25 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.profiling_consumer.on.targets_changed, self._configure_and_start
         )
 
-        self._scrape_targets = [{"static_configs": [{"targets": [f"*:{NGINX_PORT}"]}]}]
-
         # The metrics_endpoint_provider enables Parca to be scraped by Prometheus for metrics.
-        self.metrics_endpoint_provider = MetricsEndpointProvider(self, jobs=self._scrape_targets)
+        self.metrics_endpoint_provider = MetricsEndpointProvider(
+            self, jobs=_format_scrape_target(NGINX_PROMETHEUS_EXPORTER_PORT)
+        )
 
         # The self_profiling_endpoint_provider enables Parca to profile itself.
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
-            self, jobs=self._scrape_targets, relation_name="self-profiling-endpoint"
+            self, jobs=_format_scrape_target(PARCA_PORT), relation_name="self-profiling-endpoint"
         )
 
         # Allow Parca to provide dashboards to Grafana over a relation.
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
 
-        self.ingress = IngressPerAppRequirer(
-            self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=NGINX_PORT
-        )
+        self.ingress = IngressPerAppRequirer(self, host=self._fqdn, port=NGINX_PORT)
         # this needs to be instantiated after `ingress` is
         self.nginx = Nginx(
             container=self.unit.get_container("nginx"),
-            server_name=socket.getfqdn(),
-            address=Address(name="parca", port=self.parca.port),
+            server_name=self._fqdn,
+            address=Address(name="parca", port=PARCA_PORT),
             path_prefix=self._external_url_path,
         )
         self.nginx_exporter = NginxPrometheusExporter(
@@ -98,7 +104,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # Enable Parca agents or Parca servers to use this instance as a store.
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
-            self, port=self.parca.port, insecure=True
+            self, port=PARCA_PORT, insecure=True
         )
 
         # Enable the option to send profiles to a remote store (i.e. Polar Signals Cloud).
@@ -114,7 +120,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.charm_tracing_endpoint, _ = charm_tracing_config(self.charm_tracing, None)
 
         self.grafana_source_provider = GrafanaSourceProvider(
-            self, source_type="parca", source_port=str(self.parca.port)
+            self, source_type="parca", source_port=str(PARCA_PORT)
         )
 
         # conditional logic
@@ -146,7 +152,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         Used for ingress.
         """
-        return f"{self._scheme}://{socket.getfqdn()}:{self.parca.port}"
+        return f"{self._scheme}://{self._fqdn}:{PARCA_PORT}"
 
     @property
     def external_url(self) -> str:
@@ -206,6 +212,10 @@ class ParcaOperatorCharm(ops.CharmBase):
             )
         else:
             self.unit.status = ops.WaitingStatus("waiting for container")
+
+
+def _format_scrape_target(port: int):
+    return [{"static_configs": [{"targets": [f"*:{port}"]}]}]
 
 
 if __name__ == "__main__":  # pragma: nocover
