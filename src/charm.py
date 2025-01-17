@@ -73,7 +73,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # The self_profiling_endpoint_provider enables Parca to profile itself.
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
-            self, jobs=_format_scrape_target(PARCA_PORT), relation_name="self-profiling-endpoint"
+            self, jobs=_format_scrape_target(NGINX_PORT), relation_name="self-profiling-endpoint"
         )
 
         # Allow Parca to provide dashboards to Grafana over a relation.
