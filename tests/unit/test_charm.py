@@ -13,6 +13,7 @@ from ops.model import ActiveStatus, WaitingStatus
 from ops.testing import Harness
 
 from charm import ParcaOperatorCharm
+from nginx import NGINX_PORT
 from parca import PARCA_PORT
 
 ops.testing.SIMULATE_CAN_CONNECT = True
@@ -237,7 +238,7 @@ class TestCharm(unittest.TestCase):
         unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.app.name)
         # Ensure that the unit set its targets correctly
         expected = {
-            "remote-store-address": f"10.10.10.10:{PARCA_PORT}",
+            "remote-store-address": f"10.10.10.10:{NGINX_PORT}",
             "remote-store-insecure": "true",
         }
         self.assertEqual(unit_data, expected)
