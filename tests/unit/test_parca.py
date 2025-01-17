@@ -25,7 +25,7 @@ class TestParca(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=1073741824",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --storage-active-memory=1073741824",
                 }
             }
         }

@@ -23,7 +23,7 @@ DEFAULT_PLAN = {
             "summary": "parca",
             "startup": "enabled",
             "override": "replace",
-            "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=4294967296",
+            "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --storage-active-memory=4294967296",
         }
     }
 }
@@ -82,7 +82,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --enable-persistence --storage-path=/var/lib/parca",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --enable-persistence --storage-path=/var/lib/parca",
                 }
             }
         }
@@ -99,7 +99,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=2147483648",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --storage-active-memory=2147483648",
                 }
             }
         }
@@ -132,7 +132,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=1073741824",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --storage-active-memory=1073741824",
                 }
             }
         }
@@ -149,7 +149,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --enable-persistence --storage-path=/var/lib/parca",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --enable-persistence --storage-path=/var/lib/parca",
                 }
             }
         }
@@ -261,7 +261,7 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.charm.store_requirer.config, expected)
 
         # Check the Parca is started with the correct command including store flags
-        expected_command = f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
+        expected_command = f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
         self.assertEqual(
             self.harness.charm.container.get_plan().to_dict()["services"]["parca"]["command"],
             expected_command,
