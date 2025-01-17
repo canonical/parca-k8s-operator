@@ -4,15 +4,20 @@
 
 import asyncio
 import json
+from subprocess import getoutput
 
 import pytest
+import requests
 
-TRAEFIK = "traefik-k8s"
-PARCA = "parca-k8s"
+from nginx import NGINX_PORT
+
+TRAEFIK = "traefik"
+PARCA = "parca"
 
 
 @pytest.mark.abort_on_fail
-async def test_ingress_traefik_k8s(ops_test, parca_charm, parca_oci_image):
+@pytest.mark.setup
+async def test_setup(ops_test, parca_charm, parca_oci_image):
     """Test that Parca can be related with Traefik for ingress."""
     apps = [PARCA, TRAEFIK]
 
@@ -23,10 +28,9 @@ async def test_ingress_traefik_k8s(ops_test, parca_charm, parca_oci_image):
             application_name=PARCA,
         ),
         ops_test.model.deploy(
-            TRAEFIK,
+            "traefik-k8s",
             application_name=TRAEFIK,
             channel="edge",
-            config={"routing_mode": "subdomain", "external_hostname": "foo.bar"},
             trust=True,
         ),
         ops_test.model.wait_for_idle(apps=apps, status="active", timeout=1000),
@@ -37,25 +41,53 @@ async def test_ingress_traefik_k8s(ops_test, parca_charm, parca_oci_image):
     # Wait for the two apps to quiesce
     await ops_test.model.wait_for_idle(apps=apps, status="active", timeout=1000)
 
-    result = await _retrieve_proxied_endpoints(ops_test, TRAEFIK)
-    assert result.get(PARCA, None) == {"url": f"http://{ops_test.model_name}-{PARCA}.foo.bar/"}
+
+@pytest.fixture
+def prefix(ops_test):
+    return f"{ops_test.model_name}-{PARCA}"
 
 
-# FIXME: this test is broken probably because of https://github.com/canonical/traefik-k8s-operator/issues/437
-# import requests
-# import sh
-# async def test_ingress_functions_correctly(ops_test):
-#     result = sh.kubectl(
-#         *f"-n {ops_test.model.name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'".split()
-#     )
-#     ip_address = result.strip("'")
-#
-#     r = requests.get(
-#         f"http://{ip_address}:80/metrics",
-#         headers={"Host": f"{ops_test.model_name}-{PARCA}.foo.bar"},
-#     )
-#     assert r.status_code == 200
-#     assert "go_build_info" in r.text
+async def test_proxied_endpoint(ops_test, prefix):
+    proxied_endpoints = await _retrieve_proxied_endpoints(ops_test, TRAEFIK)
+    ingress_ip = _get_ingress_ip(ops_test.model_name)
+    assert proxied_endpoints.get(PARCA, None) == {"url": f"http://{ingress_ip}/{prefix}"}
+
+
+async def test_ingressed_url_200(ops_test, prefix):
+    ingress_ip = _get_ingress_ip(ops_test.model_name)
+    url = f"http://{ingress_ip}/{prefix}"
+    assert requests.get(url).status_code == 200
+
+
+async def test_direct_url_200(ops_test, prefix):
+    parca_ip = _get_unit_ip(ops_test.model_name, PARCA, 0)
+    url = f"http://{parca_ip}:{NGINX_PORT}/{prefix}"
+    assert requests.get(url).status_code == 200
+
+
+async def test_direct_url_root_200(ops_test):
+    parca_ip = _get_unit_ip(ops_test.model_name, PARCA, 0)
+    url = f"http://{parca_ip}:{NGINX_PORT}"
+    assert requests.get(url).status_code == 200
+
+
+async def test_direct_url_trailing_slash_200(ops_test, prefix):
+    parca_ip = _get_unit_ip(ops_test.model_name, PARCA, 0)
+    url = f"http://{parca_ip}:{NGINX_PORT}/{prefix}/"
+    assert requests.get(url).status_code == 200
+
+
+def _get_ingress_ip(model_name):
+    result = getoutput(
+        f"microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
+    )
+    return result.strip("'")
+
+
+def _get_unit_ip(model_name, app_name, unit_id):
+    return getoutput(
+        f"""juju status --model {model_name} --format json | jq '.applications.{app_name}.units."{app_name}/{unit_id}".address'"""
+    ).strip('"')
 
 
 async def _retrieve_proxied_endpoints(ops_test, traefik_application_name):

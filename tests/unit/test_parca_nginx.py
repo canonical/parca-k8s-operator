@@ -48,9 +48,8 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
     prepared_config = nginx.config(address)
     assert f"resolver {sample_dns_ip};" in prepared_config
 
-    assert f"server {hostname}:{address.port};" in prepared_config
-    assert f"listen {address.port}" in prepared_config
-    assert f"listen [::]:{address.port}" in prepared_config
+    assert "listen 8080" in prepared_config
+    assert "listen [::]:8080" in prepared_config
 
     sanitised_name = address.name.replace("_", "-")
     assert f"upstream {sanitised_name}" in prepared_config

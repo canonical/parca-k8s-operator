@@ -4,6 +4,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
+
 from parca import Parca
 
 # Extract from a real response that Parca issued to test the regular expression works for capturing
@@ -23,7 +25,7 @@ class TestParca(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=1073741824",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=1073741824",
                 }
             }
         }

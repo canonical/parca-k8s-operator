@@ -8,10 +8,12 @@ from uuid import uuid4
 
 import ops.testing
 import yaml
+from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
 from ops.model import ActiveStatus, WaitingStatus
 from ops.testing import Harness
 
 from charm import ParcaOperatorCharm
+from parca import Parca
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -21,7 +23,7 @@ DEFAULT_PLAN = {
             "summary": "parca",
             "startup": "enabled",
             "override": "replace",
-            "command": "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=4294967296",
+            "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=4294967296",
         }
     }
 }
@@ -80,7 +82,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/parca --config-path=/etc/parca/parca.yaml --enable-persistence --storage-path=/var/lib/parca",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --enable-persistence --storage-path=/var/lib/parca",
                 }
             }
         }
@@ -97,7 +99,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=2147483648",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=2147483648",
                 }
             }
         }
@@ -107,7 +109,7 @@ class TestCharm(unittest.TestCase):
     def test_configure(self):
         self.harness.container_pebble_ready("parca")
 
-        config = self.harness.charm.container.pull("/etc/parca/parca.yaml")
+        config = self.harness.charm.container.pull(DEFAULT_CONFIG_PATH)
         expected = {
             "object_storage": {
                 "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
@@ -130,7 +132,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=1073741824",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=1073741824",
                 }
             }
         }
@@ -147,7 +149,7 @@ class TestCharm(unittest.TestCase):
                     "summary": "parca",
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/parca --config-path=/etc/parca/parca.yaml --enable-persistence --storage-path=/var/lib/parca",
+                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --enable-persistence --storage-path=/var/lib/parca",
                 }
             }
         }
@@ -235,7 +237,7 @@ class TestCharm(unittest.TestCase):
         unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.app.name)
         # Ensure that the unit set its targets correctly
         expected = {
-            "remote-store-address": "10.10.10.10:7070",
+            "remote-store-address": f"10.10.10.10:{Parca.port}",
             "remote-store-insecure": "true",
         }
         self.assertEqual(unit_data, expected)
@@ -259,7 +261,7 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.charm.store_requirer.config, expected)
 
         # Check the Parca is started with the correct command including store flags
-        expected_command = "/parca --config-path=/etc/parca/parca.yaml --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
+        expected_command = f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=:{Parca.port} --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
         self.assertEqual(
             self.harness.charm.container.get_plan().to_dict()["services"]["parca"]["command"],
             expected_command,

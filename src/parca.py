@@ -23,7 +23,14 @@ VERSION_PATTERN = re.compile('APP_VERSION="v([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)
 class Parca:
     """Class representing Parca running in a container under Pebble."""
 
-    _port = 7070
+    # we use an obscure, nonstandard port to somewhat encourage users to always talk to
+    # parca via Nginx. The reason is that once you relate to ingress (if the ingress
+    # address has a path prefix), the app will restart
+    # with a path prefix and will no longer be available at :61732/, but only at
+    # :61732/<prefix>, :8080/ or :8080/<prefix>. Nginx can redirect from /, but parca cannot.
+    # So we encourage everyone to go straight over Nginx.
+    port = 61732
+
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
@@ -36,6 +43,7 @@ class Parca:
                         "override": "replace",
                         "summary": "parca",
                         "command": parca_command_line(
+                            http_address=f":{self.port}",
                             app_config=config,
                             store_config=store_config or {},
                             path_prefix=path_prefix,
@@ -51,11 +59,6 @@ class Parca:
         return ParcaConfig(scrape_configs)
 
     @property
-    def port(self) -> int:
-        """Report the TCP port that Parca is configured to listen on."""
-        return self._port
-
-    @property
     def version(self) -> str:
         """Report the version of Parca."""
         return self._fetch_version()
@@ -65,7 +68,7 @@ class Parca:
         retries = 0
         while True:
             try:
-                res = urllib.request.urlopen(f"http://localhost:{self._port}")
+                res = urllib.request.urlopen(f"http://localhost:{self.port}")
                 m = VERSION_PATTERN.search(res.read().decode())
                 if m is None:
                     return ""

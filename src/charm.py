@@ -10,7 +10,6 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import ops
-
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
@@ -25,7 +24,8 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
-from nginx import Address, Nginx, NginxPrometheusExporter, NGINX_PORT
+
+from nginx import NGINX_PORT, Address, Nginx, NginxPrometheusExporter
 from parca import Parca
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.unit.set_ports(8080, 7070)
+        self.unit.set_ports(8080)
         self.container = self.unit.get_container("parca")
         self.parca = Parca()
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
@@ -79,7 +79,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             container=self.unit.get_container("nginx"),
             server_name=socket.getfqdn(),
             address=Address(name="parca", port=self.parca.port),
-            path_prefix=self._external_url_path
+            path_prefix=self._external_url_path,
         )
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container("nginx-prometheus-exporter"),
@@ -201,7 +201,9 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.container.replan()
 
             self.unit.set_workload_version(self.parca.version)
-            self.unit.status = ops.ActiveStatus()
+            self.unit.status = ops.ActiveStatus(
+                f"UI ready at {self.ingress.url}" if self.ingress.url else ""
+            )
         else:
             self.unit.status = ops.WaitingStatus("waiting for container")
 
