@@ -106,7 +106,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # Enable Parca agents or Parca servers to use this instance as a store.
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
-            self, port=PARCA_PORT, insecure=True
+            self, port=NGINX_PORT, insecure=True
         )
 
         # Enable the option to send profiles to a remote store (i.e. Polar Signals Cloud).
@@ -122,7 +122,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.charm_tracing_endpoint, _ = charm_tracing_config(self.charm_tracing, None)
 
         self.grafana_source_provider = GrafanaSourceProvider(
-            self, source_type="parca", source_port=str(PARCA_PORT)
+            self, source_type="parca", source_port=str(NGINX_PORT)
         )
 
         # conditional logic
@@ -154,7 +154,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         Used for ingress.
         """
-        return f"{self._scheme}://{self._fqdn}:{PARCA_PORT}"
+        return f"{self._scheme}://{self._fqdn}:{NGINX_PORT}"
 
     @property
     def external_url(self) -> str:
