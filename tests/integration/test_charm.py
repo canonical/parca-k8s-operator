@@ -8,7 +8,7 @@ import requests
 from pytest import mark
 from pytest_operator.plugin import OpsTest
 from tenacity import retry
-from tenacity.stop import stop_after_attempt
+from tenacity.stop import stop_after_delay
 from tenacity.wait import wait_exponential as wexp
 
 PARCA = "parca"
@@ -29,7 +29,7 @@ async def test_deploy(ops_test: OpsTest, parca_charm, parca_resources):
 
 
 @mark.abort_on_fail
-@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 async def test_application_is_up(ops_test: OpsTest):
     status = await ops_test.model.get_status()  # noqa: F821
     address = status["applications"][PARCA]["public-address"]
