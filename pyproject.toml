@@ -11,6 +11,7 @@ dependencies = [
     "jsonschema",
     "pydantic <3",
     "cosl",
+    "crossplane",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
     "opentelemetry-exporter-otlp-proto-http==1.21.0",

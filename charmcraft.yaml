@@ -13,6 +13,9 @@ platforms:
 
 parts:
   charm:
+    # for the CI not to mess up the package, we need this
+    charm-requirements:
+      - requirements.txt
     build-snaps:
       - rustup
       - astral-uv
@@ -30,6 +33,11 @@ containers:
     mounts:
       - storage: profiles
         location: /var/lib/parca
+  nginx:
+    resource: nginx-image
+  nginx-prometheus-exporter:
+    resource: nginx-prometheus-exporter-image
+
 
 resources:
   parca-image:
@@ -37,6 +45,15 @@ resources:
     description: OCI image for parca
     # Included for simplicity in integration tests
     upstream-source: ghcr.io/parca-dev/parca:v0.22.0
+  nginx-image:
+    type: oci-image
+    description: OCI image for nginx
+    upstream-source: ubuntu/nginx:1.24-24.04_beta
+  nginx-prometheus-exporter-image:
+    type: oci-image
+    description: OCI image for nginx-prometheus-exporter
+    upstream-source: nginx/nginx-prometheus-exporter:1.1.0
+
 
 storage:
   profiles:

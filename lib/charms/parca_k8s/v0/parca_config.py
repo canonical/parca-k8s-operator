@@ -33,8 +33,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 2
-
+LIBPATCH = 3
 
 DEFAULT_BIN_PATH = "/parca"
 DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
@@ -42,13 +41,14 @@ DEFAULT_PROFILE_PATH = "/var/lib/parca"
 
 
 def parca_command_line(
-    app_config: dict = None,
-    *,
-    bin_path: str = DEFAULT_BIN_PATH,
-    config_path: str = DEFAULT_CONFIG_PATH,
-    profile_path: str = DEFAULT_PROFILE_PATH,
-    path_prefix: Optional[str] = None,
-    store_config: dict = None,
+        http_address: str = ":7070",
+        app_config: dict = None,
+        *,
+        bin_path: str = DEFAULT_BIN_PATH,
+        config_path: str = DEFAULT_CONFIG_PATH,
+        profile_path: str = DEFAULT_PROFILE_PATH,
+        path_prefix: Optional[str] = None,
+        store_config: dict = None,
 ) -> str:
     """Generate a valid Parca command line.
 
@@ -60,9 +60,11 @@ def parca_command_line(
         path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
     """
-    cmd = [str(bin_path),
-           f"--config-path={config_path}",
-           ]
+    cmd = [
+        str(bin_path),
+        f"--config-path={config_path}",
+        f"--http-address={http_address}"
+    ]
 
     if path_prefix:
         if not path_prefix.startswith("/"):

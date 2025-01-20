@@ -18,12 +18,13 @@ logger = logging.getLogger(__name__)
 # A bit hacky, but the API is more complex to use (gRPC) and the version string
 # reported by the Prometheus metrics is wrong at the time of writing.
 VERSION_PATTERN = re.compile('APP_VERSION="v([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)"')
+# parca server bind port
+PARCA_PORT = 7070
 
 
 class Parca:
     """Class representing Parca running in a container under Pebble."""
 
-    _port = 7070
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
@@ -36,6 +37,9 @@ class Parca:
                         "override": "replace",
                         "summary": "parca",
                         "command": parca_command_line(
+                            # <localhost> prefix is to ensure users can't reach the server at :7070
+                            # and are forced to go through nginx instead.
+                            http_address=f"localhost:{PARCA_PORT}",
                             app_config=config,
                             store_config=store_config or {},
                             path_prefix=path_prefix,
@@ -51,11 +55,6 @@ class Parca:
         return ParcaConfig(scrape_configs)
 
     @property
-    def port(self) -> int:
-        """Report the TCP port that Parca is configured to listen on."""
-        return self._port
-
-    @property
     def version(self) -> str:
         """Report the version of Parca."""
         return self._fetch_version()
@@ -65,7 +64,7 @@ class Parca:
         retries = 0
         while True:
             try:
-                res = urllib.request.urlopen(f"http://localhost:{self._port}")
+                res = urllib.request.urlopen(f"http://localhost:{PARCA_PORT}")
                 m = VERSION_PATTERN.search(res.read().decode())
                 if m is None:
                     return ""

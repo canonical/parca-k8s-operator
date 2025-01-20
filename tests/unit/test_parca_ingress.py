@@ -18,13 +18,14 @@ def patch_version():
 
 
 @pytest.mark.parametrize("path", ("fubar", "livingbeef"))
-def test_prefix_ingress_pebble_ready(path):
+def test_prefix_ingress_pebble_ready(
+    path, parca_container, nginx_container, nginx_prometheus_exporter_container
+):
     # GIVEN a parca charm with an ingress relation
     ctx = Context(ParcaOperatorCharm)
 
-    container = Container("parca", can_connect=True)
     state = State(
-        containers={container},
+        containers={parca_container, nginx_container, nginx_prometheus_exporter_container},
         relations={
             Relation(
                 "ingress",
@@ -34,7 +35,7 @@ def test_prefix_ingress_pebble_ready(path):
     )
 
     # WHEN we process a pebble-ready
-    state_out = ctx.run(ctx.on.pebble_ready(container), state)
+    state_out = ctx.run(ctx.on.pebble_ready(parca_container), state)
 
     # THEN the plan's command contains a path-prefix arg
     command = state_out.get_container("parca").plan.services["parca"].command.split()
@@ -42,7 +43,7 @@ def test_prefix_ingress_pebble_ready(path):
 
 
 @pytest.mark.parametrize("path", ("fubar", None))
-def test_no_prefix_ingress_broken(path):
+def test_no_prefix_ingress_broken(path, nginx_container, nginx_prometheus_exporter_container):
     # GIVEN a parca charm without an ingress relation,
     #   regardless of the prefix previously in the command
     ctx = Context(ParcaOperatorCharm)
@@ -54,7 +55,7 @@ def test_no_prefix_ingress_broken(path):
                 {
                     "override": "replace",
                     "summary": "parca",
-                    "command": parca_command_line(DEFAULT_CONFIG, path_prefix=None),
+                    "command": parca_command_line("7070", DEFAULT_CONFIG, path_prefix=None),
                     "startup": "enabled",
                 }
             )
@@ -62,7 +63,10 @@ def test_no_prefix_ingress_broken(path):
     )
 
     ingress = Relation("ingress")
-    state = State(relations={ingress}, containers={container})
+    state = State(
+        relations={ingress},
+        containers={container, nginx_container, nginx_prometheus_exporter_container},
+    )
 
     # WHEN we process a relation-broken
     state_out = ctx.run(ctx.on.relation_broken(ingress), state)
@@ -74,7 +78,9 @@ def test_no_prefix_ingress_broken(path):
 
 @pytest.mark.parametrize("path", ("fubar", None))
 @pytest.mark.parametrize("new_path", ("baaz", "quzzified"))
-def test_prefix_ingress_created(path, new_path):
+def test_prefix_ingress_created(
+    path, new_path, nginx_container, nginx_prometheus_exporter_container
+):
     # GIVEN a parca charm with an ingress relation,
     #   regardless of the prefix previously in the command
     ctx = Context(ParcaOperatorCharm)
@@ -87,7 +93,7 @@ def test_prefix_ingress_created(path, new_path):
                 {
                     "override": "replace",
                     "summary": "parca",
-                    "command": parca_command_line(DEFAULT_CONFIG, path_prefix=None),
+                    "command": parca_command_line("7070", DEFAULT_CONFIG, path_prefix=None),
                     "startup": "enabled",
                 }
             )
@@ -98,7 +104,10 @@ def test_prefix_ingress_created(path, new_path):
         "ingress",
         remote_app_data={"ingress": json.dumps({"url": f"http://example.com/{new_path}"})},
     )
-    state = State(relations={ingress}, containers={container})
+    state = State(
+        relations={ingress},
+        containers={container, nginx_container, nginx_prometheus_exporter_container},
+    )
 
     # WHEN we process a relation-broken
     state_out = ctx.run(ctx.on.relation_created(ingress), state)

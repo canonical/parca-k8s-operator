@@ -25,7 +25,14 @@ from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
-from parca import Parca
+from nginx import (
+    NGINX_PORT,
+    NGINX_PROMETHEUS_EXPORTER_PORT,
+    Address,
+    Nginx,
+    NginxPrometheusExporter,
+)
+from parca import PARCA_PORT, Parca
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +54,11 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self._fqdn = socket.getfqdn()
 
+        self.unit.set_ports(8080)
         self.container = self.unit.get_container("parca")
         self.parca = Parca()
-
-        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
-        self.framework.observe(self.on.config_changed, self._configure_and_start)
-        self.framework.observe(self.on.update_status, self._update_status)
-
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation.
         self.profiling_consumer = ProfilingEndpointConsumer(self)
@@ -62,22 +66,33 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.profiling_consumer.on.targets_changed, self._configure_and_start
         )
 
-        self._scrape_targets = [{"static_configs": [{"targets": [f"*:{self.parca.port}"]}]}]
-
-        # The metrics_endpoint_provider enables Parca to be scraped by Prometheus for metrics.
-        self.metrics_endpoint_provider = MetricsEndpointProvider(self, jobs=self._scrape_targets)
+        # Prometheus scraping config. We scrape the nginx exporter and parca (over nginx)
+        self.metrics_endpoint_provider = MetricsEndpointProvider(
+            self,
+            jobs=_format_scrape_target(NGINX_PROMETHEUS_EXPORTER_PORT)
+            + _format_scrape_target(NGINX_PORT),
+        )
 
         # The self_profiling_endpoint_provider enables Parca to profile itself.
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
-            self, jobs=self._scrape_targets, relation_name="self-profiling-endpoint"
+            self, jobs=_format_scrape_target(NGINX_PORT), relation_name="self-profiling-endpoint"
         )
 
         # Allow Parca to provide dashboards to Grafana over a relation.
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
 
-        self.ingress = IngressPerAppRequirer(
-            self, host=f"{self.app.name}.{self.model.name}.svc.cluster.local", port=self.parca.port
+        self.ingress = IngressPerAppRequirer(self, host=self._fqdn, port=NGINX_PORT)
+        # this needs to be instantiated after `ingress` is
+        self.nginx = Nginx(
+            container=self.unit.get_container("nginx"),
+            server_name=self._fqdn,
+            address=Address(name="parca", port=PARCA_PORT),
+            path_prefix=self._external_url_path,
         )
+        self.nginx_exporter = NginxPrometheusExporter(
+            container=self.unit.get_container("nginx-prometheus-exporter"),
+        )
+
         self.catalogue = CatalogueConsumer(
             self,
             item=CatalogueItem(
@@ -91,7 +106,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # Enable Parca agents or Parca servers to use this instance as a store.
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
-            self, port=self.parca.port, insecure=True
+            self, port=NGINX_PORT, insecure=True
         )
 
         # Enable the option to send profiles to a remote store (i.e. Polar Signals Cloud).
@@ -107,15 +122,25 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.charm_tracing_endpoint, _ = charm_tracing_config(self.charm_tracing, None)
 
         self.grafana_source_provider = GrafanaSourceProvider(
-            self, source_type="parca", source_port=str(self.parca.port)
+            self, source_type="parca", source_port=str(NGINX_PORT)
         )
 
+        # conditional logic
+        # we must configure and start when pebble-ready or config-changed show up
+        self.framework.observe(self.on.parca_pebble_ready, self._configure_and_start)
+        self.framework.observe(self.on.config_changed, self._configure_and_start)
+        # we may reconfigure if the store config has changed
         self.framework.observe(self.store_requirer.on.endpoints_changed, self._configure_and_start)
         self.framework.observe(self.store_requirer.on.remove_store, self._configure_and_start)
-
-        # ensure we reconfigure on ingress changes, so that the path-prefix is updated
+        # we may reconfigure on ingress changes, so that the path-prefix is updated
         self.framework.observe(self.ingress.on.ready, self._configure_and_start)
         self.framework.observe(self.ingress.on.revoked, self._configure_and_start)
+
+        # generic status check
+        self.framework.observe(self.on.update_status, self._update_status)
+
+        # unconditional logic
+        self._reconcile()
 
     @property
     def _scheme(self) -> str:
@@ -129,16 +154,17 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         Used for ingress.
         """
-        return f"{self._scheme}://{socket.getfqdn()}:{self.parca.port}"
+        return f"{self._scheme}://{self._fqdn}:{NGINX_PORT}"
 
     @property
     def external_url(self) -> str:
         """Return the external hostname if configured, else the internal one."""
         return self.ingress.url or self.internal_url
 
-    ##########################
-    # === EVENT HANDLERS === #
-    ##########################
+    def _reconcile(self):
+        """Unconditional logic to run regardless of the event we're processing."""
+        self.nginx.configure_pebble_layer()
+        self.nginx_exporter.configure_pebble_layer()
 
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
@@ -158,6 +184,11 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _configure_and_start(self, event):
         """Start Parca having (re)configured it with the relevant jobs."""
+        # TODO:
+        #  - call this method from _reconcile
+        #  - remove all observers
+        #  - check for config changes by pulling from the container and comparing
+        #  - only set maintenance if there are changes
         self.unit.status = ops.MaintenanceStatus("reconfiguring parca")
 
         if self.container.can_connect():
@@ -178,10 +209,15 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.container.replan()
 
             self.unit.set_workload_version(self.parca.version)
-            self.unit.open_port(protocol="tcp", port=self.parca.port)
-            self.unit.status = ops.ActiveStatus()
+            self.unit.status = ops.ActiveStatus(
+                f"UI ready at {self.ingress.url}" if self.ingress.url else ""
+            )
         else:
             self.unit.status = ops.WaitingStatus("waiting for container")
+
+
+def _format_scrape_target(port: int):
+    return [{"static_configs": [{"targets": [f"*:{port}"]}]}]
 
 
 if __name__ == "__main__":  # pragma: nocover
