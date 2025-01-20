@@ -316,9 +316,5 @@ def _format_scrape_target(port: int, scheme="http"):
     return [job]
 
 
-def _format_scrape_target(port: int):
-    return [{"static_configs": [{"targets": [f"*:{port}"]}]}]
-
-
 if __name__ == "__main__":  # pragma: nocover
     ops.main(ParcaOperatorCharm)
