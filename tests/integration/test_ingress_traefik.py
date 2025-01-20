@@ -79,7 +79,7 @@ async def test_direct_url_trailing_slash_200(ops_test, prefix):
 
 def _get_ingress_ip(model_name):
     result = getoutput(
-        f"microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
+        f"sudo microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
     )
     return result.strip("'")
 
