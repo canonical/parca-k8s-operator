@@ -33,9 +33,9 @@ async def test_deploy(ops_test: OpsTest, parca_charm, parca_resources):
 async def test_application_is_up(ops_test: OpsTest):
     status = await ops_test.model.get_status()  # noqa: F821
     address = status["applications"][PARCA]["public-address"]
-    response = requests.get(f"http://{address}:7070/")
+    response = requests.get(f"http://{address}:8080/")
     assert response.status_code == 200
-    response = requests.get(f"http://{address}:7070/metrics")
+    response = requests.get(f"http://{address}:8080/metrics")
     assert response.status_code == 200
 
 
