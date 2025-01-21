@@ -1,11 +1,15 @@
 # Copyright 2021 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import tempfile
 from pathlib import Path
+from subprocess import getstatusoutput
 
 import yaml
 from pytest import fixture
 from pytest_operator.plugin import OpsTest
+
+from nginx import CA_CERT_PATH
 
 
 @fixture(scope="module")
@@ -21,3 +25,13 @@ def parca_resources():
     return {
         resource: meta["upstream-source"] for resource, meta in charmcraft["resources"].items()
     }
+
+
+@fixture(scope="function")
+def ca_cert():
+    with tempfile.NamedTemporaryFile() as f:
+        p = Path(f.name)
+        exit_code, output = getstatusoutput(f"""juju scp parca/0:{CA_CERT_PATH} {p.absolute()}.""")
+        if exit_code != 0:
+            assert False, f"Unable to copy certificate CA from parca/0. {output}"
+        yield p
