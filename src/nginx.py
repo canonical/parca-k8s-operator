@@ -132,8 +132,8 @@ class Nginx:
         if self._container.can_connect():
             self._container.exec(["nginx", "-s", "reload"])
 
-    def configure_pebble_layer(self) -> None:
-        """Configure pebble layer."""
+    def reconcile(self) -> None:
+        """Configure pebble layer and ensure workload is up if possible."""
         if self._container.can_connect():
             new_config = NginxConfig(
                 self._server_name, self.are_certificates_on_disk, path_prefix=self._path_prefix
@@ -177,8 +177,8 @@ class NginxPrometheusExporter:
     ) -> None:
         self._container = container
 
-    def configure_pebble_layer(self) -> None:
-        """Configure pebble layer."""
+    def reconcile(self) -> None:
+        """Configure pebble layer and ensure workload is up if possible."""
         if self._container.can_connect():
             self._container.add_layer("nginx-prometheus-exporter", self.layer, combine=True)
             self._container.autostart()
