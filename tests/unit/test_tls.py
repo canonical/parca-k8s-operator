@@ -25,7 +25,7 @@ def private_key():
 @pytest.fixture
 def csr(private_key):
     return generate_csr(
-        private_key=private_key, common_name=socket.getfqdn(), sans_dns=[socket.getfqdn()]
+        private_key=private_key, common_name="parca-k8s", sans_dns=[socket.getfqdn()]
     )
 
 
@@ -33,7 +33,7 @@ def csr(private_key):
 def ca(private_key):
     return generate_ca(
         private_key=private_key,
-        common_name=socket.getfqdn(),
+        common_name="parca-k8s",
         validity=timedelta(hours=1),
     )
 
