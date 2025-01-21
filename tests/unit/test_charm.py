@@ -2,21 +2,21 @@
 # See LICENSE file for licensing details.
 
 import json
-import unittest
+from contextlib import ExitStack
+from dataclasses import replace
+from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
-import ops.testing
+import ops.testing as testing
+import pytest
 import yaml
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
 from ops.model import ActiveStatus, WaitingStatus
-from ops.testing import Harness
 
 from charm import ParcaOperatorCharm
 from nginx import NGINX_PORT
 from parca import PARCA_PORT
-
-ops.testing.SIMULATE_CAN_CONNECT = True
 
 DEFAULT_PLAN = {
     "services": {
@@ -46,228 +46,319 @@ SCRAPE_JOBS = [
 ]
 
 
-@patch("parca.Parca.version", "v0.12.0")
-class TestCharm(unittest.TestCase):
-    def setUp(self):
-        self.harness = Harness(ParcaOperatorCharm)
-        self.addCleanup(self.harness.cleanup)
-        self.harness.add_network("10.10.10.10")
-        self.harness.add_relation("parca-peers", "parca-k8s/0", unit_data={})
-        self.maxDiff = None
-        self.harness.begin()
+@pytest.fixture
+def context():
+    return testing.Context(ParcaOperatorCharm)
 
-    def test_pebble_ready(self):
-        self.harness.container_pebble_ready("parca")
-        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
-        self.assertTrue(self.harness.charm.container.get_service("parca").is_running())
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
-        self.assertEqual(self.harness.get_workload_version(), "v0.12.0")
 
-    def test_update_status(self):
-        self.harness.set_can_connect("parca", True)
-        self.harness.charm.on.update_status.emit()
-        self.assertEqual(self.harness.get_workload_version(), "v0.12.0")
+@pytest.fixture
+def parca_peers():
+    return testing.PeerRelation("parca-peers")
 
-    def test_config_changed_container_not_ready(self):
-        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
-        self.assertEqual(self.harness.charm.unit.status, WaitingStatus("waiting for container"))
 
-    def test_config_changed_persistence(self):
-        self.harness.container_pebble_ready("parca")
-        self.harness.set_can_connect("parca", True)
-        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
-        self.harness.update_config({"enable-persistence": True, "memory-storage-limit": 1024})
-        expected_plan = {
-            "services": {
-                "parca": {
-                    "summary": "parca",
-                    "startup": "enabled",
-                    "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --enable-persistence --storage-path=/var/lib/parca",
-                }
+@pytest.fixture
+def parca_container():
+    return testing.Container("parca", can_connect=True)
+
+
+@pytest.fixture
+def nginx_container():
+    return testing.Container("nginx", can_connect=True)
+
+
+@pytest.fixture
+def prom_exporter_container():
+    return testing.Container("nginx-prometheus-exporter", can_connect=True)
+
+
+@pytest.fixture(autouse=True)
+def patch_all():
+    with ExitStack() as stack:
+        stack.enter_context(patch("parca.Parca.version", "v0.12.0"))
+        yield
+
+
+@pytest.fixture
+def base_state(parca_container, nginx_container, prom_exporter_container, parca_peers):
+    return testing.State(
+        containers={parca_container, nginx_container, prom_exporter_container},
+        relations={parca_peers},
+    )
+
+
+def test_pebble_ready(context, parca_container, base_state):
+    state_out = context.run(context.on.pebble_ready(parca_container), base_state)
+
+    container_out = state_out.get_container("parca")
+
+    assert container_out.plan.to_dict() == DEFAULT_PLAN
+    assert container_out.services["parca"].is_running()
+    assert state_out.unit_status == ActiveStatus()
+    assert state_out.workload_version == "v0.12.0"
+
+
+def test_update_status(context, parca_container, base_state):
+    state_out = context.run(context.on.update_status(), base_state)
+    assert state_out.workload_version == "v0.12.0"
+
+
+def test_config_changed_container_not_ready(
+    context, parca_container, nginx_container, prom_exporter_container, parca_peers
+):
+    state = testing.State(
+        containers={
+            replace(parca_container, can_connect=False),
+            nginx_container,
+            prom_exporter_container,
+        },
+        relations={parca_peers},
+        config={"enable-persistence": False, "memory-storage-limit": 1024},
+    )
+    state_out = context.run(context.on.config_changed(), state)
+
+    assert state_out.unit_status == WaitingStatus("waiting for container")
+
+
+def test_config_changed_persistence(context, base_state):
+    state_out = context.run(
+        context.on.config_changed(),
+        replace(base_state, config={"enable-persistence": True, "memory-storage-limit": 1024}),
+    )
+
+    container_out = state_out.get_container("parca")
+
+    expected_plan = {
+        "services": {
+            "parca": {
+                "summary": "parca",
+                "startup": "enabled",
+                "override": "replace",
+                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --enable-persistence --storage-path=/var/lib/parca",
             }
         }
-        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), expected_plan)
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+    }
+    assert container_out.plan.to_dict() == expected_plan
+    assert state_out.unit_status == ActiveStatus()
 
-    def test_config_changed_active_memory(self):
-        self.harness.container_pebble_ready("parca")
-        self.harness.set_can_connect("parca", True)
-        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 2048})
-        expected_plan = {
-            "services": {
-                "parca": {
-                    "summary": "parca",
-                    "startup": "enabled",
-                    "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=2147483648",
-                }
+
+def test_config_changed_active_memory(context, base_state):
+    state_out = context.run(
+        context.on.config_changed(),
+        replace(base_state, config={"enable-persistence": False, "memory-storage-limit": 2048}),
+    )
+
+    container_out = state_out.get_container("parca")
+    expected_plan = {
+        "services": {
+            "parca": {
+                "summary": "parca",
+                "startup": "enabled",
+                "override": "replace",
+                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=2147483648",
             }
         }
-        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), expected_plan)
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+    }
+    assert container_out.plan.to_dict() == expected_plan
+    assert state_out.unit_status == ActiveStatus()
 
-    def test_configure(self):
-        self.harness.container_pebble_ready("parca")
 
-        config = self.harness.charm.container.pull(DEFAULT_CONFIG_PATH)
-        expected = {
-            "object_storage": {
-                "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
-            },
-            "scrape_configs": [],
-        }
-        self.assertEqual(yaml.safe_load(config.read()), expected)
+def test_config_file_written(context, parca_container, base_state):
+    state_out = context.run(context.on.pebble_ready(parca_container), base_state)
+    container_out = state_out.get_container("parca")
 
-    def test_parca_pebble_layer_default_config(self):
-        self.assertEqual(
-            DEFAULT_PLAN,
-            self.harness.charm.parca.pebble_layer(self.harness.charm.config),
-        )
+    config = container_out.get_filesystem(context).joinpath(
+        Path(DEFAULT_CONFIG_PATH).relative_to("/")
+    )
+    expected = {
+        "object_storage": {
+            "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
+        },
+        "scrape_configs": [],
+    }
+    assert yaml.safe_load(config.read_text()) == expected
 
-    def test_parca_pebble_layer_adjusted_memory(self):
-        self.harness.update_config({"enable-persistence": False, "memory-storage-limit": 1024})
-        expected = {
-            "services": {
-                "parca": {
-                    "summary": "parca",
-                    "startup": "enabled",
-                    "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=1073741824",
-                }
+
+def test_parca_pebble_layer_adjusted_memory(context, base_state):
+    state_out = context.run(
+        context.on.config_changed(),
+        replace(base_state, config={"enable-persistence": False, "memory-storage-limit": 2048}),
+    )
+    state_out_2 = context.run(
+        context.on.config_changed(),
+        replace(state_out, config={"enable-persistence": False, "memory-storage-limit": 1024}),
+    )
+    expected_plan = {
+        "services": {
+            "parca": {
+                "summary": "parca",
+                "startup": "enabled",
+                "override": "replace",
+                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=1073741824",
             }
         }
-        self.assertEqual(
-            expected,
-            self.harness.charm.parca.pebble_layer(self.harness.charm.config),
-        )
+    }
 
-    def test_parca_pebble_layer_storage_persist(self):
-        self.harness.update_config({"enable-persistence": True, "memory-storage-limit": 1024})
-        expected = {
-            "services": {
-                "parca": {
-                    "summary": "parca",
-                    "startup": "enabled",
-                    "override": "replace",
-                    "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --enable-persistence --storage-path=/var/lib/parca",
-                }
+    container_out = state_out_2.get_container("parca")
+    assert container_out.plan.to_dict() == expected_plan
+    assert state_out.unit_status == ActiveStatus()
+
+
+def test_parca_pebble_layer_storage_persist(context, base_state):
+    state_out = context.run(
+        context.on.config_changed(),
+        replace(base_state, config={"enable-persistence": False, "memory-storage-limit": 1024}),
+    )
+    state_out_2 = context.run(
+        context.on.config_changed(),
+        replace(state_out, config={"enable-persistence": True, "memory-storage-limit": 1024}),
+    )
+
+    expected_plan = {
+        "services": {
+            "parca": {
+                "summary": "parca",
+                "startup": "enabled",
+                "override": "replace",
+                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --enable-persistence --storage-path=/var/lib/parca",
             }
         }
-        self.assertEqual(
-            expected,
-            self.harness.charm.parca.pebble_layer(self.harness.charm.config),
-        )
+    }
+    container_out = state_out_2.get_container("parca")
+    assert container_out.plan.to_dict() == expected_plan
+    assert state_out.unit_status == ActiveStatus()
 
-    def test_version(self):
-        self.harness.set_can_connect("parca", True)
-        vstr = self.harness.charm.parca.version
-        self.assertEqual(vstr, "v0.12.0")
 
-    def test_profiling_endpoint_relation(self):
-        # Create a relation to an app named "profiled-app"
-        self.harness.add_relation(
-            "profiling-endpoint",
-            "profiled-app",
-            app_data={
-                "scrape_metadata": json.dumps(SCRAPE_METADATA),
-                "scrape_jobs": json.dumps(SCRAPE_JOBS),
-            },
-            unit_data={
+def test_profiling_endpoint_relation(context, base_state):
+    relation = testing.Relation(
+        "profiling-endpoint",
+        remote_app_name="profiled-app",
+        remote_app_data={
+            "scrape_metadata": json.dumps(SCRAPE_METADATA),
+            "scrape_jobs": json.dumps(SCRAPE_JOBS),
+        },
+        remote_units_data={
+            0: {
                 "parca_scrape_unit_address": "1.1.1.1",
                 "parca_scrape_unit_name": "profiled-app/0",
-            },
-        )
-        # Taking into account the data provided by the simulated app, we should receive the
-        # following jobs config from the profiling_consumer
-        expected = [
-            {
-                "static_configs": [
-                    {
-                        "labels": {
-                            "some-key": "some-value",
-                            "juju_model": "test-model",
-                            "juju_model_uuid": str(_uuid),
-                            "juju_application": "profiled-app",
-                            "juju_charm": "test-charm",
-                            "juju_unit": "profiled-app/0",
-                        },
-                        "targets": ["1.1.1.1:7000"],
-                    }
-                ],
-                "job_name": f"test-model_{str(_uuid).split('-')[0]}_profiled-app_my-first-job",
-                "relabel_configs": [
-                    {
-                        "source_labels": [
-                            "juju_model",
-                            "juju_model_uuid",
-                            "juju_application",
-                            "juju_unit",
-                        ],
-                        "separator": "_",
-                        "target_label": "instance",
-                        "regex": "(.*)",
-                    }
-                ],
             }
-        ]
-        self.assertEqual(self.harness.charm.profiling_consumer.jobs(), expected)
-
-    def test_metrics_endpoint_relation(
-        self,
-    ):
-        # Create a relation to an app named "prometheus"
-        rel_id = self.harness.add_relation("metrics-endpoint", "prometheus", unit_data={})
-        # Ugly re-init workaround: manually call `set_scrape_job_spec`
-        # https://github.com/canonical/operator/issues/736
-        self.harness.charm.metrics_endpoint_provider.set_scrape_job_spec()
-        # Grab the unit data from the relation
-        unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.unit.name)
-        # Ensure that the unit set its targets correctly
-        expected = {
-            "prometheus_scrape_unit_address": "10.10.10.10",
-            "prometheus_scrape_unit_name": "parca-k8s/0",
+        },
+    )
+    # Create a relation to an app named "profiled-app"
+    # Taking into account the data provided by the simulated app, we should receive the
+    # following jobs config from the profiling_consumer
+    expected_jobs = [
+        {
+            "static_configs": [
+                {
+                    "labels": {
+                        "some-key": "some-value",
+                        "juju_model": "test-model",
+                        "juju_model_uuid": str(_uuid),
+                        "juju_application": "profiled-app",
+                        "juju_charm": "test-charm",
+                        "juju_unit": "profiled-app/0",
+                    },
+                    "targets": ["1.1.1.1:7000"],
+                }
+            ],
+            "job_name": f"test-model_{str(_uuid).split('-')[0]}_profiled-app_my-first-job",
+            "relabel_configs": [
+                {
+                    "source_labels": [
+                        "juju_model",
+                        "juju_model_uuid",
+                        "juju_application",
+                        "juju_unit",
+                    ],
+                    "separator": "_",
+                    "target_label": "instance",
+                    "regex": "(.*)",
+                }
+            ],
         }
-        self.assertEqual(unit_data, expected)
+    ]
+    with context(
+        context.on.relation_changed(relation), replace(base_state, relations={relation})
+    ) as mgr:
+        assert mgr.charm.profiling_consumer.jobs() == expected_jobs
+        state_out = mgr.run()
 
-    def test_parca_store_relation(self):
-        self.harness.set_leader(True)
-        # Create a relation to an app named "parca-agent"
-        rel_id = self.harness.add_relation("parca-store-endpoint", "parca-agent", unit_data={})
-        # Grab the unit data from the relation
-        unit_data = self.harness.get_relation_data(rel_id, self.harness.charm.app.name)
-        # Ensure that the unit set its targets correctly
-        expected = {
-            "remote-store-address": f"10.10.10.10:{NGINX_PORT}",
-            "remote-store-insecure": "true",
-        }
-        self.assertEqual(unit_data, expected)
+    container_out = state_out.get_container("parca")
+    config = container_out.get_filesystem(context).joinpath(
+        Path(DEFAULT_CONFIG_PATH).relative_to("/")
+    )
 
-    def test_parca_external_store_relation(self):
-        # Start the charm and ensure that the default pebble plan is loaded
-        self.harness.set_leader(True)
-        self.harness.container_pebble_ready("parca")
-        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
+    expected_config = {
+        "object_storage": {
+            "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
+        },
+        "scrape_configs": expected_jobs,
+    }
+    assert yaml.safe_load(config.read_text()) == expected_config
 
-        expected = {
-            "remote-store-address": "grpc.polarsignals.com:443",
-            "remote-store-bearer-token": "deadbeef",
-            "remote-store-insecure": "false",
-        }
 
-        # Create a relation to an app named "parca-agent"
-        rel_id = self.harness.add_relation(
-            "external-parca-store-endpoint", "pscloud", app_data=expected
-        )
-        self.assertEqual(self.harness.charm.store_requirer.config, expected)
+def test_metrics_endpoint_relation(context, base_state):
+    # Create a relation to an app named "prometheus"
+    relation = testing.Relation("metrics-endpoint", remote_app_name="prometheus")
 
-        # Check the Parca is started with the correct command including store flags
-        expected_command = f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
-        self.assertEqual(
-            self.harness.charm.container.get_plan().to_dict()["services"]["parca"]["command"],
-            expected_command,
-        )
+    state_out = context.run(
+        context.on.relation_joined(relation),
+        replace(base_state, leader=True, relations={relation}),
+    )
 
-        # Remove the relation and ensure the plan is reverted to not include store flags
-        self.harness.remove_relation(rel_id)
-        self.assertEqual(self.harness.charm.container.get_plan().to_dict(), DEFAULT_PLAN)
+    # Grab the unit data from the relation
+    rel_out = state_out.get_relation(relation.id)
+    # Ensure that the unit set its targets correctly
+    expected = {
+        "prometheus_scrape_unit_address": "192.0.2.0",
+        "prometheus_scrape_unit_name": "parca-k8s/0",
+    }
+    for key, val in expected.items():
+        assert rel_out.local_unit_data[key] == val
+
+
+def test_parca_store_relation(context, base_state):
+    # Create a relation to an app named "parca-store-endpoint"
+    relation = testing.Relation("parca-store-endpoint", remote_app_name="foo")
+
+    state_out = context.run(
+        context.on.relation_joined(relation),
+        replace(base_state, leader=True, relations={relation}),
+    )
+
+    # Grab the unit data from the relation
+    rel_out = state_out.get_relation(relation.id)
+    # Ensure that the unit set its targets correctly
+    expected = {
+        "remote-store-address": f"192.0.2.0:{NGINX_PORT}",
+        "remote-store-insecure": "true",
+    }
+    for key, val in expected.items():
+        assert rel_out.local_app_data[key] == val
+
+
+def test_parca_external_store_relation(context, base_state):
+    pscloud_config = {
+        "remote-store-address": "grpc.polarsignals.com:443",
+        "remote-store-bearer-token": "deadbeef",
+        "remote-store-insecure": "false",
+    }
+
+    relation = testing.Relation(
+        "external-parca-store-endpoint", remote_app_name="pscloud", remote_app_data=pscloud_config
+    )
+
+    # Ensure that the pscloud config gets passed to the charm
+    with context(
+        context.on.relation_changed(relation),
+        replace(base_state, leader=True, relations={relation}),
+    ) as mgr:
+        config = mgr.charm.store_requirer.config
+        for key, val in pscloud_config.items():
+            assert config[key] == val
+        state_out = mgr.run()
+
+    # Check the Parca is started with the correct command including store flags
+    expected_command = f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
+    container_out = state_out.get_container("parca")
+    assert container_out.plan.services["parca"].command == expected_command
