@@ -103,7 +103,7 @@ def test_endpoint_with_tls_enabled(
         charm: ParcaOperatorCharm = mgr.charm
         # THEN we have TLS enabled
         assert charm._tls_available
-        assert charm.external_url.startswith("https://")
+        assert charm._external_url.startswith("https://")
 
 
 def test_endpoint_with_tls_disabled(
@@ -117,4 +117,4 @@ def test_endpoint_with_tls_disabled(
         charm: ParcaOperatorCharm = mgr.charm
         # THEN we have TLS disabled
         assert not charm._tls_available
-        assert charm.external_url.startswith("http://")
+        assert charm._external_url.startswith("http://")
