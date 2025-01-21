@@ -94,7 +94,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.metrics_endpoint_provider = MetricsEndpointProvider(
             self,
             jobs=self._metrics_scrape_jobs,
-            external_url=self.external_url,
+            external_url=self._external_url,
             refresh_event=[self.certificates.on.certificate_available],
         )
 
@@ -125,7 +125,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             item=CatalogueItem(
                 "Parca UI",
                 icon="chart-areaspline",
-                url=self.external_url,
+                url=self._external_url,
                 description="""Continuous profiling backend. Allows you to collect, store,
                  query and visualize profiles from your distributed deployment.""",
             ),
@@ -136,7 +136,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self,
             port=NGINX_PORT,
             insecure=True,
-            external_url=self.external_url,
+            external_url=self._external_url,
         )
 
         # Enable the option to send profiles to a remote store (i.e. Polar Signals Cloud).
@@ -154,7 +154,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
             source_type="parca",
-            source_url=self.external_url,
+            source_url=self._external_url,
             refresh_event=[self.certificates.on.certificate_available],
         )
 
@@ -210,7 +210,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         return "https" if self._tls_available else "http"
 
     @property
-    def external_url(self) -> str:
+    def _external_url(self) -> str:
         """Return the external hostname if configured, else the internal one."""
         return self.ingress.url or self._internal_url
 
@@ -218,14 +218,14 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _metrics_scrape_jobs(self) -> List[Dict[str, Any]]:
         # TODO: nginx-prometheus-exporter does not natively run with TLS
         # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
-        return _format_scrape_target(
+        return self._format_scrape_target(
             NGINX_PROMETHEUS_EXPORTER_PORT,
             scheme="http",
-        ) + _format_scrape_target(NGINX_PORT, scheme=self._scheme)
+        ) + self._format_scrape_target(NGINX_PORT, scheme=self._scheme)
 
     @property
     def _profiling_scrape_jobs(self) -> List[Dict[str, Any]]:
-        return _format_scrape_target(NGINX_PORT, self._scheme)
+        return self._format_scrape_target(NGINX_PORT, self._scheme)
 
     @property
     def _external_url_path(self) -> Optional[str]:
@@ -289,7 +289,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # update grafana source and metrics scrape endpoints
         # in case they get changed due to ingress or TLS.
         self.metrics_endpoint_provider.update_scrape_job_spec(self._metrics_scrape_jobs)
-        self.grafana_source_provider.update_source(source_url=self.external_url)
+        self.grafana_source_provider.update_source(source_url=self._external_url)
 
     def _configure_nginx_certs(self) -> None:
         """Update the TLS certificates for nginx on disk according to their availability."""
@@ -318,12 +318,11 @@ class ParcaOperatorCharm(ops.CharmBase):
             sans_dns=sans_dns,
         )
 
-
-def _format_scrape_target(port: int, scheme="http"):
-    job: Dict[str, Any] = {"static_configs": [{"targets": [f"*:{port}"]}]}
-    if scheme == "https":
-        job["scheme"] = "https"
-    return [job]
+    def _format_scrape_target(self, port: int, scheme="http"):
+        job: Dict[str, Any] = {"static_configs": [{"targets": [f"{self._hostname}:{port}"]}]}
+        if scheme == "https":
+            job["scheme"] = "https"
+        return [job]
 
 
 if __name__ == "__main__":  # pragma: nocover
