@@ -28,10 +28,12 @@ def parca_resources():
 
 
 @fixture(scope="function")
-def ca_cert():
+def ca_cert(ops_test: OpsTest):
     with tempfile.NamedTemporaryFile() as f:
         p = Path(f.name)
-        exit_code, output = getstatusoutput(f"""juju scp parca/0:{CA_CERT_PATH} {p.absolute()}.""")
+        exit_code, output = getstatusoutput(
+            f"""juju scp --model {ops_test.model_name} parca/0:{CA_CERT_PATH} {p.absolute()}."""
+        )
         if exit_code != 0:
             assert False, f"Unable to copy certificate CA from parca/0. {output}"
         yield p
