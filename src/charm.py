@@ -101,7 +101,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # The self_profiling_endpoint_provider enables Parca to profile itself.
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
-            jobs=self._profiling_scrape_jobs,
+            jobs=self._format_scrape_target(NGINX_PORT, self._scheme),
             relation_name="self-profiling-endpoint",
             refresh_event=[self.certificates.on.certificate_available],
         )
@@ -216,16 +216,12 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     @property
     def _metrics_scrape_jobs(self) -> List[Dict[str, Any]]:
-        # TODO: nginx-prometheus-exporter does not natively run with TLS
-        # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
         return self._format_scrape_target(
             NGINX_PROMETHEUS_EXPORTER_PORT,
+            # TODO: nginx-prometheus-exporter does not natively run with TLS
+            # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
             scheme="http",
         ) + self._format_scrape_target(NGINX_PORT, scheme=self._scheme)
-
-    @property
-    def _profiling_scrape_jobs(self) -> List[Dict[str, Any]]:
-        return self._format_scrape_target(NGINX_PORT, self._scheme)
 
     @property
     def _external_url_path(self) -> Optional[str]:
