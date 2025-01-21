@@ -34,7 +34,6 @@ def certificate_mounts():
     for cert_path, temp_file in temp_files.items():
         mounts[cert_path] = testing.Mount(location=cert_path, source=temp_file.name)
 
-    # TODO: Do we need to clean up the temp files since delete=False was set?
     return mounts
 
 
