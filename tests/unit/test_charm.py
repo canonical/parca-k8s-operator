@@ -2,10 +2,11 @@
 # See LICENSE file for licensing details.
 
 import json
+import socket
 import unittest
 from unittest.mock import patch
 from uuid import uuid4
-import socket
+
 import ops.testing
 import yaml
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH

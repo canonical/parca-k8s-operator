@@ -278,7 +278,6 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _reconcile(self):
         """Unconditional logic to run regardless of the event we're processing."""
-        logger.info("IM INSIDE HERE")
         self.nginx.configure_pebble_layer()
         self.nginx_exporter.configure_pebble_layer()
         self._configure_nginx_certs()
@@ -310,7 +309,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
 
 def _format_scrape_target(port: int, scheme="http"):
-    job = {"static_configs": [{"targets": [f"*:{port}"]}]}
+    job: Dict[str, Any] = {"static_configs": [{"targets": [f"*:{port}"]}]}
     if scheme == "https":
         job["scheme"] = "https"
     return [job]
