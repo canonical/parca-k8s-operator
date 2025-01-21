@@ -180,6 +180,11 @@ class ParcaOperatorCharm(ops.CharmBase):
     ##########################
 
     @property
+    def _app_name(self) -> str:
+        """Application name."""
+        return self.app.name
+
+    @property
     def _hostname(self) -> str:
         """Unit's hostname."""
         return socket.getfqdn()
@@ -305,7 +310,13 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _get_certificate_request_attributes(self) -> CertificateRequestAttributes:
         sans_dns: FrozenSet[str] = frozenset([self._hostname])
-        return CertificateRequestAttributes(common_name=self._hostname, sans_dns=sans_dns)
+        return CertificateRequestAttributes(
+            # common_name is required and has a limit of 64 chars.
+            # it is superseded by sans anyways, so we can use a constrained name,
+            # such as app_name
+            common_name=self._app_name,
+            sans_dns=sans_dns,
+        )
 
 
 def _format_scrape_target(port: int, scheme="http"):
