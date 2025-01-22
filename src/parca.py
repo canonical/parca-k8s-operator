@@ -7,7 +7,7 @@ import logging
 import re
 import time
 import urllib.request
-from typing import Optional, List, Dict, Any, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import yaml
 from ops import Container
@@ -26,26 +26,30 @@ DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
 DEFAULT_PROFILE_PATH = "/var/lib/parca"
 
 # todo: better typing for this?
-ScrapeConfig = Dict[str,List[Dict[str,List[str]]]]
+ScrapeConfig = Dict[str, List[Dict[str, List[str]]]]
 
 
 class Parca:
     """Class representing Parca running in a container under Pebble."""
+
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
-    def __init__(self, container:Container, scrape_configs:List[ScrapeConfig],
-                 enable_persistence:Optional[bool]=None,
-                memory_storage_limit:Optional[int]=None,
-                store_config:Dict[str,str]=None,
-            path_prefix:Optional[str]=None,
+    def __init__(
+        self,
+        container: Container,
+        scrape_configs: List[ScrapeConfig],
+        enable_persistence: Optional[bool] = None,
+        memory_storage_limit: Optional[int] = None,
+        store_config: Dict[str, str] = None,
+        path_prefix: Optional[str] = None,
     ):
         self._container = container
         self._scrape_configs = scrape_configs
         self._enable_persistence = enable_persistence
         self._memory_storage_limit = memory_storage_limit
         self._store_config = store_config
-        self._path_prefix =path_prefix
+        self._path_prefix = path_prefix
 
     @property
     def _config(self) -> str:
@@ -53,11 +57,14 @@ class Parca:
         return ParcaConfig(self._scrape_configs).to_yaml()
 
     def reconcile(self):
+        """Unconditional control logic."""
         if self._container.can_connect():
             # TODO: parca hot-reloads config, so we don't need to track changes and restart manually.
             #  it could be useful though, perhaps, to track changes so we can surface to the user
             #  that the config has changed.
-            self._container.push(DEFAULT_CONFIG_PATH, str(self._config), make_dirs=True, permissions=0o644)
+            self._container.push(
+                DEFAULT_CONFIG_PATH, str(self._config), make_dirs=True, permissions=0o644
+            )
             layer = self._pebble_layer()
             self._container.add_layer("parca", layer, combine=True)
             self._container.replan()
@@ -107,21 +114,21 @@ class Parca:
                 time.sleep(self._version_retry_wait)
 
 
-
 def parca_command_line(
-        http_address: str = ":7070",
-        enable_persistence: bool = None,
-        memory_storage_limit: int = None,
-        *,
-        bin_path: str = DEFAULT_BIN_PATH,
-        config_path: str = DEFAULT_CONFIG_PATH,
-        profile_path: str = DEFAULT_PROFILE_PATH,
-        path_prefix: Optional[str] = None,
-        store_config: dict = None,
+    http_address: str = ":7070",
+    enable_persistence: bool = None,
+    memory_storage_limit: int = None,
+    *,
+    bin_path: str = DEFAULT_BIN_PATH,
+    config_path: str = DEFAULT_CONFIG_PATH,
+    profile_path: str = DEFAULT_PROFILE_PATH,
+    path_prefix: Optional[str] = None,
+    store_config: dict = None,
 ) -> str:
     """Generate a valid Parca command line.
 
     Args:
+        http_address: Http address for the parca server.
         enable_persistence: Whether to enable the filesystem persistence feature.
         memory_storage_limit: Memory storage limit.
         bin_path: Path to the Parca binary to be started.
@@ -130,11 +137,7 @@ def parca_command_line(
         path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
     """
-    cmd = [
-        str(bin_path),
-        f"--config-path={config_path}",
-        f"--http-address={http_address}"
-    ]
+    cmd = [str(bin_path), f"--config-path={config_path}", f"--http-address={http_address}"]
 
     if path_prefix:
         if not path_prefix.startswith("/"):
@@ -186,7 +189,12 @@ def parse_version(vstr: str) -> str:
 class ParcaConfig:
     """Class representing the Parca config file."""
 
-    def __init__(self, scrape_configs:Optional[Sequence[ScrapeConfig]]=None, *, profile_path=DEFAULT_PROFILE_PATH):
+    def __init__(
+        self,
+        scrape_configs: Optional[Sequence[ScrapeConfig]] = None,
+        *,
+        profile_path=DEFAULT_PROFILE_PATH,
+    ):
         self._profile_path = str(profile_path)
         self._scrape_configs = scrape_configs or []
 
