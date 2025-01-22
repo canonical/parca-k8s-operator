@@ -117,7 +117,7 @@ class Parca:
 def parca_command_line(
     http_address: str = ":7070",
     enable_persistence: bool = None,
-    memory_storage_limit: int = None,
+    memory_storage_limit: int = 1,
     *,
     bin_path: str = DEFAULT_BIN_PATH,
     config_path: str = DEFAULT_CONFIG_PATH,
