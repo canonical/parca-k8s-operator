@@ -6,7 +6,7 @@
 
 import logging
 import socket
-from typing import Optional, List
+from typing import List, Optional
 from urllib.parse import urlparse
 
 import ops
@@ -17,7 +17,6 @@ from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, Profilin
 from charms.parca_k8s.v0.parca_store import (
     ParcaStoreEndpointProvider,
     ParcaStoreEndpointRequirer,
-    RemoveStoreEvent,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
@@ -31,7 +30,7 @@ from nginx import (
     Nginx,
     NginxPrometheusExporter,
 )
-from parca import PARCA_PORT, Parca, DEFAULT_CONFIG_PATH as CONFIG_PATH, ScrapeConfig
+from parca import PARCA_PORT, Parca, ScrapeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -98,13 +97,14 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # WORKLOADS
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
-        self.parca = Parca(container=self.unit.get_container("parca"),
-                           scrape_configs = self.profiling_consumer.jobs(),
-                           enable_persistence=self.config.get("enable-persistence", None),
-                           memory_storage_limit=self.config.get("memory-storage-limit", None),
-                           store_config=self.store_requirer.config,
-                           path_prefix=self._external_url_path
-                           )
+        self.parca = Parca(
+            container=self.unit.get_container("parca"),
+            scrape_configs=self.profiling_consumer.jobs(),
+            enable_persistence=self.config.get("enable-persistence", None),
+            memory_storage_limit=self.config.get("memory-storage-limit", None),
+            store_config=self.store_requirer.config,
+            path_prefix=self._external_url_path,
+        )
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container("nginx-prometheus-exporter"),
         )
@@ -114,6 +114,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             address=Address(name="parca", port=PARCA_PORT),
             path_prefix=self._external_url_path,
         )
+
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
 
         # unconditional logic
         self._reconcile()
@@ -158,21 +160,25 @@ class ParcaOperatorCharm(ops.CharmBase):
         # external_url.path already includes a trailing /
         return str(external_url.path) or None
 
-    def _collect_unit_status(self, event:ops.CollectStatusEvent):
+    def _on_collect_unit_status(self, event: ops.CollectStatusEvent):
         """Set unit status depending on the state."""
-        containers_not_ready = [c_name for c_name in {"parca", "nginx", "nginx-prometheus-exporter"} if
-                                not self.unit.get_container(c_name).can_connect]
+        containers_not_ready = [
+            c_name
+            for c_name in {"parca", "nginx", "nginx-prometheus-exporter"}
+            if not self.unit.get_container(c_name).can_connect()
+        ]
 
         if containers_not_ready:
-            event.add_status(ops.WaitingStatus(f"Waiting for containers: {containers_not_ready}..."))
+            event.add_status(
+                ops.WaitingStatus(f"Waiting for containers: {containers_not_ready}...")
+            )
         else:
             self.unit.set_workload_version(self.parca.version)
 
         event.add_status(ops.ActiveStatus(f"UI ready at {self.external_url}"))
 
 
-
-def _format_scrape_target(port: int)->List[ScrapeConfig]:
+def _format_scrape_target(port: int) -> List[ScrapeConfig]:
     return [{"static_configs": [{"targets": [f"*:{port}"]}]}]
 
 
