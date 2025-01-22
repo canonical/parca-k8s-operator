@@ -3,17 +3,19 @@
 
 import json
 from dataclasses import replace
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
-import yaml
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
 from ops.model import ActiveStatus, WaitingStatus
-from ops.testing import Relation, State
+from ops.testing import CharmEvents, Relation, State
 
 from nginx import NGINX_PORT
 from parca import PARCA_PORT
+from tests.unit.test_charm.container_utils import (
+    assert_parca_command_equals,
+    assert_parca_config_equals,
+)
 
 DEFAULT_PLAN = {
     "services": {
@@ -51,20 +53,43 @@ def base_state(parca_container, nginx_container, nginx_prometheus_exporter_conta
     )
 
 
-def test_pebble_ready(context, parca_container, base_state):
-    state_out = context.run(context.on.pebble_ready(parca_container), base_state)
-
-    container_out = state_out.get_container("parca")
-
-    assert container_out.plan.to_dict() == DEFAULT_PLAN
+def assert_healthy(state: State):
+    # check the parca container has a plan and "parca" service is running
+    container_out = state.get_container("parca")
     assert container_out.services["parca"].is_running()
-    assert state_out.unit_status == ActiveStatus()
-    assert state_out.workload_version == "v0.12.0"
+
+    # check the unit status is active
+    assert isinstance(state.unit_status, ActiveStatus)
+
+    # check the workload version is set and as expected
+    assert state.workload_version == "v0.12.0"
 
 
-def test_update_status(context, parca_container, base_state):
-    state_out = context.run(context.on.update_status(), base_state)
-    assert state_out.workload_version == "v0.12.0"
+@pytest.fixture(params=(0, 1, 2))
+def any_container(parca_container, nginx_container, nginx_prometheus_exporter_container, request):
+    # parametrized fixture to allow running tests on any individual container
+    return (parca_container, nginx_container, nginx_prometheus_exporter_container)[request.param]
+
+
+@pytest.mark.xfail # will be fixed in the reconciler refactoring (PR #391)
+def test_healthy_container_events(context, any_container, base_state):
+    state_out = context.run(context.on.pebble_ready(any_container), base_state)
+    assert_healthy(state_out)
+
+
+@pytest.mark.xfail # will be fixed in the reconciler refactoring (PR #391)
+@pytest.mark.parametrize(
+    "event",
+    (
+        CharmEvents().update_status(),
+        CharmEvents().start(),
+        CharmEvents().install(),
+        CharmEvents().config_changed(),
+    ),
+)
+def test_healthy_lifecycle_events(context, event, base_state):
+    state_out = context.run(event, base_state)
+    assert_healthy(state_out)
 
 
 def test_config_changed_container_not_ready(
@@ -80,8 +105,7 @@ def test_config_changed_container_not_ready(
         config={"enable-persistence": False, "memory-storage-limit": 1024},
     )
     state_out = context.run(context.on.config_changed(), state)
-
-    assert state_out.unit_status == WaitingStatus("waiting for container")
+    assert state_out.unit_status == WaitingStatus(f"waiting for container")
 
 
 def test_config_changed_persistence(context, base_state):
@@ -89,21 +113,14 @@ def test_config_changed_persistence(context, base_state):
         context.on.config_changed(),
         replace(base_state, config={"enable-persistence": True, "memory-storage-limit": 1024}),
     )
-
-    container_out = state_out.get_container("parca")
-
-    expected_plan = {
-        "services": {
-            "parca": {
-                "summary": "parca",
-                "startup": "enabled",
-                "override": "replace",
-                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --enable-persistence --storage-path=/var/lib/parca",
-            }
-        }
-    }
-    assert container_out.plan.to_dict() == expected_plan
-    assert state_out.unit_status == ActiveStatus()
+    assert_parca_command_equals(
+        state_out,
+        f"/parca --config-path={DEFAULT_CONFIG_PATH} "
+        f"--http-address=localhost:{PARCA_PORT} "
+        f"--enable-persistence "
+        f"--storage-path=/var/lib/parca",
+    )
+    assert_healthy(state_out)
 
 
 def test_config_changed_active_memory(context, base_state):
@@ -112,35 +129,28 @@ def test_config_changed_active_memory(context, base_state):
         replace(base_state, config={"enable-persistence": False, "memory-storage-limit": 2048}),
     )
 
-    container_out = state_out.get_container("parca")
-    expected_plan = {
-        "services": {
-            "parca": {
-                "summary": "parca",
-                "startup": "enabled",
-                "override": "replace",
-                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=2147483648",
-            }
-        }
-    }
-    assert container_out.plan.to_dict() == expected_plan
-    assert state_out.unit_status == ActiveStatus()
+    assert_parca_command_equals(
+        state_out,
+        f"/parca "
+        f"--config-path={DEFAULT_CONFIG_PATH} "
+        f"--http-address=localhost:{PARCA_PORT} "
+        f"--storage-active-memory=2147483648",
+    )
+    assert_healthy(state_out)
 
 
 def test_config_file_written(context, parca_container, base_state):
     state_out = context.run(context.on.pebble_ready(parca_container), base_state)
-    container_out = state_out.get_container("parca")
-
-    config = container_out.get_filesystem(context).joinpath(
-        Path(DEFAULT_CONFIG_PATH).relative_to("/")
-    )
-    expected = {
-        "object_storage": {
-            "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
+    assert_parca_config_equals(
+        context,
+        state_out,
+        {
+            "object_storage": {
+                "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
+            },
+            "scrape_configs": [],
         },
-        "scrape_configs": [],
-    }
-    assert yaml.safe_load(config.read_text()) == expected
+    )
 
 
 def test_parca_pebble_layer_adjusted_memory(context, base_state):
@@ -152,20 +162,14 @@ def test_parca_pebble_layer_adjusted_memory(context, base_state):
         context.on.config_changed(),
         replace(state_out, config={"enable-persistence": False, "memory-storage-limit": 1024}),
     )
-    expected_plan = {
-        "services": {
-            "parca": {
-                "summary": "parca",
-                "startup": "enabled",
-                "override": "replace",
-                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=1073741824",
-            }
-        }
-    }
-
-    container_out = state_out_2.get_container("parca")
-    assert container_out.plan.to_dict() == expected_plan
-    assert state_out.unit_status == ActiveStatus()
+    assert_parca_command_equals(
+        state_out_2,
+        f"/parca "
+        f"--config-path={DEFAULT_CONFIG_PATH} "
+        f"--http-address=localhost:{PARCA_PORT} "
+        f"--storage-active-memory=1073741824",
+    )
+    assert_healthy(state_out_2)
 
 
 def test_parca_pebble_layer_storage_persist(context, base_state):
@@ -178,19 +182,15 @@ def test_parca_pebble_layer_storage_persist(context, base_state):
         replace(state_out, config={"enable-persistence": True, "memory-storage-limit": 1024}),
     )
 
-    expected_plan = {
-        "services": {
-            "parca": {
-                "summary": "parca",
-                "startup": "enabled",
-                "override": "replace",
-                "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --enable-persistence --storage-path=/var/lib/parca",
-            }
-        }
-    }
-    container_out = state_out_2.get_container("parca")
-    assert container_out.plan.to_dict() == expected_plan
-    assert state_out.unit_status == ActiveStatus()
+    assert_parca_command_equals(
+        state_out_2,
+        f"/parca "
+        f"--config-path={DEFAULT_CONFIG_PATH} "
+        f"--http-address=localhost:{PARCA_PORT} "
+        f"--enable-persistence "
+        f"--storage-path=/var/lib/parca",
+    )
+    assert_healthy(state_out_2)
 
 
 def test_profiling_endpoint_relation(context, base_state):
@@ -247,19 +247,13 @@ def test_profiling_endpoint_relation(context, base_state):
     ) as mgr:
         assert mgr.charm.profiling_consumer.jobs() == expected_jobs
         state_out = mgr.run()
-
-    container_out = state_out.get_container("parca")
-    config = container_out.get_filesystem(context).joinpath(
-        Path(DEFAULT_CONFIG_PATH).relative_to("/")
-    )
-
     expected_config = {
         "object_storage": {
             "bucket": {"config": {"directory": "/var/lib/parca"}, "type": "FILESYSTEM"}
         },
         "scrape_configs": expected_jobs,
     }
-    assert yaml.safe_load(config.read_text()) == expected_config
+    assert_parca_config_equals(context, state_out, expected_config)
 
 
 def test_metrics_endpoint_relation(context, base_state):
@@ -324,6 +318,14 @@ def test_parca_external_store_relation(context, base_state):
         state_out = mgr.run()
 
     # Check the Parca is started with the correct command including store flags
-    expected_command = f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=4294967296 --store-address=grpc.polarsignals.com:443 --bearer-token=deadbeef --insecure=false --mode=scraper-only"
-    container_out = state_out.get_container("parca")
-    assert container_out.plan.services["parca"].command == expected_command
+    assert_parca_command_equals(
+        state_out,
+        f"/parca "
+        f"--config-path={DEFAULT_CONFIG_PATH} "
+        f"--http-address=localhost:{PARCA_PORT} "
+        f"--storage-active-memory=4294967296 "
+        f"--store-address=grpc.polarsignals.com:443 "
+        f"--bearer-token=deadbeef "
+        f"--insecure=false "
+        f"--mode=scraper-only",
+    )
