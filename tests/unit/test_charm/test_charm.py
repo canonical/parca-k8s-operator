@@ -2,19 +2,16 @@
 # See LICENSE file for licensing details.
 
 import json
-from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch
 from uuid import uuid4
 
-import ops.testing as testing
 import pytest
 import yaml
 from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
 from ops.model import ActiveStatus, WaitingStatus
+from ops.testing import Relation, State
 
-from charm import ParcaOperatorCharm
 from nginx import NGINX_PORT
 from parca import PARCA_PORT
 
@@ -47,41 +44,9 @@ SCRAPE_JOBS = [
 
 
 @pytest.fixture
-def context():
-    return testing.Context(ParcaOperatorCharm)
-
-
-@pytest.fixture
-def parca_peers():
-    return testing.PeerRelation("parca-peers")
-
-
-@pytest.fixture
-def parca_container():
-    return testing.Container("parca", can_connect=True)
-
-
-@pytest.fixture
-def nginx_container():
-    return testing.Container("nginx", can_connect=True)
-
-
-@pytest.fixture
-def prom_exporter_container():
-    return testing.Container("nginx-prometheus-exporter", can_connect=True)
-
-
-@pytest.fixture(autouse=True)
-def patch_all():
-    with ExitStack() as stack:
-        stack.enter_context(patch("parca.Parca.version", "v0.12.0"))
-        yield
-
-
-@pytest.fixture
-def base_state(parca_container, nginx_container, prom_exporter_container, parca_peers):
-    return testing.State(
-        containers={parca_container, nginx_container, prom_exporter_container},
+def base_state(parca_container, nginx_container, nginx_prometheus_exporter_container, parca_peers):
+    return State(
+        containers={parca_container, nginx_container, nginx_prometheus_exporter_container},
         relations={parca_peers},
     )
 
@@ -103,13 +68,13 @@ def test_update_status(context, parca_container, base_state):
 
 
 def test_config_changed_container_not_ready(
-    context, parca_container, nginx_container, prom_exporter_container, parca_peers
+    context, parca_container, nginx_container, nginx_prometheus_exporter_container, parca_peers
 ):
-    state = testing.State(
+    state = State(
         containers={
             replace(parca_container, can_connect=False),
             nginx_container,
-            prom_exporter_container,
+            nginx_prometheus_exporter_container,
         },
         relations={parca_peers},
         config={"enable-persistence": False, "memory-storage-limit": 1024},
@@ -229,7 +194,7 @@ def test_parca_pebble_layer_storage_persist(context, base_state):
 
 
 def test_profiling_endpoint_relation(context, base_state):
-    relation = testing.Relation(
+    relation = Relation(
         "profiling-endpoint",
         remote_app_name="profiled-app",
         remote_app_data={
@@ -299,7 +264,7 @@ def test_profiling_endpoint_relation(context, base_state):
 
 def test_metrics_endpoint_relation(context, base_state):
     # Create a relation to an app named "prometheus"
-    relation = testing.Relation("metrics-endpoint", remote_app_name="prometheus")
+    relation = Relation("metrics-endpoint", remote_app_name="prometheus")
 
     state_out = context.run(
         context.on.relation_joined(relation),
@@ -319,7 +284,7 @@ def test_metrics_endpoint_relation(context, base_state):
 
 def test_parca_store_relation(context, base_state):
     # Create a relation to an app named "parca-store-endpoint"
-    relation = testing.Relation("parca-store-endpoint", remote_app_name="foo")
+    relation = Relation("parca-store-endpoint", remote_app_name="foo")
 
     state_out = context.run(
         context.on.relation_joined(relation),
@@ -344,7 +309,7 @@ def test_parca_external_store_relation(context, base_state):
         "remote-store-insecure": "false",
     }
 
-    relation = testing.Relation(
+    relation = Relation(
         "external-parca-store-endpoint", remote_app_name="pscloud", remote_app_data=pscloud_config
     )
 

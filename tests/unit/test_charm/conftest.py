@@ -2,7 +2,7 @@ from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
-from ops.testing import Container, Context
+from ops.testing import Container, Context, PeerRelation
 
 from charm import ParcaOperatorCharm
 
@@ -16,18 +16,24 @@ def patch_buffer_file_for_charm_tracing(tmp_path):
         yield
 
 
-@pytest.fixture
-def parca_charm(tmp_path):
+@pytest.fixture(autouse=True)
+def patch_all(tmp_path):
     with ExitStack() as stack:
         stack.enter_context(patch("lightkube.core.client.GenericSyncClient"))
         stack.enter_context(patch("nginx.Nginx.are_certificates_on_disk", False))
         stack.enter_context(patch("nginx.CA_CERT_PATH", str(tmp_path / "ca.tmp")))
-        yield ParcaOperatorCharm
+        stack.enter_context(patch("parca.Parca.version", "v0.12.0"))
+        yield
 
 
 @pytest.fixture(scope="function")
-def context(parca_charm):
-    return Context(charm_type=parca_charm)
+def context():
+    return Context(charm_type=ParcaOperatorCharm)
+
+
+@pytest.fixture
+def parca_peers():
+    return PeerRelation("parca-peers")
 
 
 @pytest.fixture(scope="function")
