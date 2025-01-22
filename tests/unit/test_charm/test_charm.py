@@ -71,13 +71,11 @@ def any_container(parca_container, nginx_container, nginx_prometheus_exporter_co
     return (parca_container, nginx_container, nginx_prometheus_exporter_container)[request.param]
 
 
-@pytest.mark.xfail # will be fixed in the reconciler refactoring (PR #391)
 def test_healthy_container_events(context, any_container, base_state):
     state_out = context.run(context.on.pebble_ready(any_container), base_state)
     assert_healthy(state_out)
 
 
-@pytest.mark.xfail # will be fixed in the reconciler refactoring (PR #391)
 @pytest.mark.parametrize(
     "event",
     (
@@ -105,7 +103,7 @@ def test_config_changed_container_not_ready(
         config={"enable-persistence": False, "memory-storage-limit": 1024},
     )
     state_out = context.run(context.on.config_changed(), state)
-    assert state_out.unit_status == WaitingStatus(f"waiting for container")
+    assert state_out.unit_status == WaitingStatus(f"Waiting for containers: {['parca']}...")
 
 
 def test_config_changed_persistence(context, base_state):
