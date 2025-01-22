@@ -17,7 +17,7 @@ sample_dns_ip = "198.18.0.0"
     "address",
     (Address("foo", 123), Address("bar", 42)),
 )
-def test_nginx_config_is_list_before_crossplane(context, nginx_container, address):
+def test_nginx_config_is_list_before_crossplane(address):
     nginx = NginxConfig("localhost", False)
     prepared_config = nginx._prepare_config(address)
     assert isinstance(prepared_config, List)
@@ -27,7 +27,7 @@ def test_nginx_config_is_list_before_crossplane(context, nginx_container, addres
     "address",
     (Address("foo", 123), Address("bar", 42)),
 )
-def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, address):
+def test_nginx_config_is_parsed_by_crossplane(address):
     nginx = NginxConfig("localhost", False)
     prepared_config = nginx.config(address)
     assert isinstance(prepared_config, str)
@@ -39,9 +39,7 @@ def test_nginx_config_is_parsed_by_crossplane(context, nginx_container, address)
 )
 @pytest.mark.parametrize("tls", (True, False))
 @pytest.mark.parametrize("hostname", ("localhost", "foobarhost"))
-def test_nginx_config_contains_upstreams_and_proxy_pass(
-    context, nginx_container, address, tls, hostname
-):
+def test_nginx_config_contains_upstreams_and_proxy_pass(address, tls, hostname):
     with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
         nginx = NginxConfig(hostname, False)
 
