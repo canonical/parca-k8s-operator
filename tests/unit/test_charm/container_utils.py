@@ -3,7 +3,8 @@ from pathlib import Path
 import yaml
 from scenario import Context, State
 
-from parca import DEFAULT_CONFIG_PATH
+from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
+
 
 
 def assert_parca_command_equals(state: State, expected_command):

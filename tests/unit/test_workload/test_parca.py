@@ -16,13 +16,7 @@ MOCK_WEB_RESPONSE_V2 = b'<script>window.PATH_PREFIX="",window.APP_VERSION="v0.18
 
 class TestParca(unittest.TestCase):
     def setUp(self):
-        container_mock = MagicMock()
-        self.parca = Parca(
-            container=container_mock,
-            scrape_configs=[],
-            enable_persistence=False,
-            memory_storage_limit=1024,
-        )
+        self.parca = Parca()
 
     def test_pebble_layer(self):
         expected = {
@@ -36,7 +30,7 @@ class TestParca(unittest.TestCase):
             }
         }
         self.assertEqual(
-            self.parca._pebble_layer(),
+            self.parca.pebble_layer(config={"memory-storage-limit":1024}),
             expected,
         )
 
