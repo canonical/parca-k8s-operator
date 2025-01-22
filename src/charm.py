@@ -101,7 +101,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # The self_profiling_endpoint_provider enables Parca to profile itself.
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
-            jobs=self._format_scrape_target(NGINX_PORT, self._scheme),
+            jobs=self._format_scrape_target(NGINX_PORT, self._scheme, profiles_path=f"{self._external_url_path or ''}/debug"),
             relation_name="self-profiling-endpoint",
             refresh_event=[self.certificates.on.certificate_available],
         )
@@ -221,7 +221,11 @@ class ParcaOperatorCharm(ops.CharmBase):
             # TODO: nginx-prometheus-exporter does not natively run with TLS
             # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
             scheme="http",
-        ) + self._format_scrape_target(NGINX_PORT, scheme=self._scheme)
+        ) + self._format_scrape_target(
+            NGINX_PORT,
+            scheme=self._scheme,
+            metrics_path=f"{self._external_url_path}/metrics" if self.ingress.is_ready else None,
+        )
 
     @property
     def _external_url_path(self) -> Optional[str]:
@@ -314,8 +318,12 @@ class ParcaOperatorCharm(ops.CharmBase):
             sans_dns=sans_dns,
         )
 
-    def _format_scrape_target(self, port: int, scheme="http"):
+    def _format_scrape_target(self, port: int, scheme="http", metrics_path=None, profiles_path=None):
         job: Dict[str, Any] = {"static_configs": [{"targets": [f"{self._hostname}:{port}"]}]}
+        if metrics_path:
+            job["metrics_path"] = metrics_path
+        if profiles_path:
+            job["profiling_config"] = {"path_prefix": profiles_path}
         if scheme == "https":
             job["scheme"] = "https"
         return [job]
