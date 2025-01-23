@@ -7,7 +7,7 @@ import logging
 import re
 import time
 import urllib.request
-from typing import Dict, List, Optional, Sequence, TypedDict, Literal
+from typing import Dict, List, Literal, Optional, Sequence, TypedDict
 
 import yaml
 from ops import Container
@@ -29,6 +29,8 @@ ScrapeJob = Dict[str, List[str]]
 
 
 class ScrapeJobsConfig(TypedDict, total=False):
+    """Scrape job config type."""
+
     static_configs: List[ScrapeJob]
     scheme: Optional[Literal["https"]]
 
@@ -40,13 +42,13 @@ class Parca:
     _version_retry_wait = 3
 
     def __init__(
-            self,
-            container: Container,
-            scrape_configs: List[ScrapeJobsConfig],
-            enable_persistence: Optional[bool] = None,
-            memory_storage_limit: Optional[int] = None,
-            store_config: Optional[Dict[str, str]] = None,
-            path_prefix: Optional[str] = None,
+        self,
+        container: Container,
+        scrape_configs: List[ScrapeJobsConfig],
+        enable_persistence: Optional[bool] = None,
+        memory_storage_limit: Optional[int] = None,
+        store_config: Optional[Dict[str, str]] = None,
+        path_prefix: Optional[str] = None,
     ):
         self._container = container
         self._scrape_configs = scrape_configs
@@ -119,15 +121,15 @@ class Parca:
 
 
 def parca_command_line(
-        http_address: str = ":7070",
-        enable_persistence: Optional[bool] = False,
-        memory_storage_limit: Optional[int] = None,
-        *,
-        bin_path: str = DEFAULT_BIN_PATH,
-        config_path: str = DEFAULT_CONFIG_PATH,
-        profile_path: str = DEFAULT_PROFILE_PATH,
-        path_prefix: Optional[str] = None,
-        store_config: Optional[dict] = None,
+    http_address: str = ":7070",
+    enable_persistence: Optional[bool] = False,
+    memory_storage_limit: Optional[int] = None,
+    *,
+    bin_path: str = DEFAULT_BIN_PATH,
+    config_path: str = DEFAULT_CONFIG_PATH,
+    profile_path: str = DEFAULT_PROFILE_PATH,
+    path_prefix: Optional[str] = None,
+    store_config: Optional[dict] = None,
 ) -> str:
     """Generate a valid Parca command line.
 
@@ -194,10 +196,10 @@ class ParcaConfig:
     """Class representing the Parca config file."""
 
     def __init__(
-            self,
-            scrape_configs: Optional[Sequence[ScrapeJobsConfig]] = None,
-            *,
-            profile_path=DEFAULT_PROFILE_PATH,
+        self,
+        scrape_configs: Optional[Sequence[ScrapeJobsConfig]] = None,
+        *,
+        profile_path=DEFAULT_PROFILE_PATH,
     ):
         self._profile_path = str(profile_path)
         self._scrape_configs = scrape_configs or []

@@ -7,11 +7,10 @@
 import logging
 import socket
 import typing
-from typing import Any, Dict, FrozenSet, List, Optional
+from typing import FrozenSet, List, Optional
 from urllib.parse import urlparse
 
 import ops
-
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
@@ -29,6 +28,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     TLSCertificatesRequiresV4,
 )
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
+
 from nginx import (
     CA_CERT_PATH,
     NGINX_PORT,
@@ -37,7 +37,7 @@ from nginx import (
     Nginx,
     NginxPrometheusExporter,
 )
-from parca import PARCA_PORT, Parca, ScrapeJobsConfig, ScrapeJob
+from parca import PARCA_PORT, Parca, ScrapeJob, ScrapeJobsConfig
 
 logger = logging.getLogger(__name__)
 
@@ -186,9 +186,11 @@ class ParcaOperatorCharm(ops.CharmBase):
         """Return True if tls is enabled and the necessary certs are generated."""
         if not self.model.relations.get("certificates"):
             return False
-        return all(self.certificates.get_assigned_certificate(
-            certificate_request=self._get_certificate_request_attributes()
-        ))
+        return all(
+            self.certificates.get_assigned_certificate(
+                certificate_request=self._get_certificate_request_attributes()
+            )
+        )
 
     @property
     def _scheme(self) -> str:
@@ -207,7 +209,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             # TODO: nginx-prometheus-exporter does not natively run with TLS
             # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
             scheme="http",
-
             #  We scrape parca itelf (over nginx)
         ) + self._format_scrape_target(NGINX_PORT, scheme=self._scheme)
 
