@@ -1,4 +1,41 @@
 {
+  "__inputs": [
+    {
+      "name": "prometheusds",
+      "label": "prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "8.3.6"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -19,28 +56,118 @@
     ]
   },
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
-  "iteration": 1659369572434,
+  "id": null,
+  "iteration": 1645011639708,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "wps"
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 1,
+        "h": 9,
         "w": 24,
         "x": 0,
         "y": 0
       },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "exemplar": false,
+          "expr": "rate(parca_tsdb_head_profiles_appended_total[5m])",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Samples Appended",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "id": 11,
-      "panels": [],
       "title": "Write (gRPC)",
       "type": "row"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -97,7 +224,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 1
+        "y": 10
       },
       "id": 3,
       "options": {
@@ -112,11 +239,14 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -124,7 +254,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -177,7 +310,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 1
+        "y": 10
       },
       "id": 15,
       "options": {
@@ -192,11 +325,14 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -204,7 +340,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -261,7 +400,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 1
+        "y": 10
       },
       "id": 7,
       "options": {
@@ -276,7 +415,10 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])))",
           "interval": "",
@@ -284,7 +426,10 @@
           "refId": "A"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.90, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])))",
           "hide": false,
@@ -293,7 +438,10 @@
           "refId": "B"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.95, sum by (le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])))",
           "hide": false,
@@ -307,12 +455,14 @@
     },
     {
       "collapsed": false,
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 18
       },
       "id": 13,
       "panels": [],
@@ -320,7 +470,10 @@
       "type": "row"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "These are the requests that query the overview metrics for profiles over a given time range.",
       "fieldConfig": {
         "defaults": {
@@ -377,7 +530,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 10
+        "y": 19
       },
       "id": 18,
       "options": {
@@ -392,11 +545,14 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": false,
           "expr": "sum by (grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -404,7 +560,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -457,7 +616,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 10
+        "y": 19
       },
       "id": 16,
       "options": {
@@ -472,11 +631,14 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -484,7 +646,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -541,7 +706,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 10
+        "y": 19
       },
       "id": 17,
       "options": {
@@ -556,7 +721,10 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])))",
           "interval": "",
@@ -564,7 +732,10 @@
           "refId": "A"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.90, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])))",
           "hide": false,
@@ -573,7 +744,10 @@
           "refId": "B"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])))",
           "hide": false,
@@ -586,7 +760,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "These are requests that show the actual profiles.",
       "fieldConfig": {
         "defaults": {
@@ -643,7 +820,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 18
+        "y": 27
       },
       "id": 14,
       "options": {
@@ -658,11 +835,14 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": false,
           "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -670,7 +850,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -723,7 +906,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 18
+        "y": 27
       },
       "id": 19,
       "options": {
@@ -738,11 +921,14 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -750,7 +936,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -807,7 +996,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 18
+        "y": 27
       },
       "id": 20,
       "options": {
@@ -822,7 +1011,10 @@
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])))",
           "interval": "",
@@ -830,7 +1022,10 @@
           "refId": "A"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.90, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])))",
           "hide": false,
@@ -839,7 +1034,10 @@
           "refId": "B"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
           "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])))   ",
           "hide": false,
@@ -852,7 +1050,9 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "description": "These are the requests that return label names and values, usually used in UIs for label suggestions.",
       "fieldConfig": {
         "defaults": {
@@ -909,7 +1109,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 26
+        "y": 35
       },
       "id": 21,
       "options": {
@@ -927,7 +1127,7 @@
           "exemplar": false,
           "expr": "sum by (grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=~\"Labels|Values\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -935,7 +1135,9 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -988,7 +1190,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 26
+        "y": 35
       },
       "id": 22,
       "options": {
@@ -1006,7 +1208,7 @@
           "exemplar": true,
           "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=~\"Labels|Values\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
@@ -1014,7 +1216,9 @@
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1071,7 +1275,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 26
+        "y": 35
       },
       "id": 23,
       "options": {
@@ -1111,151 +1315,242 @@
       ],
       "title": "gRPC Labels Duration",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "id": 9,
+      "title": "Internals",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 14,
+        "x": 0,
+        "y": 44
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "increase(parca_tsdb_head_truncated_chunks_total[5m])",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Truncated Chunks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "dtdurations"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 14,
+        "y": 44
+      },
+      "id": 25,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "time() - parca_tsdb_head_min_time",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "min timestamp",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "dtdurations"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 19,
+        "y": 44
+      },
+      "id": 26,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "time() - parca_tsdb_head_max_time",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "max timestamp",
+      "type": "stat"
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 30,
+  "schemaVersion": 34,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
-        "allValue": null,
         "current": {
           "selected": false,
-          "text": "prometheus-k8s",
-          "value": "prometheus-k8s"
+          "text": "prometheus",
+          "value": "prometheus"
         },
-        "datasource": "${prometheusds}",
-        "definition": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\",juju_application=\"$juju_application\"},juju_unit)",
-        "description": null,
-        "error": null,
         "hide": 0,
         "includeAll": false,
-        "label": "Juju unit",
+        "label": "Data Source",
         "multi": false,
-        "name": "juju_unit",
-        "options": [],
-        "query": {
-          "query": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\",juju_application=\"$juju_application\"},juju_unit)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {
-          "selected": false,
-          "text": "prometheus-k8s",
-          "value": "prometheus-k8s"
-        },
-        "datasource": "${prometheusds}",
-        "definition": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\"},juju_application)",
-        "description": null,
-        "error": null,
-        "hide": 0,
-        "includeAll": false,
-        "label": "Juju application",
-        "multi": false,
-        "name": "juju_application",
-        "options": [],
-        "query": {
-          "query": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\"},juju_application)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {
-          "selected": false,
-          "text": "d86d0e3b-b970-47c8-82f6-1fd861e267ee",
-          "value": "d86d0e3b-b970-47c8-82f6-1fd861e267ee"
-        },
-        "datasource": "${prometheusds}",
-        "definition": "label_values(up{juju_model=\"$juju_model\"},juju_model_uuid)",
-        "description": null,
-        "error": null,
-        "hide": 0,
-        "includeAll": false,
-        "label": "Juju model uuid",
-        "multi": false,
-        "name": "juju_model_uuid",
-        "options": [],
-        "query": {
-          "query": "label_values(up{juju_model=\"$juju_model\"},juju_model_uuid)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {
-          "selected": false,
-          "text": "dev",
-          "value": "dev"
-        },
-        "datasource": "${prometheusds}",
-        "definition": "label_values(up,juju_model)",
-        "description": null,
-        "error": null,
-        "hide": 0,
-        "includeAll": false,
-        "label": "Juju model",
-        "multi": false,
-        "name": "juju_model",
-        "options": [],
-        "query": {
-          "query": "label_values(up,juju_model)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "juju_dev_d86d0e3b-b970-47c8-82f6-1fd861e267ee_prometheus-k8s_0",
-          "value": "juju_dev_d86d0e3b-b970-47c8-82f6-1fd861e267ee_prometheus-k8s_0"
-        },
-        "description": null,
-        "error": null,
-        "hide": 0,
-        "includeAll": false,
-        "label": null,
-        "multi": false,
-        "name": "prometheusds",
+        "name": "datasource",
         "options": [],
         "query": "prometheus",
         "queryValue": "",
@@ -1273,6 +1568,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Parca",
-  "uid": "sj_clokVz",
-  "version": 1
+  "uid": "iWwypvN7k",
+  "version": 2,
+  "weekStart": ""
 }
