@@ -338,11 +338,12 @@ class ParcaOperatorCharm(ops.CharmBase):
             job["profiling_config"] = {"path_prefix": profiles_path}
         if scheme == "https":
             job["scheme"] = "https"
-            job["tls_config"] = {
-                # ca_file should hold the CA path, but prometheus charm expects ca_file to hold the cert contents.
-                # https://github.com/canonical/prometheus-k8s-operator/issues/670
-                "ca_file" if metrics_path else "ca": Path(CA_CERT_PATH).read_text()
-            }
+            if Path(CA_CERT_PATH).exists():
+                job["tls_config"] = {
+                    # ca_file should hold the CA path, but prometheus charm expects ca_file to hold the cert contents.
+                    # https://github.com/canonical/prometheus-k8s-operator/issues/670
+                    "ca_file" if metrics_path else "ca": Path(CA_CERT_PATH).read_text()
+                }
 
         return [job]
 

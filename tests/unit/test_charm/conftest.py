@@ -26,7 +26,6 @@ def patch_all(tmp_path):
         stack.enter_context(patch("charm.CA_CERT_PATH", str(ca_tmp_path)))
         stack.enter_context(patch("parca.CA_CERT_PATH", str(ca_tmp_path)))
         stack.enter_context(patch("parca.Parca.version", "v0.12.0"))
-        ca_tmp_path.write_text("test")
         yield
 
 
