@@ -171,10 +171,11 @@ import ipaddress
 import json
 import logging
 import socket
+from cosl import JujuTopology
 from typing import List, Optional, Union
+from ops.model import Relation
 
 import ops
-from charms.observability_libs.v0.juju_topology import JujuTopology
 
 # The unique Charmhub library identifier, never change it
 LIBID = "dbc3d2e89cb24917b99c40e14354dd25"
@@ -810,6 +811,22 @@ class ProfilingEndpointProvider(ops.Object):
             return True
         except ValueError:
             return False
+
+    @property
+    def relations(self) -> List[Relation]:
+        """The profiling provider relations associated with this endpoint."""
+        return self._charm.model.relations[self._relation_name]
+
+    def is_ready(self) -> bool:
+        """Return True if any profiling provider relation is ready else return False."""
+        relations = self.relations
+
+        if not relations:
+            logger.debug(f"no relation on {self._relation_name!r}.")
+            return False
+
+        # TODO: once we have a pydantic model, we can also check for the integrity of the databags.
+        return any((relation.app and relation.data) for relation in relations)
 
     @property
     def _scrape_jobs(self) -> list:

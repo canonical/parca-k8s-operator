@@ -138,7 +138,13 @@ def test_config_changed_active_memory(context, base_state):
 
 
 def test_config_file_written(context, parca_container, base_state):
-    state_out = context.run(context.on.pebble_ready(parca_container), base_state)
+    self_profiling = Relation(
+        "self-profiling-endpoint",
+    )
+
+    state_out = context.run(
+        context.on.pebble_ready(parca_container), replace(base_state, relations={self_profiling})
+    )
     assert_parca_config_equals(
         context,
         state_out,
@@ -192,6 +198,10 @@ def test_parca_pebble_layer_storage_persist(context, base_state):
 
 
 def test_profiling_endpoint_relation(context, base_state):
+    self_profiling_relation = Relation(
+        "self-profiling-endpoint",
+    )
+
     relation = Relation(
         "profiling-endpoint",
         remote_app_name="profiled-app",
@@ -241,7 +251,8 @@ def test_profiling_endpoint_relation(context, base_state):
         }
     ]
     with context(
-        context.on.relation_changed(relation), replace(base_state, relations={relation})
+        context.on.relation_changed(relation),
+        replace(base_state, relations={relation, self_profiling_relation}),
     ) as mgr:
         assert mgr.charm.profiling_consumer.jobs() == expected_jobs
         state_out = mgr.run()

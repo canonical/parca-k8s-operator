@@ -31,6 +31,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     TLSCertificatesRequiresV4,
 )
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
+from cosl import JujuTopology
 
 from models import S3Config, TLSConfig
 from nginx import (
@@ -95,6 +96,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             external_url=self._external_url,
             refresh_event=[self.certificates.on.certificate_available],
         )
+
+        # The self_profiling_endpoint_provider enables a remote Parca to scrape profiles from this Parca instance.
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
             jobs=self._self_profiling_scrape_jobs,
@@ -234,13 +237,65 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _tls_config(self) -> Optional["TLSConfig"]:
         if not self.model.relations.get(CERTIFICATES_RELATION_NAME):
             return None
-
         cr = self._get_certificate_request_attributes()
         certificate, key = self.certificates.get_assigned_certificate(certificate_request=cr)
 
         if not (key and certificate):
             return None
         return TLSConfig(cr, key=key, certificate=certificate)
+
+    @property
+    def _profiling_scrape_configs(self) -> List[Dict[str, Any]]:
+        """The scrape configuration that Parca will use for scraping profiles.
+
+        The configuration includes the targets scraped by Parca as well as Parca's
+        own workload profiles if they are not already being scraped by a remote Parca.
+        """
+        scrape_configs = self.profiling_consumer.jobs()
+        # Append parca's self scrape config if no remote parca instance is integrated over "self-profiling-endpoint"
+        if not self.self_profiling_endpoint_provider.is_ready():
+            scrape_configs.append(self._self_profiling_scrape_config)
+        return scrape_configs
+
+    @property
+    def _self_profiling_scrape_config(self) -> Dict[str, Any]:
+        """Profiling scrape config to scrape parca's own workload profiles.
+
+        This config also adds juju topology to the scraped profiles.
+        """
+        topology = JujuTopology.from_charm(self)
+
+        config = {
+            "job_name": "parca",
+            "relabel_configs": [
+                {
+                    "source_labels": [
+                        "juju_model",
+                        "juju_model_uuid",
+                        "juju_application",
+                        "juju_unit",
+                    ],
+                    "separator": "_",
+                    "target_label": "instance",
+                    "regex": "(.*)",
+                }
+            ],
+        }
+
+        additional_config = self._format_scrape_target(
+            NGINX_PORT,
+            self._scheme,
+            profiles_path=self._external_url_path,
+            # add the juju_ prefix to labels
+            labels={"juju_{}".format(key): value for key, value in topology.as_dict() if value},
+        )[0]
+
+        config.update(additional_config)
+        return config
+
+    def _update_status(self, _):
+        """Handle the update status hook on an interval dictated by model config."""
+        self.unit.set_workload_version(self.parca.version)
 
     @property
     def _tls_ready(self) -> bool:
@@ -293,9 +348,16 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
 
     def _format_scrape_target(
-        self, port: int, scheme="http", metrics_path=None, profiles_path: Optional[str] = None
+        self,
+        port: int,
+        scheme="http",
+        metrics_path=None,
+        profiles_path: Optional[str] = None,
+        labels: Dict[str, str] = {},
     ) -> List[ScrapeJobsConfig]:
         job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
+        if labels:
+            job["labels"] = labels
         jobs_config: ScrapeJobsConfig = {"static_configs": [job]}
         if metrics_path:
             jobs_config["metrics_path"] = metrics_path
