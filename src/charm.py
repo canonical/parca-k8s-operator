@@ -186,11 +186,6 @@ class ParcaOperatorCharm(ops.CharmBase):
     ##########################
 
     @property
-    def _app_name(self) -> str:
-        """Application name."""
-        return self.app.name
-
-    @property
     def _internal_url(self):
         """Return workload's internal URL."""
         return f"{self._scheme}://{self._fqdn}:{NGINX_PORT}"
@@ -326,7 +321,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             # common_name is required and has a limit of 64 chars.
             # it is superseded by sans anyways, so we can use a constrained name,
             # such as app_name
-            common_name=self._app_name,
+            common_name=self.app.name,
             sans_dns=sans_dns,
         )
 
