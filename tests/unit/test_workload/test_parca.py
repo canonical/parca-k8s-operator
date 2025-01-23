@@ -30,7 +30,7 @@ class TestParca(unittest.TestCase):
             }
         }
         self.assertEqual(
-            self.parca.pebble_layer({"enable-persistence": False, "memory-storage-limit": 1024}),
+            self.parca.pebble_layer(config={"memory-storage-limit": 1024}),
             expected,
         )
 
