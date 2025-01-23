@@ -23,6 +23,12 @@ parts:
       rustup toolchain install stable
       make generate-requirements
       craftctl default
+    build-packages:
+      - cargo
+      - libffi-dev
+      - libssl-dev
+      - pkg-config
+      - rustc
 
 assumes:
   - juju >= 3.1
@@ -81,7 +87,13 @@ requires:
       Enables sending charm traces to a distributed tracing backend such as Tempo.
     limit: 1
     interface: tracing
-    
+  certificates:
+    interface: tls-certificates
+    limit: 1
+    description: |
+      Certificate and key files for securing Parca's external
+      communications through TLS.
+
 provides:
   grafana-dashboard:
     interface: grafana_dashboard

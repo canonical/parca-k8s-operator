@@ -8,6 +8,7 @@ from subprocess import getoutput
 
 import pytest
 import requests
+from helpers import get_unit_ip
 
 from nginx import NGINX_PORT
 
@@ -60,19 +61,19 @@ async def test_ingressed_url_200(ops_test, prefix):
 
 
 async def test_direct_url_200(ops_test, prefix):
-    parca_ip = _get_unit_ip(ops_test.model_name, PARCA, 0)
+    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
     url = f"http://{parca_ip}:{NGINX_PORT}/{prefix}"
     assert requests.get(url).status_code == 200
 
 
 async def test_direct_url_root_200(ops_test):
-    parca_ip = _get_unit_ip(ops_test.model_name, PARCA, 0)
+    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
     url = f"http://{parca_ip}:{NGINX_PORT}"
     assert requests.get(url).status_code == 200
 
 
 async def test_direct_url_trailing_slash_200(ops_test, prefix):
-    parca_ip = _get_unit_ip(ops_test.model_name, PARCA, 0)
+    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
     url = f"http://{parca_ip}:{NGINX_PORT}/{prefix}/"
     assert requests.get(url).status_code == 200
 
@@ -82,12 +83,6 @@ def _get_ingress_ip(model_name):
         f"sudo microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
     )
     return result.strip("'")
-
-
-def _get_unit_ip(model_name, app_name, unit_id):
-    return getoutput(
-        f"""juju status --model {model_name} --format json | jq '.applications.{app_name}.units."{app_name}/{unit_id}".address'"""
-    ).strip('"')
 
 
 async def _retrieve_proxied_endpoints(ops_test, traefik_application_name):

@@ -5,12 +5,90 @@ from pathlib import Path
 from typing import List
 from unittest.mock import patch
 
+import ops
 import pytest
+from ops import testing
 
-from nginx import Address, NginxConfig, _get_dns_ip_address
+from nginx import (
+    CA_CERT_PATH,
+    CERT_PATH,
+    KEY_PATH,
+    Address,
+    Nginx,
+    NginxConfig,
+    _get_dns_ip_address,
+)
 
 logger = logging.getLogger(__name__)
 sample_dns_ip = "198.18.0.0"
+
+
+@pytest.fixture
+def certificate_mounts():
+    temp_files = {}
+    for path in {KEY_PATH, CERT_PATH, CA_CERT_PATH}:
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        temp_files[path] = temp_file
+
+    mounts = {}
+    for cert_path, temp_file in temp_files.items():
+        mounts[cert_path] = testing.Mount(location=cert_path, source=temp_file.name)
+
+    return mounts
+
+
+@pytest.fixture
+def nginx_context():
+    return testing.Context(
+        ops.CharmBase, meta={"name": "foo", "containers": {"nginx": {"type": "oci-image"}}}
+    )
+
+
+def test_certs_on_disk(certificate_mounts: dict, nginx_context: testing.Context):
+    # GIVEN any charm with a container
+    ctx = nginx_context
+
+    # WHEN we process any event
+    with ctx(
+        ctx.on.update_status(),
+        state=testing.State(
+            containers={testing.Container("nginx", can_connect=True, mounts=certificate_mounts)}
+        ),
+    ) as mgr:
+        charm = mgr.charm
+        nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
+
+        # THEN the certs exist on disk
+        assert nginx.are_certificates_on_disk
+
+
+def test_certs_deleted(certificate_mounts: dict, nginx_context: testing.Context):
+    # Test deleting the certificates.
+
+    # GIVEN any charm with a container
+    ctx = nginx_context
+
+    # WHEN we process any event
+    with ctx(
+        ctx.on.update_status(),
+        state=testing.State(
+            containers={
+                testing.Container(
+                    "nginx",
+                    can_connect=True,
+                    mounts=certificate_mounts,
+                )
+            }
+        ),
+    ) as mgr:
+        charm = mgr.charm
+        nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
+
+        # AND when we call delete_certificates
+        nginx.delete_certificates()
+
+        # THEN the certs get deleted from disk
+        assert not nginx.are_certificates_on_disk
 
 
 @pytest.mark.parametrize(
