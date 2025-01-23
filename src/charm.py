@@ -69,7 +69,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.unit.set_ports(8080)
         self.container = self.unit.get_container("parca")
         self.parca = Parca(
-            container=self.unit.get_container("parca"),
+            container=self.container,
         )
         # The profiling_consumer handles the relation that allows Parca to scrape other apps in the
         # model that provide a "profiling-endpoint" relation.
@@ -303,9 +303,6 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _configure_certs(self) -> None:
         """Update the TLS certificates for nginx/parca/charm containers on disk according to their availability."""
-        if not self.container.can_connect():
-            return
-
         if self._tls_available:
             provider_certificate, private_key = self.certificates.get_assigned_certificate(
                 certificate_request=self._get_certificate_request_attributes()

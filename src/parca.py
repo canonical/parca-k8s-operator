@@ -86,23 +86,25 @@ class Parca:
 
     def update_ca_certificate(self, ca_cert: str) -> None:
         """Save the CA certificate file to disk and run update-ca-certificates."""
-        current_ca_cert = (
-            self._container.pull(CA_CERT_PATH).read()
-            if self._container.exists(CA_CERT_PATH)
-            else ""
-        )
-        if current_ca_cert == ca_cert:
-            # No update needed
-            return
+        if self._container.can_connect():
+            current_ca_cert = (
+                self._container.pull(CA_CERT_PATH).read()
+                if self._container.exists(CA_CERT_PATH)
+                else ""
+            )
+            if current_ca_cert == ca_cert:
+                # No update needed
+                return
 
-        self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
+            self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
 
-        # TODO: uncomment when parca container has update-ca-certificates command
-        # self._container.exec(["update-ca-certificates", "--fresh"])
+            # TODO: uncomment when parca container has update-ca-certificates command
+            # self._container.exec(["update-ca-certificates", "--fresh"])
 
     def delete_ca_certificate(self):
         """Delete the CA certificate file from disk and run update-ca-certificates."""
-        if self._container.exists(CA_CERT_PATH):
-            self._container.remove_path(CA_CERT_PATH, recursive=True)
-        # TODO: uncomment when parca container has update-ca-certificates command
-        # self._container.exec(["update-ca-certificates", "--fresh"])
+        if self._container.can_connect():
+            if self._container.exists(CA_CERT_PATH):
+                self._container.remove_path(CA_CERT_PATH, recursive=True)
+            # TODO: uncomment when parca container has update-ca-certificates command
+            # self._container.exec(["update-ca-certificates", "--fresh"])
