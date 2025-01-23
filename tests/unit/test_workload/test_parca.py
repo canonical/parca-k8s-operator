@@ -16,7 +16,7 @@ MOCK_WEB_RESPONSE_V2 = b'<script>window.PATH_PREFIX="",window.APP_VERSION="v0.18
 
 class TestParca(unittest.TestCase):
     def setUp(self):
-        self.parca = Parca()
+        self.parca = Parca(None)
 
     def test_pebble_layer(self):
         expected = {

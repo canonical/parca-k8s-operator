@@ -61,7 +61,7 @@ class Nginx:
             and self._container.exists(CA_CERT_PATH)
         )
 
-    def configure_tls(self, private_key: str, server_cert: str, ca_cert: str) -> None:
+    def update_certificates(self, server_cert: str, ca_cert: str, private_key: str) -> None:
         """Save the certificates file to disk and run update-ca-certificates."""
         if self._container.can_connect():
             # Read the current content of the files (if they exist)
@@ -76,7 +76,6 @@ class Nginx:
                 if self._container.exists(CA_CERT_PATH)
                 else ""
             )
-
             if (
                 current_server_cert == server_cert
                 and current_private_key == private_key
@@ -84,6 +83,7 @@ class Nginx:
             ):
                 # No update needed
                 return
+
             self._container.push(KEY_PATH, private_key, make_dirs=True)
             self._container.push(CERT_PATH, server_cert, make_dirs=True)
             self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
@@ -92,7 +92,7 @@ class Nginx:
             Path(CA_CERT_PATH).parent.mkdir(parents=True, exist_ok=True)
             Path(CA_CERT_PATH).write_text(ca_cert)
 
-            # FIXME: uncomment as soon as the nginx image contains the ca-certificates package
+            # TODO: uncomment when nginx container has update-ca-certificates command
             # self._container.exec(["update-ca-certificates", "--fresh"])
 
     def delete_certificates(self) -> None:
@@ -106,7 +106,8 @@ class Nginx:
                 self._container.remove_path(CA_CERT_PATH, recursive=True)
             if Path(CA_CERT_PATH).exists():
                 Path(CA_CERT_PATH).unlink(missing_ok=True)
-            # FIXME: uncomment as soon as the nginx image contains the ca-certificates package
+
+            # TODO: uncomment when nginx container has update-ca-certificates command
             # self._container.exec(["update-ca-certificates", "--fresh"])
 
     def _has_config_changed(self, new_config: str) -> bool:
@@ -322,12 +323,12 @@ class NginxConfig:
             ],
         }
 
-    def _locations(self, upstream: str, tls: bool) -> List[Dict[str, Any]]:
+    def _locations(self, upstream: str) -> List[Dict[str, Any]]:
         prefix = self._path_prefix  # starts with /
 
-        protocol = f"http{'s' if tls else ''}"
         proxy_block = [
-            {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
+            # upstream server is not running with TLS, so we proxy the request as http
+            {"directive": "set", "args": ["$backend", f"http://{upstream}"]},
             {
                 "directive": "proxy_pass",
                 "args": ["$backend"],
@@ -416,7 +417,7 @@ class NginxConfig:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
                     {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
-                    *self._locations(upstream, tls),
+                    *self._locations(upstream),
                 ],
             }
 
@@ -431,7 +432,7 @@ class NginxConfig:
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
                 {"directive": "server_name", "args": [self.server_name]},
-                *self._locations(upstream, tls),
+                *self._locations(upstream),
             ],
         }
 

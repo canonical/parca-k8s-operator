@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import json
+import socket
 from dataclasses import replace
 from uuid import uuid4
 
@@ -269,7 +270,7 @@ def test_metrics_endpoint_relation(context, base_state):
     rel_out = state_out.get_relation(relation.id)
     # Ensure that the unit set its targets correctly
     expected = {
-        "prometheus_scrape_unit_address": "192.0.2.0",
+        "prometheus_scrape_unit_address": socket.getfqdn(),
         "prometheus_scrape_unit_name": "parca-k8s/0",
     }
     for key, val in expected.items():
@@ -289,7 +290,7 @@ def test_parca_store_relation(context, base_state):
     rel_out = state_out.get_relation(relation.id)
     # Ensure that the unit set its targets correctly
     expected = {
-        "remote-store-address": f"192.0.2.0:{NGINX_PORT}",
+        "remote-store-address": f"{socket.getfqdn()}:{NGINX_PORT}",
         "remote-store-insecure": "true",
     }
     for key, val in expected.items():
