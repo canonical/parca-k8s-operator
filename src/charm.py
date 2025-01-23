@@ -196,19 +196,21 @@ class ParcaOperatorCharm(ops.CharmBase):
         return f"{self._scheme}://{self._fqdn}:{NGINX_PORT}"
 
     @property
-    def _tls_available(self) -> bool:
+    def _tls_ready(self) -> bool:
         """Return True if tls is enabled and the necessary certs are generated."""
         if not self.model.relations.get("certificates"):
             return False
-        cert, key = self.certificates.get_assigned_certificate(
-            certificate_request=self._get_certificate_request_attributes()
+
+        return all(
+            self.certificates.get_assigned_certificate(
+                certificate_request=self._get_certificate_request_attributes()
+            )
         )
-        return bool(cert and key)
 
     @property
     def _scheme(self) -> str:
         """Return 'https' if TLS is available else 'http'."""
-        return "https" if self._tls_available else "http"
+        return "https" if self._tls_ready else "http"
 
     @property
     def _external_url(self) -> str:
@@ -303,7 +305,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _configure_certs(self) -> None:
         """Update the TLS certificates for nginx/parca/charm containers on disk according to their availability."""
-        if self._tls_available:
+        if self._tls_ready:
             provider_certificate, private_key = self.certificates.get_assigned_certificate(
                 certificate_request=self._get_certificate_request_attributes()
             )

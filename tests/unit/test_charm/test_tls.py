@@ -102,7 +102,7 @@ def test_endpoint_with_tls_enabled(
     with context(context.on.relation_changed(certificates), base_state) as mgr:
         charm: ParcaOperatorCharm = mgr.charm
         # THEN we have TLS enabled
-        assert charm._tls_available
+        assert charm._tls_ready
         assert charm._external_url.startswith("https://")
 
 
@@ -116,5 +116,5 @@ def test_endpoint_with_tls_disabled(
     with context(context.on.relation_broken(certificates), base_state) as mgr:
         charm: ParcaOperatorCharm = mgr.charm
         # THEN we have TLS disabled
-        assert not charm._tls_available
+        assert not charm._tls_ready
         assert charm._external_url.startswith("http://")
