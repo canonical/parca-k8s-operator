@@ -7,10 +7,13 @@ from subprocess import getstatusoutput
 
 import pytest
 from helpers import get_unit_fqdn
+from tenacity import retry
+from tenacity.stop import stop_after_attempt
+from tenacity.wait import wait_exponential as wexp
 
 from nginx import CA_CERT_PATH, NGINX_PORT
 
-PARCA = "parca-k8s"
+PARCA = "parca"
 PARCA_TESTER = "parca-tester"
 SSC = "self-signed-certificates"
 # Path where SSC saves the CA certificate
@@ -62,10 +65,11 @@ async def test_direct_url_200(ops_test):
     assert exit_code == 0, f"Failed to query the parca server. {output}"
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_self_profiling_scraping(ops_test):
     exit_code, output = query_parca_server(ops_test.model_name, PARCA, url_path="/metrics")
     assert exit_code == 0, f"Failed to query the parca server. {output}"
-    assert PARCA in output
+    assert f'"{PARCA}"' in output
 
 
 @pytest.mark.abort_on_fail
@@ -96,9 +100,10 @@ async def test_remove_tls(ops_test):
     # FIXME: should we be disintegrating the tester-ssc relation too?
     await ops_test.juju("remove-relation", PARCA + ":certificates", SSC + ":certificates")
     # we need to wait for a while until parca's nginx loses the TLS connection
-    await ops_test.model.wait_for_idle(apps=[PARCA], status="active", timeout=500, idle_period=60)
+    await ops_test.model.wait_for_idle(apps=[PARCA], status="active", timeout=500)
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_direct_url_400(ops_test):
     exit_code, _ = query_parca_server(ops_test.model_name, SSC, SSC_CA_CERT_PATH)
     assert exit_code != 0

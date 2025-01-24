@@ -12,7 +12,7 @@ from tenacity import retry
 from tenacity.stop import stop_after_attempt, stop_after_delay
 from tenacity.wait import wait_exponential as wexp
 
-PARCA = "parca-k8s"
+PARCA = "parca"
 
 
 @mark.abort_on_fail
@@ -66,10 +66,11 @@ async def test_profiling_relation_is_configured(ops_test: OpsTest):
     assert "zinc" in response.text
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_self_profiling(ops_test: OpsTest):
     address = await get_pubic_address(ops_test, PARCA)
     response = requests.get(f"http://{address}:8080/metrics")
-    assert PARCA in response.text
+    assert f'"{PARCA}"' in response.text
 
 
 @mark.abort_on_fail
