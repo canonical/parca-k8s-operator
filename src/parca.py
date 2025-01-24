@@ -11,8 +11,6 @@ from typing import Dict, List, Literal, Optional, Sequence, TypedDict
 
 import yaml
 from ops import Container
-from charms.parca_k8s.v0.parca_config import ParcaConfig, parca_command_line
-from ops import Container
 from ops.pebble import Layer
 
 from nginx import CA_CERT_PATH

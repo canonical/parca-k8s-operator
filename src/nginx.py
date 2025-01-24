@@ -92,8 +92,8 @@ class Nginx:
         Path(CA_CERT_PATH).parent.mkdir(parents=True, exist_ok=True)
         Path(CA_CERT_PATH).write_text(ca_cert)
 
-            # TODO: uncomment when nginx container has update-ca-certificates command
-            # self._container.exec(["update-ca-certificates", "--fresh"])
+        # TODO: uncomment when nginx container has update-ca-certificates command
+        # self._container.exec(["update-ca-certificates", "--fresh"])
 
     def delete_certificates(self) -> None:
         """Delete the certificate files from disk and run update-ca-certificates."""

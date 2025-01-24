@@ -7,7 +7,6 @@
 import logging
 import socket
 import typing
-from typing import FrozenSet, List, Optional
 from pathlib import Path
 from typing import Any, Dict, FrozenSet, List, Optional
 from urllib.parse import urlparse
@@ -227,7 +226,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
         self.grafana_source_provider.update_source(source_url=self._external_url)
 
-
+    @property
     def _self_profiling_scrape_jobs(self) -> List[Dict[str, Any]]:
         return self._format_scrape_target(
             NGINX_PORT, self._scheme, profiles_path=self._external_url_path
@@ -289,13 +288,13 @@ class ParcaOperatorCharm(ops.CharmBase):
             # common_name is required and has a limit of 64 chars.
             # it is superseded by sans anyway, so we can use a constrained name,
             # such as app_name
-            common_name=self._app_name,
+            common_name=self.app.name,
             sans_dns=sans_dns,
         )
 
     def _format_scrape_target(
         self, port: int, scheme="http", metrics_path=None, profiles_path=None
-    )-> List[ScrapeJobsConfig]:
+    ) -> List[ScrapeJobsConfig]:
         job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
         jobsconfig: ScrapeJobsConfig = {"static_configs": [job]}
         if metrics_path:

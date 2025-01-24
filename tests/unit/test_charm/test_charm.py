@@ -7,12 +7,11 @@ from dataclasses import replace
 from uuid import uuid4
 
 import pytest
-from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
 from ops.model import ActiveStatus, WaitingStatus
 from ops.testing import CharmEvents, Relation, State
 
 from nginx import NGINX_PORT
-from parca import PARCA_PORT
+from parca import DEFAULT_CONFIG_PATH, PARCA_PORT
 from tests.unit.test_charm.container_utils import (
     assert_parca_command_equals,
     assert_parca_config_equals,
