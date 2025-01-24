@@ -13,8 +13,8 @@ import yaml
 from ops import Container
 from ops.pebble import Layer
 
-from tls_config import TLSConfig
 from nginx import CA_CERT_PATH
+from tls_config import TLSConfig
 
 logger = logging.getLogger(__name__)
 
