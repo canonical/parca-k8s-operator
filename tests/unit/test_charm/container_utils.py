@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import yaml
+from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
 from scenario import Context, State
 
 from parca import DEFAULT_CONFIG_PATH

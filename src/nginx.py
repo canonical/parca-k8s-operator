@@ -63,50 +63,52 @@ class Nginx:
 
     def update_certificates(self, server_cert: str, ca_cert: str, private_key: str) -> None:
         """Save the certificates file to disk and run update-ca-certificates."""
-        # Read the current content of the files (if they exist)
-        current_server_cert = (
-            self._container.pull(CERT_PATH).read() if self._container.exists(CERT_PATH) else ""
-        )
-        current_private_key = (
-            self._container.pull(KEY_PATH).read() if self._container.exists(KEY_PATH) else ""
-        )
-        current_ca_cert = (
-            self._container.pull(CA_CERT_PATH).read()
-            if self._container.exists(CA_CERT_PATH)
-            else ""
-        )
-        if (
-            current_server_cert == server_cert
-            and current_private_key == private_key
-            and current_ca_cert == ca_cert
-        ):
-            # No update needed
-            return
+        if self._container.can_connect():
+            # Read the current content of the files (if they exist)
+            current_server_cert = (
+                self._container.pull(CERT_PATH).read() if self._container.exists(CERT_PATH) else ""
+            )
+            current_private_key = (
+                self._container.pull(KEY_PATH).read() if self._container.exists(KEY_PATH) else ""
+            )
+            current_ca_cert = (
+                self._container.pull(CA_CERT_PATH).read()
+                if self._container.exists(CA_CERT_PATH)
+                else ""
+            )
+            if (
+                current_server_cert == server_cert
+                and current_private_key == private_key
+                and current_ca_cert == ca_cert
+            ):
+                # No update needed
+                return
 
-        self._container.push(KEY_PATH, private_key, make_dirs=True)
-        self._container.push(CERT_PATH, server_cert, make_dirs=True)
-        self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
+            self._container.push(KEY_PATH, private_key, make_dirs=True)
+            self._container.push(CERT_PATH, server_cert, make_dirs=True)
+            self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
 
         # push CA cert to charm container
         Path(CA_CERT_PATH).parent.mkdir(parents=True, exist_ok=True)
         Path(CA_CERT_PATH).write_text(ca_cert)
 
-        # TODO: uncomment when nginx container has update-ca-certificates command
-        # self._container.exec(["update-ca-certificates", "--fresh"])
+            # TODO: uncomment when nginx container has update-ca-certificates command
+            # self._container.exec(["update-ca-certificates", "--fresh"])
 
     def delete_certificates(self) -> None:
         """Delete the certificate files from disk and run update-ca-certificates."""
-        if self._container.exists(CERT_PATH):
-            self._container.remove_path(CERT_PATH, recursive=True)
-        if self._container.exists(KEY_PATH):
-            self._container.remove_path(KEY_PATH, recursive=True)
-        if self._container.exists(CA_CERT_PATH):
-            self._container.remove_path(CA_CERT_PATH, recursive=True)
-        if Path(CA_CERT_PATH).exists():
-            Path(CA_CERT_PATH).unlink(missing_ok=True)
+        if self._container.can_connect():
+            if self._container.exists(CERT_PATH):
+                self._container.remove_path(CERT_PATH, recursive=True)
+            if self._container.exists(KEY_PATH):
+                self._container.remove_path(KEY_PATH, recursive=True)
+            if self._container.exists(CA_CERT_PATH):
+                self._container.remove_path(CA_CERT_PATH, recursive=True)
+            if Path(CA_CERT_PATH).exists():
+                Path(CA_CERT_PATH).unlink(missing_ok=True)
 
-        # TODO: uncomment when nginx container has update-ca-certificates command
-        # self._container.exec(["update-ca-certificates", "--fresh"])
+            # TODO: uncomment when nginx container has update-ca-certificates command
+            # self._container.exec(["update-ca-certificates", "--fresh"])
 
     def _has_config_changed(self, new_config: str) -> bool:
         """Return True if the passed config differs from the one on disk."""

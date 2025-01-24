@@ -8,6 +8,8 @@ import logging
 import socket
 import typing
 from typing import FrozenSet, List, Optional
+from pathlib import Path
+from typing import Any, Dict, FrozenSet, List, Optional
 from urllib.parse import urlparse
 
 import ops
@@ -76,7 +78,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
         self.ingress = IngressPerAppRequirer(
             self,
-            host=self._hostname,
+            host=self._fqdn,
             port=NGINX_PORT,
             scheme=self._scheme,
         )
@@ -88,15 +90,16 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
-            jobs=self._format_scrape_target(NGINX_PORT, self._scheme),
+            jobs=self._self_profiling_scrape_jobs,
             relation_name="self-profiling-endpoint",
             refresh_event=[self.certificates.on.certificate_available],
         )
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
+
         # this needs to be instantiated after `ingress` is
         self.nginx = Nginx(
             container=self.unit.get_container("nginx"),
-            server_name=self._hostname,
+            server_name=self._fqdn,
             address=Address(name="parca", port=PARCA_PORT),
             path_prefix=self._external_url_path,
         )
@@ -167,25 +170,16 @@ class ParcaOperatorCharm(ops.CharmBase):
     ##########################
 
     @property
-    def _app_name(self) -> str:
-        """Application name."""
-        return self.app.name
-
-    @property
-    def _hostname(self) -> str:
-        """Unit's hostname."""
-        return socket.getfqdn()
-
-    @property
     def _internal_url(self):
         """Return workload's internal URL."""
-        return f"{self._scheme}://{self._hostname}:{NGINX_PORT}"
+        return f"{self._scheme}://{self._fqdn}:{NGINX_PORT}"
 
     @property
-    def _tls_available(self) -> bool:
+    def _tls_ready(self) -> bool:
         """Return True if tls is enabled and the necessary certs are generated."""
         if not self.model.relations.get("certificates"):
             return False
+
         return all(
             self.certificates.get_assigned_certificate(
                 certificate_request=self._get_certificate_request_attributes()
@@ -195,7 +189,7 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def _scheme(self) -> str:
         """Return 'https' if TLS is available else 'http'."""
-        return "https" if self._tls_available else "http"
+        return "https" if self._tls_ready else "http"
 
     @property
     def _external_url(self) -> str:
@@ -203,14 +197,17 @@ class ParcaOperatorCharm(ops.CharmBase):
         return self.ingress.url or self._internal_url
 
     @property
-    def _metrics_scrape_jobs(self) -> List[ScrapeJobsConfig]:
+    def _metrics_scrape_jobs(self) -> List[Dict[str, Any]]:
         return self._format_scrape_target(
             NGINX_PROMETHEUS_EXPORTER_PORT,
             # TODO: nginx-prometheus-exporter does not natively run with TLS
             # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
             scheme="http",
-            #  We scrape parca itelf (over nginx)
-        ) + self._format_scrape_target(NGINX_PORT, scheme=self._scheme)
+        ) + self._format_scrape_target(
+            NGINX_PORT,
+            scheme=self._scheme,
+            metrics_path=f"{self._external_url_path or ''}/metrics",
+        )
 
     def _reconcile(self):
         """Unconditional logic to run regardless of the event we're processing.
@@ -220,6 +217,21 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.nginx.reconcile()
         self.nginx_exporter.reconcile()
         self.parca.reconcile()
+
+        self._configure_certs()
+        # update grafana source, metrics scrape, and profiling scrape endpoints
+        # in case they get changed due to ingress or TLS.
+        self.metrics_endpoint_provider.update_scrape_job_spec(self._metrics_scrape_jobs)
+        self.self_profiling_endpoint_provider.update_scrape_job_spec(
+            self._self_profiling_scrape_jobs
+        )
+        self.grafana_source_provider.update_source(source_url=self._external_url)
+
+
+    def _self_profiling_scrape_jobs(self) -> List[Dict[str, Any]]:
+        return self._format_scrape_target(
+            NGINX_PORT, self._scheme, profiles_path=self._external_url_path
+        )
 
     @property
     def _external_url_path(self) -> Optional[str]:
@@ -251,8 +263,28 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         event.add_status(ops.ActiveStatus(f"UI ready at {self._external_url}"))
 
+    ##########################
+    # === UTILITY METHODS === #
+    ##########################
+    def _configure_certs(self) -> None:
+        """Update the TLS certificates for nginx/parca/charm containers on disk according to their availability."""
+        if self._tls_ready:
+            provider_certificate, private_key = self.certificates.get_assigned_certificate(
+                certificate_request=self._get_certificate_request_attributes()
+            )
+            self.nginx.update_certificates(
+                provider_certificate.certificate.raw,  # pyright: ignore
+                provider_certificate.ca.raw,  # pyright: ignore
+                private_key.raw,  # pyright: ignore
+            )
+            # parca container needs the CA certificate when scraping https profiling endpoints
+            self.parca.update_ca_certificate(provider_certificate.ca.raw)  # pyright: ignore
+        else:
+            self.nginx.delete_certificates()
+            self.parca.delete_ca_certificate()
+
     def _get_certificate_request_attributes(self) -> CertificateRequestAttributes:
-        sans_dns: FrozenSet[str] = frozenset([self._hostname])
+        sans_dns: FrozenSet[str] = frozenset([self._fqdn])
         return CertificateRequestAttributes(
             # common_name is required and has a limit of 64 chars.
             # it is superseded by sans anyway, so we can use a constrained name,
@@ -261,11 +293,24 @@ class ParcaOperatorCharm(ops.CharmBase):
             sans_dns=sans_dns,
         )
 
-    def _format_scrape_target(self, port: int, scheme="http") -> List[ScrapeJobsConfig]:
-        job: ScrapeJob = {"targets": [f"{self._hostname}:{port}"]}
+    def _format_scrape_target(
+        self, port: int, scheme="http", metrics_path=None, profiles_path=None
+    )-> List[ScrapeJobsConfig]:
+        job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
         jobsconfig: ScrapeJobsConfig = {"static_configs": [job]}
+        if metrics_path:
+            jobsconfig["metrics_path"] = metrics_path
+        if profiles_path:
+            jobsconfig["profiling_config"] = {"path_prefix": profiles_path}
         if scheme == "https":
             jobsconfig["scheme"] = "https"
+            if Path(CA_CERT_PATH).exists():
+                jobsconfig["tls_config"] = {
+                    # ca_file should hold the CA path, but prometheus charm expects ca_file to hold the cert contents.
+                    # https://github.com/canonical/prometheus-k8s-operator/issues/670
+                    "ca_file" if metrics_path else "ca": Path(CA_CERT_PATH).read_text()
+                }
+
         return [jobsconfig]
 
 

@@ -184,13 +184,21 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 
 logger = logging.getLogger(__name__)
 
 
-ALLOWED_KEYS = {"job_name", "static_configs", "scrape_interval", "scrape_timeout"}
+ALLOWED_KEYS = {
+    "job_name",
+    "static_configs",
+    "scrape_interval",
+    "scrape_timeout",
+    "scheme",
+    "profiling_config",
+    "tls_config",
+}
 DEFAULT_JOB = {"static_configs": [{"targets": ["*:80"]}]}
 DEFAULT_RELATION_NAME = "profiling-endpoint"
 RELATION_INTERFACE_NAME = "parca_scrape"
@@ -748,6 +756,11 @@ class ProfilingEndpointProvider(ops.Object):
         self.framework.observe(self._charm.on.upgrade_charm, self._set_scrape_job_spec)
         # If there is no leader during relation_joined we will still need to set alert rules.
         self.framework.observe(self._charm.on.leader_elected, self._set_scrape_job_spec)
+
+    def update_scrape_job_spec(self, jobs):
+        """Update scrape job specification."""
+        self._jobs = [_sanitize_scrape_configuration(job) for job in jobs]
+        self._set_scrape_job_spec(None)
 
     def _set_scrape_job_spec(self, event):
         """Ensure scrape target information is made available to Parca.
