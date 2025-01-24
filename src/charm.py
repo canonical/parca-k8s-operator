@@ -65,8 +65,6 @@ class ParcaOperatorCharm(ops.CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self._fqdn = socket.getfqdn()
-        self.unit.set_ports(8080)
-        self.container = self.unit.get_container("parca")
 
         # ENDPOINT WRAPPERS
         self.profiling_consumer = ProfilingEndpointConsumer(self)
@@ -95,18 +93,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             refresh_event=[self.certificates.on.certificate_available],
         )
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
-
-        # this needs to be instantiated after `ingress` is
-        self.nginx = Nginx(
-            container=self.unit.get_container("nginx"),
-            server_name=self._fqdn,
-            address=Address(name="parca", port=PARCA_PORT),
-            path_prefix=self._external_url_path,
-        )
-        self.nginx_exporter = NginxPrometheusExporter(
-            container=self.unit.get_container("nginx-prometheus-exporter"),
-        )
-
         self.catalogue = CatalogueConsumer(
             self,
             item=CatalogueItem(
@@ -129,15 +115,15 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.charm_tracing = TracingEndpointRequirer(
             self, relation_name="charm-tracing", protocols=["otlp_http"]
         )
-        self._charm_tracing_endpoint, self._server_cert = charm_tracing_config(
-            self.charm_tracing, CA_CERT_PATH
-        )
-
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
             source_type="parca",
             source_url=self._external_url,
             refresh_event=[self.certificates.on.certificate_available],
+        )
+
+        self._charm_tracing_endpoint, self._server_cert = charm_tracing_config(
+            self.charm_tracing, CA_CERT_PATH
         )
 
         # WORKLOADS
@@ -173,6 +159,8 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         This will ensure all workloads are up and running if the preconditions are met.
         """
+        self.unit.set_ports(8080)
+
         self.nginx.reconcile()
         self.nginx_exporter.reconcile()
         self.parca.reconcile()
@@ -189,6 +177,16 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.metrics_endpoint_provider.set_scrape_job_spec()
         self.self_profiling_endpoint_provider.set_scrape_job_spec()
         self.grafana_source_provider.update_source(source_url=self._external_url)
+
+    def _reconcile_tls_config(self) -> None:
+        """Update the TLS certificates for the charm container."""
+        # push CA cert to charm container
+        cacert_path = Path(CA_CERT_PATH)
+        if tls_config := self._tls_config:
+            cacert_path.parent.mkdir(parents=True, exist_ok=True)
+            cacert_path.write_text(tls_config.certificate.ca.raw)
+        else:
+            cacert_path.unlink(missing_ok=True)
 
     # INGRESS/ROUTING PROPERTIES
     @property
@@ -236,16 +234,6 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _tls_ready(self) -> bool:
         """Return True if tls is enabled and the necessary data is available."""
         return bool(self._tls_config)
-
-    def _reconcile_tls_config(self) -> None:
-        """Update the TLS certificates for the charm container."""
-        # push CA cert to charm container
-        cacert_path = Path(CA_CERT_PATH)
-        if tls_config := self._tls_config:
-            cacert_path.parent.mkdir(parents=True, exist_ok=True)
-            cacert_path.write_text(tls_config.certificate.ca.raw)
-        else:
-            cacert_path.unlink(missing_ok=True)
 
     def _get_certificate_request_attributes(self) -> CertificateRequestAttributes:
         sans_dns: FrozenSet[str] = frozenset([self._fqdn])
