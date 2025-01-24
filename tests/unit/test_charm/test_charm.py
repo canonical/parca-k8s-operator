@@ -338,3 +338,56 @@ def test_parca_external_store_relation(context, base_state):
         f"--insecure=false "
         f"--mode=scraper-only",
     )
+
+
+def test_self_profiling_no_endpoint_relation(context, base_state):
+    # verify that the scrape config contains the self-scraping job
+    expected_scrape_config = [
+        {
+            "job_name": "parca",
+            "relabel_configs": [
+                {
+                    "source_labels": [
+                        "juju_model",
+                        "juju_model_uuid",
+                        "juju_application",
+                        "juju_unit",
+                    ],
+                    "separator": "_",
+                    "target_label": "instance",
+                    "regex": "(.*)",
+                }
+            ],
+            "static_configs": [
+                {
+                    "targets": [f"{socket.getfqdn()}:{NGINX_PORT}"],
+                }
+            ],
+        }
+    ]
+
+    with context(context.on.config_changed(), base_state) as mgr:
+        scrape_config = mgr.charm._profiling_scrape_configs
+        assert scrape_config == expected_scrape_config
+
+
+def test_self_profiling_endpoint_relation(context, base_state):
+    expected_scrape_jobs = [
+        {"static_configs": [{"targets": [f"{socket.getfqdn()}:{NGINX_PORT}"]}]}
+    ]
+    # GIVEN a self-profiling-endpoint relation
+    relation = Relation("self-profiling-endpoint")
+
+    # WHEN we get a relation changed event
+    with context(
+        context.on.relation_changed(relation),
+        replace(base_state, leader=True, relations={relation}),
+    ) as mgr:
+        state_out = mgr.run()
+        scrape_config = mgr.charm._profiling_scrape_configs
+        # THEN no self-profiling scrape job in the generated config
+        assert not scrape_config
+
+        # AND self-profiling scrape job is sent to remote app
+        rel_out = state_out.get_relation(relation.id)
+        assert rel_out.local_app_data["scrape_jobs"] == json.dumps(expected_scrape_jobs)
