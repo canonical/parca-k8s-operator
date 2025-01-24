@@ -12,6 +12,8 @@ MINIO = "minio"
 S3_INTEGRATOR = "s3-integrator"
 BUCKET_NAME = "parca"
 
+from pytest_operator.plugin import OpsTest
+
 
 def get_unit_ip(model_name, app_name, unit_id):
     """Return a juju unit's IP."""
@@ -75,3 +77,8 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     action = await s3_integrator_leader.run_action("sync-s3-credentials", **config)
     action_result = await action.wait()
     assert action_result.status == "completed"
+
+async def get_pubic_address(ops_test: OpsTest, app_name):
+    """Return a juju application's public address."""
+    status = await ops_test.model.get_status()  # noqa: F821
+    return status["applications"][app_name]["public-address"]

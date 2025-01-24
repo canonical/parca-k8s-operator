@@ -10,7 +10,7 @@ from helpers import get_unit_fqdn
 
 from nginx import CA_CERT_PATH, NGINX_PORT
 
-PARCA = "parca"
+PARCA = "parca-k8s"
 PARCA_TESTER = "parca-tester"
 SSC = "self-signed-certificates"
 # Path where SSC saves the CA certificate
@@ -62,6 +62,12 @@ async def test_direct_url_200(ops_test):
     assert exit_code == 0, f"Failed to query the parca server. {output}"
 
 
+async def test_self_profiling_scraping(ops_test):
+    exit_code, output = query_parca_server(ops_test.model_name, PARCA, url_path="/metrics")
+    assert exit_code == 0, f"Failed to query the parca server. {output}"
+    assert PARCA in output
+
+
 @pytest.mark.abort_on_fail
 async def test_deploy_parca_tester(ops_test, parca_charm, parca_resources):
     # Deploy and integrate tester charm
@@ -78,7 +84,7 @@ async def test_deploy_parca_tester(ops_test, parca_charm, parca_resources):
     await ops_test.model.wait_for_idle(apps=[PARCA, PARCA_TESTER], status="active", timeout=500)
 
 
-async def test_tls_scraping(ops_test):
+async def test_profiling_scraping(ops_test):
     exit_code, output = query_parca_server(ops_test.model_name, PARCA_TESTER, url_path="/metrics")
     assert exit_code == 0, f"Failed to query the parca server. {output}"
     assert PARCA_TESTER in output
