@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional
 import crossplane
 from ops import Container, pebble
 
+from tls_config import TLSConfig
+
 logger = logging.getLogger(__name__)
 
 NGINX_DIR = "/etc/nginx"
@@ -45,14 +47,16 @@ class Nginx:
         server_name: str,
         address: Address,
         path_prefix: Optional[str] = None,
+        tls_config: Optional[TLSConfig] = None,
     ):
         self._container = container
         self._server_name = server_name
         self._path_prefix = path_prefix
         self._address = address
+        self._tls_config = tls_config
 
     @property
-    def are_certificates_on_disk(self) -> bool:
+    def _are_certificates_on_disk(self) -> bool:
         """Return True if the certificates files are on disk."""
         return (
             self._container.can_connect()
@@ -61,7 +65,7 @@ class Nginx:
             and self._container.exists(CA_CERT_PATH)
         )
 
-    def update_certificates(self, server_cert: str, ca_cert: str, private_key: str) -> None:
+    def _update_certificates(self, server_cert: str, ca_cert: str, private_key: str) -> None:
         """Save the certificates file to disk and run update-ca-certificates."""
         if self._container.can_connect():
             # Read the current content of the files (if they exist)
@@ -88,14 +92,10 @@ class Nginx:
             self._container.push(CERT_PATH, server_cert, make_dirs=True)
             self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
 
-        # push CA cert to charm container
-        Path(CA_CERT_PATH).parent.mkdir(parents=True, exist_ok=True)
-        Path(CA_CERT_PATH).write_text(ca_cert)
-
         # TODO: uncomment when nginx container has update-ca-certificates command
         # self._container.exec(["update-ca-certificates", "--fresh"])
 
-    def delete_certificates(self) -> None:
+    def _delete_certificates(self) -> None:
         """Delete the certificate files from disk and run update-ca-certificates."""
         if self._container.can_connect():
             if self._container.exists(CERT_PATH):
@@ -136,17 +136,32 @@ class Nginx:
     def reconcile(self) -> None:
         """Configure pebble layer and ensure workload is up if possible."""
         if self._container.can_connect():
-            new_config = NginxConfig(
-                self._server_name, self.are_certificates_on_disk, path_prefix=self._path_prefix
-            ).config(self._address)
-            should_restart: bool = self._has_config_changed(new_config)
-            self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
-            self._container.add_layer("nginx", self.layer, combine=True)
-            self._container.autostart()
+            self._reconcile_nginx_config()
+            self._reconcile_tls_config()
 
-            if should_restart:
-                logger.info("new nginx config: restarting the service")
-                self.reload()
+    def _reconcile_tls_config(self):
+        tls_config = self._tls_config
+        if tls_config:
+            self._update_certificates(
+                tls_config.certificate.certificate.raw,  # pyright: ignore
+                tls_config.certificate.ca.raw,  # pyright: ignore
+                tls_config.key.raw,  # pyright: ignore
+            )
+        else:
+            self._delete_certificates()
+
+    def _reconcile_nginx_config(self):
+        new_config = NginxConfig(
+            self._server_name, tls=self._are_certificates_on_disk, path_prefix=self._path_prefix
+        ).config(self._address)
+        should_restart: bool = self._has_config_changed(new_config)
+        self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
+        self._container.add_layer("nginx", self.layer, combine=True)
+        self._container.autostart()
+
+        if should_restart:
+            logger.info("new nginx config: restarting the service")
+            self.reload()
 
     @property
     def layer(self) -> pebble.Layer:

@@ -1,4 +1,4 @@
-# Copyright 2022 Jon Seager
+# Copyright 2025 Canonical
 # See LICENSE file for licensing details.
 
 """Control Parca running in a container under Pebble. Provides a Parca class."""
@@ -13,6 +13,7 @@ import yaml
 from ops import Container
 from ops.pebble import Layer
 
+from tls_config import TLSConfig
 from nginx import CA_CERT_PATH
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,10 @@ class ScrapeJobsConfig(TypedDict, total=False):
     """Scrape job config type."""
 
     static_configs: List[ScrapeJob]
+    profiling_config: Dict[str, str]
+    metrics_path: str
     scheme: Optional[Literal["https"]]
+    tls_config: Dict[str, str]
 
 
 class Parca:
@@ -51,6 +55,7 @@ class Parca:
         memory_storage_limit: Optional[int] = None,
         store_config: Optional[Dict[str, str]] = None,
         path_prefix: Optional[str] = None,
+        tls_config: Optional[TLSConfig] = None,
     ):
         self._container = container
         self._scrape_configs = scrape_configs
@@ -58,6 +63,7 @@ class Parca:
         self._memory_storage_limit = memory_storage_limit
         self._store_config = store_config
         self._path_prefix = path_prefix
+        self._tls_config = tls_config
 
     @property
     def _config(self) -> str:
@@ -67,15 +73,38 @@ class Parca:
     def reconcile(self):
         """Unconditional control logic."""
         if self._container.can_connect():
-            # TODO: parca hot-reloads config, so we don't need to track changes and restart manually.
-            #  it could be useful though, perhaps, to track changes so we can surface to the user
-            #  that the config has changed.
-            self._container.push(
-                DEFAULT_CONFIG_PATH, str(self._config), make_dirs=True, permissions=0o644
+            self._reconcile_parca_config()
+            self._reconcile_tls_config()
+
+    def _reconcile_tls_config(self):
+        if self._tls_config:
+            # parca container needs the CA certificate when scraping https profiling endpoint
+            current_ca_cert = (
+                self._container.pull(CA_CERT_PATH).read()
+                if self._container.exists(CA_CERT_PATH)
+                else ""
             )
-            layer = self._pebble_layer()
-            self._container.add_layer("parca", layer, combine=True)
-            self._container.replan()
+            if current_ca_cert == self._tls_config.certificate.ca.raw:
+                # No update needed
+                return
+            self._container.push(CA_CERT_PATH, self._tls_config.certificate.ca.raw, make_dirs=True)
+        else:
+            self._container.remove_path(CA_CERT_PATH, recursive=True)
+
+        # TODO: uncomment when parca container has update-ca-certificates command
+        #  and only run if there's been changes.
+        # self._container.exec(["update-ca-certificates", "--fresh"])
+
+    def _reconcile_parca_config(self):
+        # TODO: parca hot-reloads config, so we don't need to track changes and restart manually.
+        #  it could be useful though, perhaps, to track changes so we can surface to the user
+        #  that something has changed.
+        self._container.push(
+            DEFAULT_CONFIG_PATH, str(self._config), make_dirs=True, permissions=0o644
+        )
+        layer = self._pebble_layer()
+        self._container.add_layer("parca", layer, combine=True)
+        self._container.replan()
 
     def _pebble_layer(self) -> Layer:
         """Return a Pebble layer for Parca based on the current configuration."""
@@ -120,31 +149,6 @@ class Parca:
                     return ""
                 retries += 1
                 time.sleep(self._version_retry_wait)
-
-    def update_ca_certificate(self, ca_cert: str) -> None:
-        """Save the CA certificate file to disk and run update-ca-certificates."""
-        if self._container.can_connect():
-            current_ca_cert = (
-                self._container.pull(CA_CERT_PATH).read()
-                if self._container.exists(CA_CERT_PATH)
-                else ""
-            )
-            if current_ca_cert == ca_cert:
-                # No update needed
-                return
-
-            self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
-
-            # TODO: uncomment when parca container has update-ca-certificates command
-            # self._container.exec(["update-ca-certificates", "--fresh"])
-
-    def delete_ca_certificate(self):
-        """Delete the CA certificate file from disk and run update-ca-certificates."""
-        if self._container.can_connect():
-            if self._container.exists(CA_CERT_PATH):
-                self._container.remove_path(CA_CERT_PATH, recursive=True)
-            # TODO: uncomment when parca container has update-ca-certificates command
-            # self._container.exec(["update-ca-certificates", "--fresh"])
 
 
 def parca_command_line(

@@ -1,4 +1,4 @@
-# Copyright 2022 Jon Seager
+# Copyright 2025 Canonical
 # See LICENSE file for licensing details.
 
 import json

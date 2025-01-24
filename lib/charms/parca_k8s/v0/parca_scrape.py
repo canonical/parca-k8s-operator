@@ -1,4 +1,4 @@
-# Copyright 2022 Jon Seager
+# Copyright 2025 Canonical
 # See LICENSE file for licensing details.
 """## Overview.
 
@@ -731,8 +731,8 @@ class ProfilingEndpointProvider(ops.Object):
         self._jobs = [_sanitize_scrape_configuration(job) for job in jobs]
 
         events = self._charm.on[self._relation_name]
-        self.framework.observe(events.relation_joined, self._set_scrape_job_spec)
-        self.framework.observe(events.relation_changed, self._set_scrape_job_spec)
+        self.framework.observe(events.relation_joined, self._publish_all_relation_data)
+        self.framework.observe(events.relation_changed, self._publish_all_relation_data)
 
         if not refresh_event:
             if len(self._charm.meta.containers) == 1:
@@ -753,24 +753,21 @@ class ProfilingEndpointProvider(ops.Object):
         for ev in refresh_event:
             self.framework.observe(ev, self._set_unit_ip)
 
-        self.framework.observe(self._charm.on.upgrade_charm, self._set_scrape_job_spec)
+        self.framework.observe(self._charm.on.upgrade_charm, self._publish_all_relation_data)
         # If there is no leader during relation_joined we will still need to set alert rules.
-        self.framework.observe(self._charm.on.leader_elected, self._set_scrape_job_spec)
+        self.framework.observe(self._charm.on.leader_elected, self._publish_all_relation_data)
 
     def update_scrape_job_spec(self, jobs):
-        """Update scrape job specification."""
-        self._jobs = [_sanitize_scrape_configuration(job) for job in jobs]
-        self._set_scrape_job_spec(None)
+        """Update scrape job specification.
 
-    def _set_scrape_job_spec(self, event):
-        """Ensure scrape target information is made available to Parca.
-
-        When a profiling provider charm is related to a Parca charm, the profiling provider sets
-        specification and metadata related to its own scrape configuration. This information is set
-        using Juju application data. Each of the consumer units also sets its own host address in
-        Juju unit relation data.
+        This will override the job specs you passed to the constructor.
+        Use it if for some reason you can't rely on that being up to date.
         """
-        self._set_unit_ip(event)
+        self._jobs = [_sanitize_scrape_configuration(job) for job in jobs]
+        self._publish_all_relation_data()
+
+    def _publish_all_relation_data(self, _event=None):
+        self._set_unit_ip()
 
         if not self._charm.unit.is_leader():
             return
@@ -779,7 +776,17 @@ class ProfilingEndpointProvider(ops.Object):
             relation.data[self._charm.app]["scrape_metadata"] = json.dumps(self._scrape_metadata)
             relation.data[self._charm.app]["scrape_jobs"] = json.dumps(self._scrape_jobs)
 
-    def _set_unit_ip(self, _):
+    def set_scrape_job_spec(self):
+        """Ensure the scrape target information (as passed to this object on __init__) is published.
+
+        When a profiling provider charm is related to a Parca charm, the profiling provider sets
+        specification and metadata related to its own scrape configuration. This information is set
+        using Juju application data. Each of the consumer units also sets its own host address in
+        Juju unit relation data.
+        """
+        self._publish_all_relation_data()
+
+    def _set_unit_ip(self, _event=None):
         """Set unit host address.
 
         Each time a profiling provider charm container is restarted it updates its own host address
