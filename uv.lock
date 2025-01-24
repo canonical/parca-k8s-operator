@@ -1027,7 +1027,7 @@ requires-dist = [
     { name = "pydantic", marker = "extra == 'dev'" },
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-operator", marker = "extra == 'dev'" },
+    { name = "pytest-operator", marker = "extra == 'dev'", specifier = "==0.35.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "sh", marker = "extra == 'dev'" },
     { name = "tenacity", marker = "extra == 'dev'" },
@@ -1346,7 +1346,7 @@ wheels = [
 
 [[package]]
 name = "pytest-operator"
-version = "0.38.0"
+version = "0.35.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ipdb" },
@@ -1356,9 +1356,9 @@ dependencies = [
     { name = "pytest-asyncio" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b5/ac/357bd534ad9f98eaf1a472746614a99073c631d92607f6aba37e6ee0fb69/pytest_operator-0.38.0.tar.gz", hash = "sha256:bf2dc92fc32eff82708b57783941f24c8500dfb3770098811c28ee31b7f292f3", size = 43746 }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/33/cd3d5e614f586b3c63a52c83c3784b5d343cd5d9ec9d533b39482fba9a0e/pytest-operator-0.35.0.tar.gz", hash = "sha256:ed963dc013fc576e218081e95197926b7c98116c1fb5ab234269cf72e0746d5b", size = 43000 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/da/7afbef57cdfe2050b266ff3c835df74d91ea3db4b110e7a1c64e902f5bd1/pytest_operator-0.38.0-py3-none-any.whl", hash = "sha256:eef53d40d1301d1efd97c98021b3715e1ad9e932e720792e1897e8de3d47a8d2", size = 25034 },
+    { url = "https://files.pythonhosted.org/packages/be/bd/0864ac5ea0b9fd52cf46de16361bef8df0b122dee8a15cace8205b4563d5/pytest_operator-0.35.0-py3-none-any.whl", hash = "sha256:026715faba7a0d725ca386fe05a45cfc73746293d8d755be6d2a67ca252267f5", size = 24584 },
 ]
 
 [[package]]
