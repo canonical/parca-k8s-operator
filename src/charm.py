@@ -281,13 +281,14 @@ class ParcaOperatorCharm(ops.CharmBase):
                 }
             ],
         }
-
         additional_config = self._format_scrape_target(
             NGINX_PORT,
             self._scheme,
             profiles_path=self._external_url_path,
             # add the juju_ prefix to labels
-            labels={"juju_{}".format(key): value for key, value in topology.as_dict() if value},
+            labels={
+                "juju_{}".format(key): value for key, value in topology.as_dict().items() if value
+            },
         )[0]
 
         config.update(additional_config)
