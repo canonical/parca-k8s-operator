@@ -24,9 +24,7 @@ async def test_setup(ops_test, parca_charm, parca_resources):
 
     await asyncio.gather(
         ops_test.model.deploy(
-            parca_charm,
-            resources=parca_resources,
-            application_name=PARCA,
+            parca_charm, resources=parca_resources, application_name=PARCA, base="ubuntu@24.04"
         ),
         ops_test.model.deploy(
             "traefik-k8s",

@@ -21,7 +21,7 @@ def patch_all(tmp_path):
     ca_tmp_path = tmp_path / "ca.tmp"
     with ExitStack() as stack:
         stack.enter_context(patch("lightkube.core.client.GenericSyncClient"))
-        stack.enter_context(patch("nginx.Nginx.are_certificates_on_disk", False))
+        stack.enter_context(patch("nginx.Nginx._are_certificates_on_disk", False))
         stack.enter_context(patch("nginx.CA_CERT_PATH", str(ca_tmp_path)))
         stack.enter_context(patch("charm.CA_CERT_PATH", str(ca_tmp_path)))
         stack.enter_context(patch("parca.CA_CERT_PATH", str(ca_tmp_path)))

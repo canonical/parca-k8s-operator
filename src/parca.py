@@ -1,4 +1,4 @@
-# Copyright 2022 Jon Seager
+# Copyright 2025 Canonical
 # See LICENSE file for licensing details.
 
 """Control Parca running in a container under Pebble. Provides a Parca class."""
@@ -7,13 +7,14 @@ import logging
 import re
 import time
 import urllib.request
-from typing import Optional
+from typing import Dict, List, Literal, Optional, Sequence, TypedDict
 
-from charms.parca_k8s.v0.parca_config import ParcaConfig, parca_command_line
+import yaml
 from ops import Container
 from ops.pebble import Layer
 
 from nginx import CA_CERT_PATH
+from tls_config import TLSConfig
 
 logger = logging.getLogger(__name__)
 
@@ -23,45 +24,116 @@ logger = logging.getLogger(__name__)
 VERSION_PATTERN = re.compile('APP_VERSION="v([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)"')
 # parca server bind port
 PARCA_PORT = 7070
+DEFAULT_BIN_PATH = "/parca"
+DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
+DEFAULT_PROFILE_PATH = "/var/lib/parca"
+
+ScrapeJob = Dict[str, List[str]]
+
+
+class ScrapeJobsConfig(TypedDict, total=False):
+    """Scrape job config type."""
+
+    static_configs: List[ScrapeJob]
+    profiling_config: Dict[str, str]
+    metrics_path: str
+    scheme: Optional[Literal["https"]]
+    tls_config: Dict[str, str]
 
 
 class Parca:
-    """Class representing Parca running in a container under Pebble."""
+    """Parca workload."""
 
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
+    port = PARCA_PORT
+    service_name = "parca"
+    container_name = "parca"
+    layer_name = "parca"
+
     def __init__(
         self,
         container: Container,
+        scrape_configs: List[ScrapeJobsConfig],
+        enable_persistence: Optional[bool] = None,
+        memory_storage_limit: Optional[int] = None,
+        store_config: Optional[Dict[str, str]] = None,
+        path_prefix: Optional[str] = None,
+        tls_config: Optional[TLSConfig] = None,
     ):
         self._container = container
+        self._scrape_configs = scrape_configs
+        self._enable_persistence = enable_persistence
+        self._memory_storage_limit = memory_storage_limit
+        self._store_config = store_config
+        self._path_prefix = path_prefix
+        self._tls_config = tls_config
 
-    def pebble_layer(self, config, store_config=None, path_prefix: Optional[str] = None) -> Layer:
+    @property
+    def _config(self) -> str:
+        """YAML-encoded parca config file."""
+        return ParcaConfig(self._scrape_configs).to_yaml()
+
+    def reconcile(self):
+        """Unconditional control logic."""
+        if self._container.can_connect():
+            self._reconcile_parca_config()
+            self._reconcile_tls_config()
+
+    def _reconcile_tls_config(self):
+        if self._tls_config:
+            # parca container needs the CA certificate when scraping https profiling endpoint
+            current_ca_cert = (
+                self._container.pull(CA_CERT_PATH).read()
+                if self._container.exists(CA_CERT_PATH)
+                else ""
+            )
+            if current_ca_cert == self._tls_config.certificate.ca.raw:
+                # No update needed
+                return
+            self._container.push(CA_CERT_PATH, self._tls_config.certificate.ca.raw, make_dirs=True)
+        else:
+            self._container.remove_path(CA_CERT_PATH, recursive=True)
+
+        # TODO: uncomment when parca container has update-ca-certificates command
+        #  and only run if there's been changes.
+        # self._container.exec(["update-ca-certificates", "--fresh"])
+
+    def _reconcile_parca_config(self):
+        # TODO: https://github.com/canonical/parca-k8s-operator/issues/398
+        #  parca hot-reloads config, so we don't need to track changes and restart manually.
+        #  it could be useful though, perhaps, to track changes so we can surface to the user
+        #  that something has changed.
+        self._container.push(
+            DEFAULT_CONFIG_PATH, str(self._config), make_dirs=True, permissions=0o644
+        )
+        layer = self._pebble_layer()
+        self._container.add_layer(self.layer_name, layer, combine=True)
+        self._container.replan()
+
+    def _pebble_layer(self) -> Layer:
         """Return a Pebble layer for Parca based on the current configuration."""
         return Layer(
             {
                 "services": {
-                    "parca": {
+                    self.service_name: {
                         "override": "replace",
                         "summary": "parca",
                         "command": parca_command_line(
                             # <localhost> prefix is to ensure users can't reach the server at :7070
                             # and are forced to go through nginx instead.
                             http_address=f"localhost:{PARCA_PORT}",
-                            app_config=config,
-                            store_config=store_config or {},
-                            path_prefix=path_prefix,
+                            memory_storage_limit=self._memory_storage_limit,
+                            enable_persistence=self._enable_persistence,
+                            store_config=self._store_config,
+                            path_prefix=self._path_prefix,
                         ),
                         "startup": "enabled",
                     }
                 },
             }
         )
-
-    def generate_config(self, scrape_configs=[]):
-        """Generate a Parca configuration."""
-        return ParcaConfig(scrape_configs)
 
     @property
     def version(self) -> str:
@@ -84,27 +156,104 @@ class Parca:
                 retries += 1
                 time.sleep(self._version_retry_wait)
 
-    def update_ca_certificate(self, ca_cert: str) -> None:
-        """Save the CA certificate file to disk and run update-ca-certificates."""
-        if self._container.can_connect():
-            current_ca_cert = (
-                self._container.pull(CA_CERT_PATH).read()
-                if self._container.exists(CA_CERT_PATH)
-                else ""
-            )
-            if current_ca_cert == ca_cert:
-                # No update needed
-                return
 
-            self._container.push(CA_CERT_PATH, ca_cert, make_dirs=True)
+def parca_command_line(
+    http_address: str = f":{PARCA_PORT}",
+    enable_persistence: Optional[bool] = False,
+    memory_storage_limit: Optional[int] = None,
+    *,
+    bin_path: str = DEFAULT_BIN_PATH,
+    config_path: str = DEFAULT_CONFIG_PATH,
+    profile_path: str = DEFAULT_PROFILE_PATH,
+    path_prefix: Optional[str] = None,
+    store_config: Optional[dict] = None,
+) -> str:
+    """Generate a valid Parca command line.
 
-            # TODO: uncomment when parca container has update-ca-certificates command
-            # self._container.exec(["update-ca-certificates", "--fresh"])
+    Args:
+        http_address: Http address for the parca server.
+        enable_persistence: Whether to enable the filesystem persistence feature.
+        memory_storage_limit: Memory storage limit.
+        bin_path: Path to the Parca binary to be started.
+        config_path: Path to the Parca YAML configuration file.
+        profile_path: Path to profile storage directory.
+        path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
+        store_config: Configuration to send profiles to a remote store
+    """
+    cmd = [str(bin_path), f"--config-path={config_path}", f"--http-address={http_address}"]
 
-    def delete_ca_certificate(self):
-        """Delete the CA certificate file from disk and run update-ca-certificates."""
-        if self._container.can_connect():
-            if self._container.exists(CA_CERT_PATH):
-                self._container.remove_path(CA_CERT_PATH, recursive=True)
-            # TODO: uncomment when parca container has update-ca-certificates command
-            # self._container.exec(["update-ca-certificates", "--fresh"])
+    if path_prefix:
+        if not path_prefix.startswith("/"):
+            # parca will blow up if you try this
+            raise ValueError("invalid path_prefix: should start with a slash.")
+        # quote path_prefix so we don't have to escape the slashes
+        path_prefix_option = f"--path-prefix='{path_prefix}'"
+        cmd.append(path_prefix_option)
+
+    # Render the template files with the correct values
+
+    if enable_persistence:
+        # Add the correct command line options for disk persistence
+        cmd.append("--enable-persistence")
+        cmd.append(f"--storage-path={profile_path}")
+    else:
+        limit = (memory_storage_limit or 1024) * 1048576
+        cmd.append(f"--storage-active-memory={limit}")
+
+    if store_config is not None:
+        store_config_args = []
+
+        if addr := store_config.get("remote-store-address", None):
+            store_config_args.append(f"--store-address={addr}")
+
+        if token := store_config.get("remote-store-bearer-token", None):
+            store_config_args.append(f"--bearer-token={token}")
+
+        if insecure := store_config.get("remote-store-insecure", None):
+            store_config_args.append(f"--insecure={insecure}")
+
+        if store_config_args:
+            store_config_args.append("--mode=scraper-only")
+            cmd += store_config_args
+
+    return " ".join(cmd)
+
+
+def parse_version(vstr: str) -> str:
+    """Parse the output of 'parca --version' and return a representative string."""
+    splits = vstr.split(" ")
+    # If we're not on a 'proper' released version, include the first few digits of
+    # the commit we're build from - e.g. 0.12.1-next+deadbeef
+    if "-next" in splits[2]:
+        return f"{splits[2]}+{splits[4][:6]}"
+    return splits[2]
+
+
+class ParcaConfig:
+    """Class representing the Parca config file."""
+
+    def __init__(
+        self,
+        scrape_configs: Optional[Sequence[ScrapeJobsConfig]] = None,
+        *,
+        profile_path=DEFAULT_PROFILE_PATH,
+    ):
+        self._profile_path = str(profile_path)
+        self._scrape_configs = scrape_configs or []
+
+    @property
+    def _config(self) -> dict:
+        return {
+            "object_storage": {
+                "bucket": {"type": "FILESYSTEM", "config": {"directory": self._profile_path}}
+            },
+            "scrape_configs": self._scrape_configs,
+        }
+
+    def to_dict(self) -> dict:
+        """Return the Parca config as a Python dictionary."""
+        return self._config
+
+    def to_yaml(self) -> str:
+        """Return the Parca config as a YAML string."""
+        return yaml.safe_dump(self._config)

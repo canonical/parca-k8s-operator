@@ -1,12 +1,10 @@
-# Copyright 2022 Jon Seager
+# Copyright 2025 Canonical
 # See LICENSE file for licensing details.
 
 import unittest
 from unittest.mock import MagicMock, patch
 
-from charms.parca_k8s.v0.parca_config import DEFAULT_CONFIG_PATH
-
-from parca import PARCA_PORT, Parca
+from parca import DEFAULT_CONFIG_PATH, PARCA_PORT, Parca
 
 # Extract from a real response that Parca issued to test the regular expression works for capturing
 # the version from the served page.
@@ -16,7 +14,13 @@ MOCK_WEB_RESPONSE_V2 = b'<script>window.PATH_PREFIX="",window.APP_VERSION="v0.18
 
 class TestParca(unittest.TestCase):
     def setUp(self):
-        self.parca = Parca(None)
+        container_mock = MagicMock()
+        self.parca = Parca(
+            container=container_mock,
+            scrape_configs=[],
+            enable_persistence=False,
+            memory_storage_limit=1024,
+        )
 
     def test_pebble_layer(self):
         expected = {
@@ -30,7 +34,7 @@ class TestParca(unittest.TestCase):
             }
         }
         self.assertEqual(
-            self.parca.pebble_layer(config={"memory-storage-limit": 1024}),
+            self.parca._pebble_layer(),
             expected,
         )
 
