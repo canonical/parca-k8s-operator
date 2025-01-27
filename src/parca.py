@@ -13,6 +13,8 @@ from typing import Dict, List, Literal, Optional, Sequence, TypedDict
 import yaml
 from ops import Container
 from ops.pebble import Layer
+from nginx import CA_CERT_PATH
+from tls_config import TLSConfig
 
 from nginx import CA_CERT_PATH
 
@@ -165,7 +167,7 @@ class Parca:
 
 
 def parca_command_line(
-    http_address: str = ":7070",
+    http_address: str = f":{PARCA_PORT}",
     enable_persistence: Optional[bool] = False,
     memory_storage_limit: Optional[int] = None,
     *,

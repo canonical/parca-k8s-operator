@@ -38,6 +38,9 @@ from nginx import (
 )
 from nginx_prometheus_exporter import NginxPrometheusExporter
 from parca import Parca, ScrapeJob, ScrapeJobsConfig
+from tls_config import TLSConfig
+from nginx_prometheus_exporter import NginxPrometheusExporter
+from parca import Parca, ScrapeJob, ScrapeJobsConfig
 from s3_interface import S3ConnectionInfo
 from tls_config import TLSConfig
 
