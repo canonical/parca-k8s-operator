@@ -26,6 +26,7 @@ def query_parca_server(model_name, exec_target_app_name, ca_cert_path=CA_CERT_PA
     # against the parca server's fqdn.
     # We can do that from inside another K8s pod, such as ssc.
     cmd = f"""juju exec --model {model_name} --unit {exec_target_app_name}/0 "curl --cacert {ca_cert_path} {url}" """
+    print(cmd)
     return getstatusoutput(cmd)
 
 
@@ -47,6 +48,7 @@ async def test_setup(ops_test, parca_charm, parca_resources):
             channel="edge",
             trust=True,
         ),
+        ops_test.model.wait_for_idle(apps=apps, status="active", timeout=500),
     )
 
     # Create the relation
@@ -85,6 +87,7 @@ async def test_tls_scraping(ops_test):
 @pytest.mark.abort_on_fail
 @pytest.mark.teardown
 async def test_remove_tls(ops_test):
+    # FIXME: should we be disintegrating the tester-ssc relation too?
     await ops_test.juju("remove-relation", PARCA + ":certificates", SSC + ":certificates")
     # we need to wait for a while until parca's nginx loses the TLS connection
     await ops_test.model.wait_for_idle(apps=[PARCA], status="active", timeout=500, idle_period=60)

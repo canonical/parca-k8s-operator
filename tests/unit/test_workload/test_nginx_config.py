@@ -59,7 +59,7 @@ def test_certs_on_disk(certificate_mounts: dict, nginx_context: testing.Context)
         nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
 
         # THEN the certs exist on disk
-        assert nginx.are_certificates_on_disk
+        assert nginx._are_certificates_on_disk
 
 
 def test_certs_deleted(certificate_mounts: dict, nginx_context: testing.Context):
@@ -85,10 +85,10 @@ def test_certs_deleted(certificate_mounts: dict, nginx_context: testing.Context)
         nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
 
         # AND when we call delete_certificates
-        nginx.delete_certificates()
+        nginx._delete_certificates()
 
         # THEN the certs get deleted from disk
-        assert not nginx.are_certificates_on_disk
+        assert not nginx._are_certificates_on_disk
 
 
 @pytest.mark.parametrize(

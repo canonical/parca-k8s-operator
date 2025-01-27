@@ -1,11 +1,11 @@
 import json
 
 import pytest
-from charms.parca_k8s.v0.parca_config import parca_command_line
 from ops.pebble import Layer
 from ops.testing import Container, Context, Relation, State
 
 from charm import ParcaOperatorCharm
+from parca import parca_command_line
 
 DEFAULT_CONFIG = {"enable-persistence": False, "memory-storage-limit": 1024}
 
