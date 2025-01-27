@@ -694,7 +694,7 @@ class ProfilingEndpointProvider(ops.Object):
 
         Args:
             charm: a `ops.CharmBase` object that manages this
-                `ProfilingEndpointProvider` object. Typically this is `self` in the instantiating
+                `ProfilingEndpointProvider` object. Typically, this is `self` in the instantiating
                 class.
             relation_name: an optional string name of the relation between `charm`
                 and the Parca charmed service. The default is "profiling-endpoint". It is strongly
