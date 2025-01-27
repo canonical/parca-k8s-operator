@@ -11,7 +11,11 @@ from pytest_operator.plugin import OpsTest
 @fixture(scope="module")
 async def parca_charm(ops_test: OpsTest):
     """Parca charm used for integration testing."""
-    charm = await ops_test.build_charm(".")
+    charm = "./parca-k8s_ubuntu@24.04-amd64.charm"
+    if not Path(charm).exists():
+        charm = await ops_test.build_charm(".")
+    else:
+        print("USING CACHED CHARM FILE")
     return charm
 
 
