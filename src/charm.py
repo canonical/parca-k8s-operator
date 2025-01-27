@@ -8,7 +8,7 @@ import logging
 import socket
 import typing
 from pathlib import Path
-from typing import FrozenSet, List, Optional
+from typing import Any, Dict, FrozenSet, List, Optional
 from urllib.parse import urlparse
 
 import ops
@@ -282,7 +282,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             ],
         }
         additional_config = self._format_scrape_target(
-            NGINX_PORT,
+            self.nginx.port,
             self._scheme,
             profiles_path=self._external_url_path,
             # add the juju_ prefix to labels

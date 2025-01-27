@@ -8,7 +8,7 @@ import re
 import time
 import typing
 import urllib.request
-from typing import Dict, List, Literal, Optional, Sequence, TypedDict
+from typing import Dict, List, Literal, Optional, Sequence, TypedDict, Union
 
 import yaml
 from ops import Container
@@ -32,7 +32,7 @@ DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
 DEFAULT_PROFILE_PATH = "/var/lib/parca"
 S3_TLS_CA_CERT_PATH = "/etc/parca/s3_ca.crt"
 
-ScrapeJob = Dict[str, List[str]]
+ScrapeJob = Dict[str, Union[List[str], Dict[str, str]]]
 
 
 class ScrapeJobsConfig(TypedDict, total=False):
