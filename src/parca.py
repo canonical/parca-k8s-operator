@@ -42,7 +42,7 @@ class ScrapeJobsConfig(TypedDict, total=False):
 
 
 class Parca:
-    """Class representing Parca running in a container under Pebble."""
+    """Parca workload."""
 
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3

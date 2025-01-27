@@ -14,7 +14,7 @@ CA_CERT_PATH = "/usr/local/share/ca-certificates/ca.cert"
 
 
 class NginxPrometheusExporter:
-    """Nginx prometheus exporter."""
+    """Nginx prometheus exporter workload."""
 
     port = NGINX_PROMETHEUS_EXPORTER_PORT
     service_name = "nginx"
