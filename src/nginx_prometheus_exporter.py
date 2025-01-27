@@ -36,19 +36,11 @@ class NginxPrometheusExporter:
             self._container.autostart()
 
     @property
-    def are_certificates_on_disk(self) -> bool:
-        """Return True if the certificates files are on disk."""
-        return (
-            self._container.can_connect()
-            and self._container.exists(CERT_PATH)
-            and self._container.exists(KEY_PATH)
-            and self._container.exists(CA_CERT_PATH)
-        )
-
-    @property
     def layer(self) -> pebble.Layer:
         """Return the Pebble layer for Nginx Prometheus exporter."""
-        scheme = "https" if self.are_certificates_on_disk else "http"  # type: ignore
+        # FIXME:
+        #
+        scrape_uri = "http://127.0.0.1"
         return pebble.Layer(
             {
                 "summary": "nginx prometheus exporter layer",
@@ -58,7 +50,7 @@ class NginxPrometheusExporter:
                         "override": "replace",
                         "summary": "nginx prometheus exporter",
                         "command": f"nginx-prometheus-exporter --no-nginx.ssl-verify --web.listen-address=:{self.port}  "
-                        f"--nginx.scrape-uri={scheme}://127.0.0.1:{self._nginx_port}/status",
+                        f"--nginx.scrape-uri={scrape_uri}:{self._nginx_port}/status",
                         "startup": "enabled",
                     }
                 },

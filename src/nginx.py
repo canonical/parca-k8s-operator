@@ -138,8 +138,13 @@ class Nginx:
     def reconcile(self) -> None:
         """Configure pebble layer and ensure workload is up if possible."""
         if self._container.can_connect():
-            self._reconcile_nginx_config()
+            # keep the reconcile_tls_config call on top: otherwise on certificates-broken,
+            # _are_certificates_on_disk will still return True and nginx will be configured with tls on.
+            # and vice versa, on certificates-created, _are_certificates_on_disk will still return False
+            # for a while because we haven't written the certs to disk yet, and we'll start nginx
+            # without tls config.
             self._reconcile_tls_config()
+            self._reconcile_nginx_config()
 
     def _reconcile_tls_config(self):
         tls_config = self._tls_config

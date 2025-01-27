@@ -255,8 +255,11 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _metrics_scrape_jobs(self) -> List[ScrapeJobsConfig]:
         return self._format_scrape_target(
             NginxPrometheusExporter.port,
-            # TODO: nginx-prometheus-exporter does not natively run with TLS
-            # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
+            # FIXME: https://github.com/canonical/parca-k8s-operator/issues/399
+            #  nginx-prometheus-exporter does not natively run with TLS
+            #  We can fix that by configuring the nginx container to proxy requests on
+            #  /nginx-metrics to localhost:9411/metrics
+            #  so once we relate with SSC, will metrics scraping be broken?
             scheme="http",
         ) + self._format_scrape_target(
             Nginx.port,
