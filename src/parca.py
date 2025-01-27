@@ -33,6 +33,7 @@ DEFAULT_PROFILE_PATH = "/var/lib/parca"
 S3_TLS_CA_CERT_PATH = "/etc/parca/s3_ca.crt"
 
 ScrapeJob = Dict[str, Union[List[str], Dict[str, str]]]
+RelabelConfig = Dict[str, Union[list[str], str]]
 
 
 class ScrapeJobsConfig(TypedDict, total=False):
@@ -43,6 +44,8 @@ class ScrapeJobsConfig(TypedDict, total=False):
     metrics_path: str
     scheme: Optional[Literal["https"]]
     tls_config: Dict[str, str]
+    job_name: Optional[str]
+    relabel_configs: Optional[List[RelabelConfig]]
 
 
 class Parca:

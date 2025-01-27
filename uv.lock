@@ -1027,7 +1027,7 @@ requires-dist = [
     { name = "pydantic", marker = "extra == 'dev'" },
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-operator", marker = "extra == 'dev'", specifier = "==0.35.0" },
+    { name = "pytest-operator", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "sh", marker = "extra == 'dev'" },
     { name = "tenacity", marker = "extra == 'dev'" },

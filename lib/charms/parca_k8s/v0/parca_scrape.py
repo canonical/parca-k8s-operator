@@ -185,7 +185,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 3
+LIBPATCH = 4
 
 
 logger = logging.getLogger(__name__)
@@ -813,20 +813,20 @@ class ProfilingEndpointProvider(ops.Object):
             return False
 
     @property
-    def relations(self) -> List[Relation]:
-        """The profiling provider relations associated with this endpoint."""
+    def _relations(self) -> List[Relation]:
+        """The relations currently active on this endpoint."""
         return self._charm.model.relations[self._relation_name]
 
-    def is_ready(self) -> bool:
-        """Return True if any profiling provider relation is ready else return False."""
-        relations = self.relations
+    def is_ready(self, relation: Optional[Relation] = None) -> bool:
+        """Check if the relation(s) on this endpoint are ready."""
+        relations = [relation] if relation else self._relations
 
         if not relations:
             logger.debug(f"no relation on {self._relation_name!r}.")
             return False
 
         # TODO: once we have a pydantic model, we can also check for the integrity of the databags.
-        return any((relation.app and relation.data) for relation in relations)
+        return all((relation.app and relation.data) for relation in relations)
 
     @property
     def _scrape_jobs(self) -> list:

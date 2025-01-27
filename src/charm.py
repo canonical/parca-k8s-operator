@@ -8,7 +8,7 @@ import logging
 import socket
 import typing
 from pathlib import Path
-from typing import Any, Dict, FrozenSet, List, Optional
+from typing import Dict, FrozenSet, List, Optional
 from urllib.parse import urlparse
 
 import ops
@@ -245,7 +245,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         return TLSConfig(cr, key=key, certificate=certificate)
 
     @property
-    def _profiling_scrape_configs(self) -> List[Dict[str, Any]]:
+    def _profiling_scrape_configs(self) -> List[ScrapeJobsConfig]:
         """The scrape configuration that Parca will use for scraping profiles.
 
         The configuration includes the targets scraped by Parca as well as Parca's
@@ -258,41 +258,39 @@ class ParcaOperatorCharm(ops.CharmBase):
         return scrape_configs
 
     @property
-    def _self_profiling_scrape_config(self) -> Dict[str, Any]:
+    def _self_profiling_scrape_config(self) -> ScrapeJobsConfig:
         """Profiling scrape config to scrape parca's own workload profiles.
 
         This config also adds juju topology to the scraped profiles.
         """
         topology = JujuTopology.from_charm(self)
-
-        config = {
-            "job_name": "parca",
-            "relabel_configs": [
-                {
-                    "source_labels": [
-                        "juju_model",
-                        "juju_model_uuid",
-                        "juju_application",
-                        "juju_unit",
-                    ],
-                    "separator": "_",
-                    "target_label": "instance",
-                    "regex": "(.*)",
-                }
-            ],
+        job_name = "parca"
+        relabel_configs = [
+            {
+                "source_labels": [
+                    "juju_model",
+                    "juju_model_uuid",
+                    "juju_application",
+                    "juju_unit",
+                ],
+                "separator": "_",
+                "target_label": "instance",
+                "regex": "(.*)",
+            }
+        ]
+        # add the juju_ prefix to labels
+        labels = {
+            "juju_{}".format(key): value for key, value in topology.as_dict().items() if value
         }
-        additional_config = self._format_scrape_target(
+
+        return self._format_scrape_target(
             self.nginx.port,
             self._scheme,
             profiles_path=self._external_url_path,
-            # add the juju_ prefix to labels
-            labels={
-                "juju_{}".format(key): value for key, value in topology.as_dict().items() if value
-            },
+            labels=labels,
+            job_name=job_name,
+            relabel_configs=relabel_configs,
         )[0]
-
-        config.update(additional_config)
-        return config
 
     def _update_status(self, _):
         """Handle the update status hook on an interval dictated by model config."""
@@ -354,7 +352,9 @@ class ParcaOperatorCharm(ops.CharmBase):
         scheme="http",
         metrics_path=None,
         profiles_path: Optional[str] = None,
-        labels: Dict[str, str] = {},
+        labels: Optional[Dict[str, str]] = None,
+        job_name: Optional[str] = None,
+        relabel_configs: Optional[List[RelabelConfig]] = None,
     ) -> List[ScrapeJobsConfig]:
         job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
         if labels:
@@ -372,6 +372,10 @@ class ParcaOperatorCharm(ops.CharmBase):
                     # https://github.com/canonical/prometheus-k8s-operator/issues/670
                     "ca_file" if metrics_path else "ca": Path(CA_CERT_PATH).read_text()
                 }
+        if job_name:
+            jobs_config["job_name"] = job_name
+        if relabel_configs:
+            jobs_config["relabel_configs"] = relabel_configs
 
         return [jobs_config]
 
