@@ -143,7 +143,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
         self.parca = Parca(
             container=self.unit.get_container(Parca.container_name),
-            scrape_configs=self.profiling_consumer.jobs(),
+            scrape_configs=self._self_profiling_scrape_config,
             enable_persistence=typing.cast(bool, self.config.get("enable-persistence", None)),
             memory_storage_limit=typing.cast(int, self.config.get("memory-storage-limit", None)),
             store_config=self.store_requirer.config,
@@ -263,7 +263,6 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         This config also adds juju topology to the scraped profiles.
         """
-        topology = JujuTopology.from_charm(self)
         job_name = "parca"
         relabel_configs = [
             {
@@ -280,7 +279,9 @@ class ParcaOperatorCharm(ops.CharmBase):
         ]
         # add the juju_ prefix to labels
         labels = {
-            "juju_{}".format(key): value for key, value in topology.as_dict().items() if value
+            "juju_{}".format(key): value
+            for key, value in JujuTopology.from_charm(self).as_dict().items()
+            if value
         }
 
         return self._format_scrape_target(
