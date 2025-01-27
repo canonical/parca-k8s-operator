@@ -97,7 +97,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             refresh_event=[self.certificates.on.certificate_available],
         )
 
-        # The self_profiling_endpoint_provider enables a remote Parca to scrape profiles from this Parca instance.
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
             jobs=self._self_profiling_scrape_jobs,
@@ -141,6 +140,14 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # WORKLOADS
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
+        self.nginx = Nginx(
+            container=self.unit.get_container(Nginx.container_name),
+            server_name=self._fqdn,
+            address=Address(name="parca", port=Parca.port),
+            path_prefix=self._external_url_path,
+            tls_config=self._tls_config,
+        )
+        # parca needs to be instantiated after `nginx`, as it accesses self.nginx.port
         self.parca = Parca(
             container=self.unit.get_container(Parca.container_name),
             scrape_configs=self._profiling_scrape_configs,
@@ -154,13 +161,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container(NginxPrometheusExporter.container_name),
             nginx_port=Nginx.port,
-        )
-        self.nginx = Nginx(
-            container=self.unit.get_container(Nginx.container_name),
-            server_name=self._fqdn,
-            address=Address(name="parca", port=Parca.port),
-            path_prefix=self._external_url_path,
-            tls_config=self._tls_config,
         )
 
         # event handlers
@@ -245,6 +245,22 @@ class ParcaOperatorCharm(ops.CharmBase):
         return TLSConfig(cr, key=key, certificate=certificate)
 
     @property
+    def _tls_ready(self) -> bool:
+        """Return True if tls is enabled and the necessary data is available."""
+        return bool(self._tls_config)
+
+    def _get_certificate_request_attributes(self) -> CertificateRequestAttributes:
+        sans_dns: FrozenSet[str] = frozenset([self._fqdn])
+        return CertificateRequestAttributes(
+            # common_name is required and has a limit of 64 chars.
+            # it is superseded by sans anyway, so we can use a constrained name,
+            # such as app_name
+            common_name=self.app.name,
+            sans_dns=sans_dns,
+        )
+
+    # SCRAPE JOBS CONFIGURATION
+    @property
     def _profiling_scrape_configs(self) -> List[ScrapeJobsConfig]:
         """The scrape configuration that Parca will use for scraping profiles.
 
@@ -285,7 +301,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         }
 
         return self._format_scrape_target(
-            NGINX_PORT,
+            self.nginx.port,
             self._scheme,
             profiles_path=self._external_url_path,
             labels=labels,
