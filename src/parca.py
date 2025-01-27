@@ -47,6 +47,11 @@ class Parca:
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
+    port = PARCA_PORT
+    service_name = "parca"
+    container_name = "parca"
+    layer_name = "parca"
+
     def __init__(
         self,
         container: Container,
@@ -96,14 +101,15 @@ class Parca:
         # self._container.exec(["update-ca-certificates", "--fresh"])
 
     def _reconcile_parca_config(self):
-        # TODO: parca hot-reloads config, so we don't need to track changes and restart manually.
+        # TODO: https://github.com/canonical/parca-k8s-operator/issues/398
+        #  parca hot-reloads config, so we don't need to track changes and restart manually.
         #  it could be useful though, perhaps, to track changes so we can surface to the user
         #  that something has changed.
         self._container.push(
             DEFAULT_CONFIG_PATH, str(self._config), make_dirs=True, permissions=0o644
         )
         layer = self._pebble_layer()
-        self._container.add_layer("parca", layer, combine=True)
+        self._container.add_layer(self.layer_name, layer, combine=True)
         self._container.replan()
 
     def _pebble_layer(self) -> Layer:
@@ -111,7 +117,7 @@ class Parca:
         return Layer(
             {
                 "services": {
-                    "parca": {
+                    self.service_name: {
                         "override": "replace",
                         "summary": "parca",
                         "command": parca_command_line(
@@ -152,7 +158,7 @@ class Parca:
 
 
 def parca_command_line(
-    http_address: str = ":7070",
+    http_address: str = f":{PARCA_PORT}",
     enable_persistence: Optional[bool] = False,
     memory_storage_limit: Optional[int] = None,
     *,

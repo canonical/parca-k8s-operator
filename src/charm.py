@@ -31,17 +31,21 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
 from nginx import (
-    CA_CERT_PATH,
-    NGINX_PORT,
-    NGINX_PROMETHEUS_EXPORTER_PORT,
     Address,
     Nginx,
-    NginxPrometheusExporter,
 )
-from parca import PARCA_PORT, Parca, ScrapeJob, ScrapeJobsConfig
+from nginx_prometheus_exporter import NginxPrometheusExporter
+from parca import Parca, ScrapeJob, ScrapeJobsConfig
 from tls_config import TLSConfig
 
 logger = logging.getLogger(__name__)
+
+# where we store the certificate in the charm container
+CA_CERT_PATH = "/usr/local/share/ca-certificates/ca.cert"
+
+CERTIFICATES_RELATION_NAME = "certificates"
+PARCA_CONTAINER = "parca"
+NGINX_CONTAINER = "nginx"
 
 
 @trace_charm(
@@ -70,14 +74,14 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.profiling_consumer = ProfilingEndpointConsumer(self)
         self.certificates = TLSCertificatesRequiresV4(
             charm=self,
-            relationship_name="certificates",
+            relationship_name=CERTIFICATES_RELATION_NAME,
             certificate_requests=[self._get_certificate_request_attributes()],
             mode=Mode.UNIT,
         )
         self.ingress = IngressPerAppRequirer(
             self,
             host=self._fqdn,
-            port=NGINX_PORT,
+            port=Nginx.port,
             scheme=self._scheme,
         )
         self.metrics_endpoint_provider = MetricsEndpointProvider(
@@ -105,7 +109,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
             self,
-            port=NGINX_PORT,
+            port=Nginx.port,
             insecure=True,
             external_url=self._external_url,
         )
@@ -129,7 +133,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # WORKLOADS
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
         self.parca = Parca(
-            container=self.unit.get_container("parca"),
+            container=self.unit.get_container(Parca.container_name),
             scrape_configs=self.profiling_consumer.jobs(),
             enable_persistence=typing.cast(bool, self.config.get("enable-persistence", None)),
             memory_storage_limit=typing.cast(int, self.config.get("memory-storage-limit", None)),
@@ -138,12 +142,13 @@ class ParcaOperatorCharm(ops.CharmBase):
             tls_config=self._tls_config,
         )
         self.nginx_exporter = NginxPrometheusExporter(
-            container=self.unit.get_container("nginx-prometheus-exporter"),
+            container=self.unit.get_container(NginxPrometheusExporter.container_name),
+            nginx_port=Nginx.port,
         )
         self.nginx = Nginx(
-            container=self.unit.get_container("nginx"),
+            container=self.unit.get_container(Nginx.container_name),
             server_name=self._fqdn,
-            address=Address(name="parca", port=PARCA_PORT),
+            address=Address(name="parca", port=Parca.port),
             path_prefix=self._external_url_path,
             tls_config=self._tls_config,
         )
@@ -159,7 +164,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         This will ensure all workloads are up and running if the preconditions are met.
         """
-        self.unit.set_ports(8080)
+        self.unit.set_ports(Nginx.port)
 
         self.nginx.reconcile()
         self.nginx_exporter.reconcile()
@@ -192,7 +197,7 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def _internal_url(self):
         """Return workload's internal URL."""
-        return f"{self._scheme}://{self._fqdn}:{NGINX_PORT}"
+        return f"{self._scheme}://{self._fqdn}:{Nginx.port}"
 
     @property
     def _scheme(self) -> str:
@@ -220,7 +225,7 @@ class ParcaOperatorCharm(ops.CharmBase):
     # TLS CONFIG
     @property
     def _tls_config(self) -> Optional["TLSConfig"]:
-        if not self.model.relations.get("certificates"):
+        if not self.model.relations.get(CERTIFICATES_RELATION_NAME):
             return None
 
         cr = self._get_certificate_request_attributes()
@@ -249,12 +254,12 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def _metrics_scrape_jobs(self) -> List[ScrapeJobsConfig]:
         return self._format_scrape_target(
-            NGINX_PROMETHEUS_EXPORTER_PORT,
+            NginxPrometheusExporter.port,
             # TODO: nginx-prometheus-exporter does not natively run with TLS
             # We can fix that by configuring the nginx container to proxy requests on /nginx-metrics to localhost:9411/metrics
             scheme="http",
         ) + self._format_scrape_target(
-            NGINX_PORT,
+            Nginx.port,
             scheme=self._scheme,
             metrics_path=f"{self._external_url_path or ''}/metrics",
         )
@@ -262,36 +267,36 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def _self_profiling_scrape_jobs(self) -> List[ScrapeJobsConfig]:
         return self._format_scrape_target(
-            NGINX_PORT, self._scheme, profiles_path=self._external_url_path
+            Nginx.port, self._scheme, profiles_path=self._external_url_path
         )
 
     def _format_scrape_target(
         self, port: int, scheme="http", metrics_path=None, profiles_path: Optional[str] = None
     ) -> List[ScrapeJobsConfig]:
         job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
-        jobsconfig: ScrapeJobsConfig = {"static_configs": [job]}
+        jobs_config: ScrapeJobsConfig = {"static_configs": [job]}
         if metrics_path:
-            jobsconfig["metrics_path"] = metrics_path
+            jobs_config["metrics_path"] = metrics_path
         if profiles_path:
-            jobsconfig["profiling_config"] = {"path_prefix": profiles_path}
+            jobs_config["profiling_config"] = {"path_prefix": profiles_path}
         if scheme == "https":
-            jobsconfig["scheme"] = "https"
+            jobs_config["scheme"] = "https"
             if Path(CA_CERT_PATH).exists():
-                jobsconfig["tls_config"] = {
+                jobs_config["tls_config"] = {
                     # ca_file should hold the CA path, but prometheus charm expects ca_file to hold the cert contents.
                     # https://github.com/canonical/prometheus-k8s-operator/issues/670
                     "ca_file" if metrics_path else "ca": Path(CA_CERT_PATH).read_text()
                 }
 
-        return [jobsconfig]
+        return [jobs_config]
 
     # EVENT HANDLERS
     def _on_collect_unit_status(self, event: ops.CollectStatusEvent):
         """Set unit status depending on the state."""
         containers_not_ready = [
-            c_name
-            for c_name in {"parca", "nginx", "nginx-prometheus-exporter"}
-            if not self.unit.get_container(c_name).can_connect()
+            workload.container_name
+            for workload in {Parca, Nginx, NginxPrometheusExporter}
+            if not self.unit.get_container(workload.container_name).can_connect()
         ]
 
         if containers_not_ready:
