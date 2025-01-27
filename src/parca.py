@@ -13,10 +13,9 @@ from typing import Dict, List, Literal, Optional, Sequence, TypedDict
 import yaml
 from ops import Container
 from ops.pebble import Layer
-from nginx import CA_CERT_PATH
-from tls_config import TLSConfig
 
 from nginx import CA_CERT_PATH
+from tls_config import TLSConfig
 
 if typing.TYPE_CHECKING:  # pragma: nocover
     from s3_interface import S3ConnectionInfo
