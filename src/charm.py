@@ -32,14 +32,13 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 )
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
+from models import S3Config, TLSConfig
 from nginx import (
     Address,
     Nginx,
 )
 from nginx_prometheus_exporter import NginxPrometheusExporter
 from parca import Parca, ScrapeJob, ScrapeJobsConfig
-from models import S3Config
-from models import TLSConfig
 
 logger = logging.getLogger(__name__)
 

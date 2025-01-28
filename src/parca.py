@@ -84,8 +84,10 @@ class Parca:
     def reconcile(self):
         """Unconditional control logic."""
         if self._container.can_connect():
-            self._reconcile_parca_config()
+            # keep the reconcile_tls_config call on top: otherwise, parca may be configured
+            # with tls (and error out on start) before the certs are actually written to disk.
             self._reconcile_tls_config()
+            self._reconcile_parca_config()
 
     def _reconcile_tls_config(self):
         for cert, cert_path in (
@@ -189,7 +191,6 @@ def parca_command_line(
         path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
     """
-
     # FIXME: do we need --storage-enable-wal ???
 
     cmd = [str(bin_path), f"--config-path={config_path}", f"--http-address={http_address}"]

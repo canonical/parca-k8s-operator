@@ -4,17 +4,14 @@
 """TLS Config class."""
 
 import dataclasses
+from typing import List, Optional
 
+import pydantic
 from charms.tls_certificates_interface.v4.tls_certificates import (
     CertificateRequestAttributes,
     PrivateKey,
     ProviderCertificate,
 )
-
-
-from typing import List, Optional
-
-import pydantic
 
 
 # FIXME: https://github.com/canonical/cos-lib/issues/119
