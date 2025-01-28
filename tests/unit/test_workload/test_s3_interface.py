@@ -1,4 +1,4 @@
-from s3_interface import S3ConnectionInfo
+from models import S3ConnectionInfo
 
 
 def test_cacert():

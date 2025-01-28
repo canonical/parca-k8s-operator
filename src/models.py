@@ -1,7 +1,16 @@
-#!/usr/bin/env python3
-# Copyright 2025 Canonical Ltd.
+# Copyright 2024 Canonical
 # See LICENSE file for licensing details.
-"""S3 interface utilities."""
+
+"""TLS Config class."""
+
+import dataclasses
+
+from charms.tls_certificates_interface.v4.tls_certificates import (
+    CertificateRequestAttributes,
+    PrivateKey,
+    ProviderCertificate,
+)
+
 
 from typing import List, Optional
 
@@ -12,7 +21,7 @@ import pydantic
 #  This is a copy of cosl.coordinated_workers.coordinator.S3ConnectionInfo
 #  we do this to avoid bringing in all the charm lib dependencies that go
 #  with cosl's coordinated-workers module
-class S3ConnectionInfo(pydantic.BaseModel):
+class S3Config(pydantic.BaseModel):
     """Model for the s3 relation databag, as returned by the s3 charm lib."""
 
     # they don't use it, we do
@@ -31,3 +40,12 @@ class S3ConnectionInfo(pydantic.BaseModel):
     def ca_cert(self) -> Optional[str]:
         """Unify the ca chain provided by the lib into a single cert."""
         return "\n\n".join(self.tls_ca_chain) if self.tls_ca_chain else None
+
+
+@dataclasses.dataclass
+class TLSConfig:
+    """Model ."""
+
+    cr: "CertificateRequestAttributes"
+    certificate: "ProviderCertificate"
+    key: "PrivateKey"

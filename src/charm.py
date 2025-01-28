@@ -38,8 +38,8 @@ from nginx import (
 )
 from nginx_prometheus_exporter import NginxPrometheusExporter
 from parca import Parca, ScrapeJob, ScrapeJobsConfig
-from s3_interface import S3ConnectionInfo
-from tls_config import TLSConfig
+from models import S3Config
+from models import TLSConfig
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +144,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             store_config=self.store_requirer.config,
             path_prefix=self._external_url_path,
             tls_config=self._tls_config,
-            s3_config=self._s3_connection_info,
+            s3_config=self._s3_config,
         )
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container(NginxPrometheusExporter.container_name),
@@ -257,12 +257,12 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     # STORAGE CONFIG
     @property
-    def _s3_connection_info(self) -> Optional[S3ConnectionInfo]:
+    def _s3_config(self) -> Optional[S3Config]:
         """Cast and validate the untyped s3 databag to something we can handle."""
         try:
             # we have to type-ignore here because the s3 lib's type annotation is wrong
             raw = self.s3_requirer.get_s3_connection_info()
-            return S3ConnectionInfo(**raw)  # type: ignore
+            return S3Config(**raw)  # type: ignore
         except pydantic.ValidationError:
             logger.debug("s3 connection absent or corrupt")
             return None

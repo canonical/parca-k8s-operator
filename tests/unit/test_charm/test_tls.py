@@ -118,3 +118,4 @@ def test_endpoint_with_tls_disabled(
         # THEN we have TLS disabled
         assert not charm._tls_ready
         assert charm._external_url.startswith("http://")
+
