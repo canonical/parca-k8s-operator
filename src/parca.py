@@ -10,6 +10,7 @@ import typing
 import urllib.request
 from typing import Dict, List, Literal, Optional, Sequence, TypedDict
 
+import ops.pebble
 import yaml
 from ops import Container
 from ops.pebble import Layer
@@ -77,6 +78,14 @@ class Parca:
         self._s3_config = s3_config
 
     @property
+    def is_ready(self):
+        try:
+            return self._container.get_service(self.service_name).is_running()
+        except (ops.ModelError, RuntimeError):
+            logger.exception("error getting ready status for parca")
+        return False
+
+    @property
     def _config(self) -> str:
         """YAML-encoded parca config file."""
         return ParcaConfig(self._scrape_configs, s3_config=self._s3_config).to_yaml()
@@ -121,7 +130,10 @@ class Parca:
         )
         layer = self._pebble_layer()
         self._container.add_layer(self.layer_name, layer, combine=True)
-        self._container.replan()
+        try:
+            self._container.replan()
+        except ops.pebble.ChangeError:
+            logger.exception("failed to replan parca container")
 
     def _pebble_layer(self) -> Layer:
         """Return a Pebble layer for Parca based on the current configuration."""

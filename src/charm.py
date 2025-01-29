@@ -322,8 +322,10 @@ class ParcaOperatorCharm(ops.CharmBase):
             event.add_status(
                 ops.WaitingStatus(f"Waiting for containers: {containers_not_ready}...")
             )
-        else:
+        if self.parca.is_ready:
             self.unit.set_workload_version(self.parca.version)
+        else:
+            event.add_status(ops.BlockedStatus("parca service down (see logs)"))
 
         event.add_status(ops.ActiveStatus(f"UI ready at {self._external_url}"))
 
