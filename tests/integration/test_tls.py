@@ -91,32 +91,35 @@ async def test_profiling_scraping(ops_test):
     assert PARCA_TESTER in output
 
 
-async def test_workload_tracing_relation(ops_test: OpsTest):
-    await deploy_tempo_cluster(ops_test)
-    await asyncio.gather(
-        ops_test.model.integrate(f"{PARCA}:workload-tracing", "tempo"),
-        ops_test.model.wait_for_idle(
-            apps=[PARCA, "tempo", "tempo-worker"],
-            status="active",
-            raise_on_blocked=True,
-            timeout=500,
-        ),
-    )
+# FIXME: uncomment test once
+# https://github.com/canonical/parca-k8s-operator/issues/403
+# and https://github.com/canonical/parca-k8s-operator/issues/405 are fixed.
+# async def test_workload_tracing(ops_test: OpsTest):
+#     await deploy_tempo_cluster(ops_test)
+#     await asyncio.gather(
+#         ops_test.model.integrate(f"{PARCA}:workload-tracing", "tempo"),
+#         ops_test.model.wait_for_idle(
+#             apps=[PARCA, "tempo", "tempo-worker"],
+#             status="active",
+#             raise_on_blocked=True,
+#             timeout=500,
+#         ),
+#     )
 
-    # Stimulate parca to generate traces
-    exit_code, output = query_parca_server(
-        ops_test.model_name,
-        "tempo",
-        tls=True,
-    )
-    assert exit_code == 0, f"Failed to query the parca server. {output}"
+#     # Stimulate parca to generate traces
+#     exit_code, output = query_parca_server(
+#         ops_test.model_name,
+#         "tempo",
+#         tls=True,
+#     )
+#     assert exit_code == 0, f"Failed to query the parca server. {output}"
 
-    # Verify workload traces from parca are ingested into Tempo
-    assert await get_traces(
-        await get_unit_ip(ops_test.model_name, "tempo", 0),
-        service_name=PARCA,
-        tls=True,
-    )
+#     # Verify workload traces from parca are ingested into Tempo
+#     assert await get_traces(
+#         await get_unit_ip(ops_test.model_name, "tempo", 0),
+#         service_name=PARCA,
+#         tls=True,
+#     )
 
 
 @pytest.mark.abort_on_fail
