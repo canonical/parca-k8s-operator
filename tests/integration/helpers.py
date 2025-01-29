@@ -147,7 +147,7 @@ def query_parca_server(
     # To query the parca server with TLS while validating the certificate, we need to perform the query
     # against the parca server's fqdn.
     # We can do that from inside another K8s pod, such as ssc.
-    cert_flags = f"--cacert' {ca_cert_path}" if tls else ""
+    cert_flags = f"--cacert {ca_cert_path}" if tls else ""
     cmd = f"""juju exec --model {model_name} --unit {exec_target_app_name}/0 "curl {cert_flags} {url}" """
     print(cmd)
     return getstatusoutput(cmd)
