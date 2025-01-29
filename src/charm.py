@@ -150,6 +150,11 @@ class ParcaOperatorCharm(ops.CharmBase):
         self._charm_tracing_endpoint, self._server_cert = charm_tracing_config(
             self.charm_tracing, CA_CERT_PATH
         )
+        self.workload_tracing = TracingEndpointRequirer(
+            self,
+            relation_name="workload-tracing",
+            protocols=["otlp_grpc"],
+        )
 
         # WORKLOADS
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
@@ -170,6 +175,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             path_prefix=self._external_url_path,
             tls_config=self._tls_config,
             s3_config=self._s3_config,
+            tracing_endpoint=self._workload_tracing_endpoint,
         )
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container(NginxPrometheusExporter.container_name),
@@ -376,6 +382,13 @@ class ParcaOperatorCharm(ops.CharmBase):
             jobs_config["relabel_configs"] = relabel_configs
 
         return [jobs_config]
+
+    # TRACING PROPERTIES
+    @property
+    def _workload_tracing_endpoint(self) -> Optional[str]:
+        if self.workload_tracing.is_ready():
+            return self.workload_tracing.get_endpoint("otlp_grpc")
+        return None
 
     # EVENT HANDLERS
     def _on_collect_unit_status(self, event: ops.CollectStatusEvent):

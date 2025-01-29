@@ -368,3 +368,27 @@ def test_self_profiling_endpoint_relation(context, base_state):
         # AND self-profiling scrape job is sent to remote app
         rel_out = state_out.get_relation(relation.id)
         assert rel_out.local_app_data["scrape_jobs"] == json.dumps(expected_scrape_jobs)
+def test_parca_workload_tracing_relation(context, base_state):
+    remote_app_databag = {
+        "receivers": json.dumps(
+            [{"protocol": {"name": "otlp_grpc", "type": "grpc"}, "url": "192.0.2.0/24"}]
+        )
+    }
+    relation = Relation(
+        "workload-tracing", remote_app_name="backend", remote_app_data=remote_app_databag
+    )
+
+    state_out = context.run(
+        context.on.relation_changed(relation),
+        replace(base_state, leader=True, relations={relation}),
+    )
+
+    # Check the Parca is started with the correct command including the tracing flag
+    assert_parca_command_equals(
+        state_out,
+        f"/parca "
+        f"--config-path={DEFAULT_CONFIG_PATH} "
+        f"--http-address=localhost:{PARCA_PORT} "
+        f"--storage-active-memory=4294967296 "
+        "--otlp-address=192.0.2.0/24",
+    )
