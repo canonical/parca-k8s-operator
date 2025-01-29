@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -19,28 +22,53 @@
     ]
   },
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
-  "iteration": 1659369572434,
+  "id": 6,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
-      "datasource": "${prometheusds}",
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 0
       },
-      "id": 11,
-      "panels": [],
-      "title": "Write (gRPC)",
+      "id": 27,
+      "title": "At a glance",
       "type": "row"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 28,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "High-level overview of core profiling system metrics: scrapes, profiles, and current ingestion.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "9.5.3",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -48,6 +76,879 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "frostdb_table_active_block_size{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "In-memory profile storage size",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "wps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 3
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "exemplar": false,
+          "expr": "rate(frostdb_table_rows_inserted_total{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Samples write / sec",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 32,
+      "panels": [],
+      "title": "CPU / Memory / Go",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 33,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Core nodes and Go metrics for the hosts. Look for high usage and abnormal spikes.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "9.5.3",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 13
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum by(juju_unit) (rate(process_cpu_seconds_total{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m]))",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "CPU",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 13
+      },
+      "id": 35,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "go_memstats_heap_inuse_bytes{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Go heap",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 13
+      },
+      "id": 36,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "process_resident_memory_bytes{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Resident memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 20
+      },
+      "id": 37,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "go_goroutines{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Goroutines",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 20
+      },
+      "id": 38,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(go_gc_duration_seconds_count{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "GCs (rate)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 20
+      },
+      "id": 39,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "go_threads{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "OS threads",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "id": 11,
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "Writes",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "id": 31,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Overview of data from remote write interface used by [parca-agent](https://github.com/canonical/parca-agent-operator) and applications sending profile data directly. Look for drops in regular ingestion levels / errors. ",
+        "mode": "markdown"
+      },
+      "pluginVersion": "9.5.3",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -97,34 +998,42 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 1
+        "y": 30
       },
       "id": 3,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])) > 0",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_method=\"WriteRaw\",grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC Write Requests",
+      "title": "Write Requests",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -132,6 +1041,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -177,34 +1088,42 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 1
+        "y": 30
       },
       "id": 15,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\",grpc_method=\"WriteRaw\",grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC Write Errors",
+      "title": "Write Errors",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -212,6 +1131,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -261,66 +1182,115 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 1
+        "y": 30
       },
       "id": 7,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"WriteRaw\",grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "interval": "",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.90, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])))",
+          "expr": "histogram_quantile(0.9, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"WriteRaw\",grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p90",
           "refId": "B"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",grpc_method=\"WriteRaw\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"WriteRaw\",grpc_service=\"parca.profilestore.v1alpha1.ProfileStoreService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p95",
           "refId": "C"
         }
       ],
-      "title": "gRPC Write Duration",
+      "title": "Write Duration",
       "type": "timeseries"
     },
     {
       "collapsed": false,
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 38
       },
       "id": 13,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "Query",
       "type": "row"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "id": 40,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Overview of queries to Parca. Look for errors / sudden spikes.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "9.5.3",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "These are the requests that query the overview metrics for profiles over a given time range.",
       "fieldConfig": {
         "defaults": {
@@ -328,6 +1298,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -377,34 +1349,42 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 10
+        "y": 41
       },
       "id": 18,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": false,
-          "expr": "sum by (grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])) > 0",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_method=\"QueryRange\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC QueryRange Requests",
+      "title": "QueryRange Requests",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -412,6 +1392,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -457,34 +1439,42 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 10
+        "y": 41
       },
       "id": 16,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\",grpc_method=\"QueryRange\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC QueryRange Errors",
+      "title": "QueryRange Errors",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -492,6 +1482,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -541,52 +1533,66 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 10
+        "y": 41
       },
       "id": 17,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"QueryRange\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "interval": "",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.90, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])))",
+          "expr": "histogram_quantile(0.9, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"QueryRange\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p90",
           "refId": "B"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"QueryRange\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"QueryRange\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p95",
           "refId": "C"
         }
       ],
-      "title": "gRPC QueryRange Duration",
+      "title": "QueryRange Duration",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "These are requests that show the actual profiles.",
       "fieldConfig": {
         "defaults": {
@@ -594,6 +1600,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -643,34 +1651,42 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 18
+        "y": 49
       },
       "id": 14,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": false,
-          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])) > 0",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_method=\"Query\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC Query Requests",
+      "title": "Query Requests",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -678,6 +1694,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -723,34 +1741,42 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 18
+        "y": 49
       },
       "id": 19,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\",grpc_method=\"Query\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC Query Errors",
+      "title": "Query Errors",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -758,6 +1784,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -807,52 +1835,65 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 18
+        "y": 49
       },
       "id": 20,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"Query\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "interval": "",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.90, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])))",
+          "expr": "histogram_quantile(0.9, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"Query\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p90",
           "refId": "B"
         },
         {
-          "datasource": "${prometheusds}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=\"Query\"}[5m])))   ",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=\"Query\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p95",
           "refId": "C"
         }
       ],
-      "title": "gRPC Query Duration",
+      "title": "Query Duration",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "description": "These are the requests that return label names and values, usually used in UIs for label suggestions.",
       "fieldConfig": {
         "defaults": {
@@ -860,6 +1901,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -909,33 +1952,40 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 26
+        "y": 57
       },
       "id": 21,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
           "exemplar": false,
-          "expr": "sum by (grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=~\"Labels|Values\"}[5m])) > 0",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_method=~\"Labels|Values\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])) > 0",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC Labels Requests",
+      "title": "Labels Requests",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -943,6 +1993,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -988,33 +2040,40 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 26
+        "y": 57
       },
       "id": 22,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=~\"Labels|Values\",grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\"}[5m]))",
+          "expr": "sum by(grpc_code) (rate(grpc_server_handled_total{grpc_code=~\"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss\",grpc_method=~\"Labels|Values\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m]))",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{ grpc_code }}",
           "refId": "A"
         }
       ],
-      "title": "gRPC Labels Errors",
+      "title": "Labels Errors",
       "type": "timeseries"
     },
     {
-      "datasource": "${prometheusds}",
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1022,6 +2081,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1071,73 +2132,478 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 26
+        "y": 57
       },
       "id": 23,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=~\"Labels|Values\"}[5m])))",
+          "expr": "histogram_quantile(0.5, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=~\"Labels|Values\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "interval": "",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.90, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=~\"Labels|Values\"}[5m])))",
+          "expr": "histogram_quantile(0.9, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=~\"Labels|Values\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p90",
           "refId": "B"
         },
         {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_service=\"parca.query.v1alpha1.QueryService\",grpc_method=~\"Labels|Values\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(grpc_server_handling_seconds_bucket{grpc_method=~\"Labels|Values\",grpc_service=\"parca.query.v1alpha1.QueryService\",juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[5m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "p95",
           "refId": "C"
         }
       ],
-      "title": "gRPC Labels Duration",
+      "title": "Labels Duration",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": {
+        "uid": "${prometheusds}"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      },
+      "id": 9,
+      "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "Storage / Compaction",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
+      "id": 42,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Overview of storage from compaction perspective. Look for drops in compaction or increase in data at lower levels.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "9.5.3",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 68
+      },
+      "id": 41,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "frostdb_lsm_level_size_bytes{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}",
+          "interval": "",
+          "legendFormat": "{{ level }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Profile storage by compaction level",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 68
+      },
+      "id": 43,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(frostdb_lsm_compactions_total{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[$__rate_interval])",
+          "interval": "",
+          "legendFormat": "{{ level }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Compactions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheusds}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 68
+      },
+      "id": 44,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${prometheusds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(frostdb_lsm_compaction_total_duration_seconds_sum{juju_application=~\"$juju_application\",juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_unit=~\"$juju_unit\"}[$__rate_interval])",
+          "interval": "",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Compaction time",
       "type": "timeseries"
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 30,
+  "schemaVersion": 38,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
-        "allValue": null,
         "current": {
-          "selected": false,
-          "text": "prometheus-k8s",
-          "value": "prometheus-k8s"
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
-        "datasource": "${prometheusds}",
-        "definition": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\",juju_application=\"$juju_application\"},juju_unit)",
-        "description": null,
-        "error": null,
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
+        "label": "Loki datasource",
+        "multi": true,
+        "name": "lokids",
+        "options": [],
+        "query": "loki",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "hide": 0,
+        "includeAll": true,
+        "label": "Prometheus datasource",
+        "multi": true,
+        "name": "prometheusds",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "uid": "${prometheusds}"
+        },
+        "definition": "label_values(up{juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_application=~\"$juju_application\"},juju_unit)",
+        "hide": 0,
+        "includeAll": true,
         "label": "Juju unit",
-        "multi": false,
+        "multi": true,
         "name": "juju_unit",
         "options": [],
         "query": {
-          "query": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\",juju_application=\"$juju_application\"},juju_unit)",
+          "query": "label_values(up{juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\",juju_application=~\"$juju_application\"},juju_unit)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -1151,24 +2617,24 @@
         "useTags": false
       },
       {
-        "allValue": null,
+        "allValue": ".*",
         "current": {
           "selected": false,
-          "text": "prometheus-k8s",
-          "value": "prometheus-k8s"
+          "text": "All",
+          "value": "$__all"
         },
-        "datasource": "${prometheusds}",
-        "definition": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\"},juju_application)",
-        "description": null,
-        "error": null,
+        "datasource": {
+          "uid": "${prometheusds}"
+        },
+        "definition": "label_values(up{juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\"},juju_application)",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "Juju application",
-        "multi": false,
+        "multi": true,
         "name": "juju_application",
         "options": [],
         "query": {
-          "query": "label_values(up{juju_model=\"$juju_model\",juju_model_uuid=\"$juju_model_uuid\"},juju_application)",
+          "query": "label_values(up{juju_model=~\"$juju_model\",juju_model_uuid=~\"$juju_model_uuid\"},juju_application)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -1182,24 +2648,28 @@
         "useTags": false
       },
       {
-        "allValue": null,
+        "allValue": ".*",
         "current": {
-          "selected": false,
-          "text": "d86d0e3b-b970-47c8-82f6-1fd861e267ee",
-          "value": "d86d0e3b-b970-47c8-82f6-1fd861e267ee"
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
-        "datasource": "${prometheusds}",
-        "definition": "label_values(up{juju_model=\"$juju_model\"},juju_model_uuid)",
-        "description": null,
-        "error": null,
+        "datasource": {
+          "uid": "${prometheusds}"
+        },
+        "definition": "label_values(up{juju_model=~\"$juju_model\"},juju_model_uuid)",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "Juju model uuid",
-        "multi": false,
+        "multi": true,
         "name": "juju_model_uuid",
         "options": [],
         "query": {
-          "query": "label_values(up{juju_model=\"$juju_model\"},juju_model_uuid)",
+          "query": "label_values(up{juju_model=~\"$juju_model\"},juju_model_uuid)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -1213,20 +2683,24 @@
         "useTags": false
       },
       {
-        "allValue": null,
+        "allValue": ".*",
         "current": {
-          "selected": false,
-          "text": "dev",
-          "value": "dev"
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
-        "datasource": "${prometheusds}",
+        "datasource": {
+          "uid": "${prometheusds}"
+        },
         "definition": "label_values(up,juju_model)",
-        "description": null,
-        "error": null,
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "Juju model",
-        "multi": false,
+        "multi": true,
         "name": "juju_model",
         "options": [],
         "query": {
@@ -1246,16 +2720,12 @@
       {
         "current": {
           "selected": false,
-          "text": "juju_dev_d86d0e3b-b970-47c8-82f6-1fd861e267ee_prometheus-k8s_0",
-          "value": "juju_dev_d86d0e3b-b970-47c8-82f6-1fd861e267ee_prometheus-k8s_0"
         },
-        "description": null,
-        "error": null,
         "hide": 0,
         "includeAll": false,
-        "label": null,
+        "label": "Data Source",
         "multi": false,
-        "name": "prometheusds",
+        "name": "datasource",
         "options": [],
         "query": "prometheus",
         "queryValue": "",
@@ -1273,6 +2743,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Parca",
-  "uid": "sj_clokVz",
-  "version": 1
+  "uid": "iWwypvN7k",
+  "version": 2,
+  "weekStart": ""
 }
