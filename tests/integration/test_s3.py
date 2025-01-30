@@ -3,20 +3,25 @@
 # See LICENSE file for licensing details.
 
 import asyncio
+import shlex
+from subprocess import check_call
 
+import minio
 import pytest
+from tenacity import retry
+from tenacity.stop import stop_after_delay
+from tenacity.wait import wait_exponential as wexp
+
+from tests.integration.helpers import BUCKET_NAME, MINIO, S3_INTEGRATOR, deploy_s3, get_unit_ip
 
 PARCA = "parca"
 PARCA_TESTER = "parca-tester"
-SSC = "self-signed-certificates"
 
 
 @pytest.mark.abort_on_fail
 @pytest.mark.setup
 async def test_setup(ops_test, parca_charm, parca_resources):
-    """Deploy parca with s3 and TLS integrations."""
-    apps = [PARCA, SSC]
-
+    """Deploy parca with s3 and a tester charm to scrape."""
     await asyncio.gather(
         ops_test.model.deploy(
             parca_charm,
@@ -25,56 +30,51 @@ async def test_setup(ops_test, parca_charm, parca_resources):
             trust=True,
         ),
         ops_test.model.deploy(
-            SSC,
-            channel="edge",
+            parca_charm,
+            resources=parca_resources,
+            application_name=PARCA_TESTER,
             trust=True,
         ),
-        ops_test.model.wait_for_idle(apps=apps, status="active", timeout=500),
     )
-
-    # Create the relation
-    await ops_test.model.integrate(f"{PARCA}:certificates", SSC)
-    # Wait for the two apps to quiesce
-    await ops_test.model.wait_for_idle(apps=apps, status="active", timeout=500)
-
-
-
-@pytest.mark.abort_on_fail
-async def test_deploy_parca_tester(ops_test, parca_charm, parca_resources):
-    # Deploy and integrate tester charm
-    await ops_test.model.deploy(
-        parca_charm,
-        resources=parca_resources,
-        application_name=PARCA_TESTER,
-        trust=True,
-    )
+    await deploy_s3(ops_test, PARCA)
     await asyncio.gather(
         ops_test.model.integrate(PARCA, f"{PARCA_TESTER}:self-profiling-endpoint"),
-        ops_test.model.integrate(f"{PARCA_TESTER}:certificates", SSC),
     )
-    await ops_test.model.wait_for_idle(apps=[PARCA, PARCA_TESTER], status="active", timeout=500)
+    await ops_test.model.wait_for_idle(
+        apps=[PARCA, PARCA_TESTER, S3_INTEGRATOR, MINIO], status="active", timeout=500
+    )
 
 
-async def test_tls_scraping(ops_test):
-    exit_code, output = query_parca_server(ops_test.model_name, PARCA_TESTER, url_path="/metrics")
-    assert exit_code == 0, f"Failed to query the parca server. {output}"
-    assert PARCA_TESTER in output
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
+def check_object_in_minio(minio_url, obj_name: str):
+    m = minio.Minio(
+        endpoint=minio_url, access_key="accesskey", secret_key="secretkey", secure=False
+    )
+    buckets = m.list_buckets()
+    assert buckets, "no bucket created"
+
+    buck = buckets[0]
+    assert buck.name == BUCKET_NAME, f"bucket isn't called {BUCKET_NAME!r}"
+    objects = list(m.list_objects(BUCKET_NAME))
+    assert objects, f"no objects in {BUCKET_NAME!r} bucket"
+
+    assert objects[0].object_name == obj_name, (
+        f"{BUCKET_NAME!r} bucket contains no {obj_name!r} object"
+    )
+
+
+async def test_s3_usage(ops_test):
+    """Verify that parca is using s3."""
+    model_name = ops_test.model.name
+    # rely on the fact that parca will force-flush its in-memory buffer when pkilled
+    check_call(shlex.split(f"juju ssh -m {model_name} --container parca parca/0 pkill -f parca"))
+    minio_url = f"{get_unit_ip(model_name, MINIO, 0)}:9000"
+    check_object_in_minio(minio_url, "blocks/")
 
 
 @pytest.mark.abort_on_fail
 @pytest.mark.teardown
-async def test_remove_tls(ops_test):
-    # FIXME: should we be disintegrating the tester-ssc relation too?
-    await ops_test.juju("remove-relation", PARCA + ":certificates", SSC + ":certificates")
-    # we need to wait for a while until parca's nginx loses the TLS connection
+async def test_teardown(ops_test):
+    await ops_test.juju("remove-relation", PARCA, S3_INTEGRATOR)
     await ops_test.model.wait_for_idle(apps=[PARCA], status="active", timeout=500, idle_period=60)
-
-
-async def test_direct_url_400(ops_test):
-    exit_code, _ = query_parca_server(ops_test.model_name, SSC, SSC_CA_CERT_PATH)
-    assert exit_code != 0
-
-
-@pytest.mark.teardown
-async def test_remove_parca(ops_test):
     await ops_test.model.remove_application(PARCA)

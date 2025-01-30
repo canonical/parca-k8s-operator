@@ -49,6 +49,9 @@ CERTIFICATES_RELATION_NAME = "certificates"
 PARCA_CONTAINER = "parca"
 NGINX_CONTAINER = "nginx"
 
+# we can ask s3 for a bucket name, but we may get back a different one
+PREFERRED_BUCKET_NAME = "parca"
+
 
 @trace_charm(
     tracing_endpoint="_charm_tracing_endpoint",
@@ -99,7 +102,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             refresh_event=[self.certificates.on.certificate_available],
         )
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
-        self.s3_requirer = S3Requirer(self, "s3")
+        self.s3_requirer = S3Requirer(self, "s3", bucket_name=PREFERRED_BUCKET_NAME)
         self.catalogue = CatalogueConsumer(
             self,
             item=CatalogueItem(

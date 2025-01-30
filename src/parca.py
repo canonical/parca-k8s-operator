@@ -256,11 +256,13 @@ class ParcaConfig:
             "insecure": not s3_config.ca_cert,
         }
         if s3_config.ca_cert:
-            http_config = {"tls_config":{
-                "ca_file": S3_TLS_CA_CERT_PATH,
-                "insecure_skip_verify": False,
-            }}
-            bucket_config["http_config"]= http_config
+            http_config = {
+                "tls_config": {
+                    "ca_file": S3_TLS_CA_CERT_PATH,
+                    "insecure_skip_verify": False,
+                }
+            }
+            bucket_config["http_config"] = http_config
 
         return {
             "type": "S3",

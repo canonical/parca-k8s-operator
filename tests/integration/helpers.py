@@ -9,7 +9,7 @@ from pytest_operator.plugin import OpsTest
 TESTING_MINIO_ACCESS_KEY = "accesskey"
 TESTING_MINIO_SECRET_KEY = "secretkey"
 MINIO = "minio"
-S3_INTEGRATOR = "s3"
+S3_INTEGRATOR = "s3-integrator"
 BUCKET_NAME = "parca"
 
 
