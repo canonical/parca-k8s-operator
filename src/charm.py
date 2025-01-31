@@ -187,7 +187,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # mechanism to ensure we don't miss any events. This data should always be up to date,
         # and it's a cheap operation to push it, so we always do it.
         self.metrics_endpoint_provider.set_scrape_job_spec()
-        self.self_profiling_endpoint_provider.set_scrape_job_spec()
+        self.self_profiling_endpoint_provider.reconcile(self)
         self.grafana_source_provider.update_source(source_url=self._external_url)
 
     def _reconcile_tls_config(self) -> None:

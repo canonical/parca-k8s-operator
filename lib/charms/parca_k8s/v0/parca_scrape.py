@@ -167,14 +167,16 @@ eponymous information.
 
 """  # noqa: W505
 
-import ipaddress
 import json
 import logging
 import socket
-from typing import List, Optional, Union
+from typing import List
 
 import ops
+from ops import RelationRole
+
 from charms.observability_libs.v0.juju_topology import JujuTopology
+from parca import ScrapeJobsConfig
 
 # The unique Charmhub library identifier, never change it
 LIBID = "dbc3d2e89cb24917b99c40e14354dd25"
@@ -186,9 +188,7 @@ LIBAPI = 0
 # to 0 if you are raising the major API version
 LIBPATCH = 3
 
-
 logger = logging.getLogger(__name__)
-
 
 ALLOWED_KEYS = {
     "job_name",
@@ -217,10 +217,10 @@ class RelationInterfaceMismatchError(Exception):
     """Raise if the relation with the given name has a different interface."""
 
     def __init__(
-        self,
-        relation_name: str,
-        expected_relation_interface: str,
-        actual_relation_interface: str,
+            self,
+            relation_name: str,
+            expected_relation_interface: str,
+            actual_relation_interface: str,
     ):
         self.relation_name = relation_name
         self.expected_relation_interface = expected_relation_interface
@@ -238,10 +238,10 @@ class RelationRoleMismatchError(Exception):
     """Raise if the relation with the given name has a different role."""
 
     def __init__(
-        self,
-        relation_name: str,
-        expected_relation_role: ops.RelationRole,
-        actual_relation_role: ops.RelationRole,
+            self,
+            relation_name: str,
+            expected_relation_role: ops.RelationRole,
+            actual_relation_role: ops.RelationRole,
     ):
         self.relation_name = relation_name
         self.expected_relation_interface = expected_relation_role
@@ -254,10 +254,10 @@ class RelationRoleMismatchError(Exception):
 
 
 def _validate_relation_by_interface_and_direction(
-    charm: ops.CharmBase,
-    relation_name: str,
-    expected_relation_interface: str,
-    expected_relation_role: ops.RelationRole,
+        charm: ops.CharmBase,
+        relation_name: str,
+        expected_relation_interface: str,
+        expected_relation_role: ops.RelationRole,
 ):
     """Verify that a relation has the necessary characteristics.
 
@@ -280,7 +280,7 @@ def _validate_relation_by_interface_and_direction(
         RelationInterfaceMismatchError: The relation with the same name as provided
             via `relation_name` argument does not have the same relation interface
             as specified via the `expected_relation_interface` argument.
-        ops.RelationRoleMismatchError: If the relation with the same name as provided
+        RelationRoleMismatchError: If the relation with the same name as provided
             via `relation_name` argument does not have the same role as specified
             via the `expected_relation_role` argument.
     """
@@ -297,12 +297,12 @@ def _validate_relation_by_interface_and_direction(
 
     if expected_relation_role == ops.RelationRole.provides:
         if relation_name not in charm.meta.provides:
-            raise ops.RelationRoleMismatchError(
+            raise RelationRoleMismatchError(
                 relation_name, ops.RelationRole.provides, ops.RelationRole.requires
             )
     elif expected_relation_role == ops.RelationRole.requires:
         if relation_name not in charm.meta.requires:
-            raise ops.RelationRoleMismatchError(
+            raise RelationRoleMismatchError(
                 relation_name, ops.RelationRole.requires, ops.RelationRole.provides
             )
     else:
@@ -340,38 +340,13 @@ class ProviderTopology(JujuTopology):
         return "juju_{}_parca_scrape".format(self.identifier)
 
 
-class TargetsChangedEvent(ops.EventBase):
-    """Event emitted when Parca scrape targets change."""
-
-    def __init__(self, handle, relation_id):
-        super().__init__(handle)
-        self.relation_id = relation_id
-
-    def snapshot(self):
-        """Save scrape target relation information."""
-        return {"relation_id": self.relation_id}
-
-    def restore(self, snapshot):
-        """Restore scrape target relation information."""
-        self.relation_id = snapshot["relation_id"]
-
-
-class MonitoringEvents(ops.ObjectEvents):
-    """Event descriptor for events raised by `ProfilingEndpointConsumer`."""
-
-    targets_changed = ops.EventSource(TargetsChangedEvent)
-
-
-class ProfilingEndpointConsumer(ops.Object):
+class ProfilingEndpointConsumer:
     """Parca based monitoring service."""
 
-    on = MonitoringEvents()
-
-    def __init__(self, charm: ops.CharmBase, relation_name: str = DEFAULT_RELATION_NAME):
+    def __init__(self, relation_name: str = DEFAULT_RELATION_NAME):
         """Construct a Parca based monitoring service.
 
         Args:
-            charm: a `ops.CharmBase` instance that manages this instance of the Parca service.
             relation_name: an optional string name of the relation between `charm`
                 and the Parca charmed service. The default is "profiling-endpoint".
 
@@ -381,53 +356,13 @@ class ProfilingEndpointConsumer(ops.Object):
             RelationInterfaceMismatchError: The relation with the same name as provided
                 via `relation_name` argument does not have the `parca_scrape` relation
                 interface.
-            ops.RelationRoleMismatchError: If the relation with the same name as provided
+            RelationRoleMismatchError: If the relation with the same name as provided
                 via `relation_name` argument does not have the `ops.RelationRole.requires`
                 role.
         """
-        _validate_relation_by_interface_and_direction(
-            charm, relation_name, RELATION_INTERFACE_NAME, ops.RelationRole.requires
-        )
-
-        super().__init__(charm, relation_name)
-        self._charm = charm
         self._relation_name = relation_name
-        events = self._charm.on[relation_name]
-        self.framework.observe(
-            events.relation_changed, self.on_profiling_provider_relation_changed
-        )
-        self.framework.observe(
-            events.relation_departed, self._on_profiling_provider_relation_departed
-        )
 
-    def on_profiling_provider_relation_changed(self, event):
-        """Handle changes with related profiling providers.
-
-        Anytime there are changes in relations between Parca and profiling provider charms the
-        Parca charm is informed, through a `TargetsChangedEvent` event. The Parca charm can then
-        choose to update its scrape configuration.
-
-        Args:
-            event: a `CharmEvent` resulting in the Parca charm updating its scrape configuration
-        """
-        rel_id = event.relation.id
-
-        self.on.targets_changed.emit(relation_id=rel_id)
-
-    def _on_profiling_provider_relation_departed(self, event):
-        """Update job config when a profiling provider departs.
-
-        When a profiling provider departs the Parca charm is informed through a
-        `TargetsChangedEvent` event so that it can update its scrape configuration to ensure that
-        the departed profiling provider is removed from the list of scrape jobs.
-
-        Args:
-            event: a `CharmEvent` that indicates a profiling provider unit has departed.
-        """
-        rel_id = event.relation.id
-        self.on.targets_changed.emit(relation_id=rel_id)
-
-    def jobs(self) -> list:
+    def jobs(self, charm: ops.CharmBase) -> list:
         """Fetch the list of scrape jobs.
 
         Returns:
@@ -436,7 +371,10 @@ class ProfilingEndpointConsumer(ops.Object):
         """
         scrape_jobs = []
 
-        for relation in self._charm.model.relations[self._relation_name]:
+        _validate_relation_by_interface_and_direction(charm, self._relation_name, RELATION_INTERFACE_NAME,
+                                                      RelationRole.requires)
+
+        for relation in charm.model.relations[self._relation_name]:
             static_scrape_jobs = self._static_scrape_config(relation)
             if static_scrape_jobs:
                 scrape_jobs.extend(static_scrape_jobs)
@@ -485,7 +423,8 @@ class ProfilingEndpointConsumer(ops.Object):
 
         return labeled_job_configs
 
-    def _relation_hosts(self, relation) -> dict:
+    @staticmethod
+    def _relation_hosts(relation) -> dict:
         """Fetch unit names and address of all profiling provider units for a single relation.
 
         Args:
@@ -582,6 +521,7 @@ class ProfilingEndpointConsumer(ops.Object):
         labeled_job["relabel_configs"] = relabel_configs
         return labeled_job
 
+    @staticmethod
     def _set_juju_labels(self, labels, scrape_metadata) -> dict:
         """Create a copy of metric labels with Juju topology information.
 
@@ -621,7 +561,7 @@ class ProfilingEndpointConsumer(ops.Object):
         return unitless_config
 
     def _labeled_unit_config(
-        self, unit_name, host_address, ports, labels, scrape_metadata
+            self, unit_name, host_address, ports, labels, scrape_metadata
     ) -> dict:
         """Return static scrape configuration for a wildcard host.
 
@@ -658,15 +598,13 @@ class ProfilingEndpointConsumer(ops.Object):
         return static_config
 
 
-class ProfilingEndpointProvider(ops.Object):
+class ProfilingEndpointProvider:
     """Profiling endpoint for Parca."""
 
     def __init__(
-        self,
-        charm,
-        relation_name: str = DEFAULT_RELATION_NAME,
-        jobs=None,
-        refresh_event: Optional[Union[ops.BoundEvent, List[ops.BoundEvent]]] = None,
+            self,
+            relation_name: str = DEFAULT_RELATION_NAME,
+            jobs=None,
     ):
         """Construct a profiling provider for a Parca charm.
 
@@ -693,9 +631,6 @@ class ProfilingEndpointProvider(ops.Object):
         The notation `*:<port>` means "scrape each unit of this charm on port `<port>`.
 
         Args:
-            charm: a `ops.CharmBase` object that manages this
-                `ProfilingEndpointProvider` object. Typically, this is `self` in the instantiating
-                class.
             relation_name: an optional string name of the relation between `charm`
                 and the Parca charmed service. The default is "profiling-endpoint". It is strongly
                 advised not to change the default, so that people deploying your charm will have a
@@ -704,8 +639,6 @@ class ProfilingEndpointProvider(ops.Object):
                 scrape configuration for a single job. When not provided, a default scrape
                 configuration is provided polling all units of the charm on port `80` using the
                 `ProfilingEndpointProvider` object.
-            refresh_event: an optional bound event or list of bound events which
-                will be observed to re-set scrape job data (IP address and others)
 
         Raises:
             RelationNotFoundError: If there is no relation in the charm's metadata.yaml
@@ -713,118 +646,50 @@ class ProfilingEndpointProvider(ops.Object):
             RelationInterfaceMismatchError: The relation with the same name as provided
                 via `relation_name` argument does not have the `parca_scrape` relation
                 interface.
-            ops.RelationRoleMismatchError: If the relation with the same name as provided
+            RelationRoleMismatchError: If the relation with the same name as provided
                 via `relation_name` argument does not have the `ops.RelationRole.provides`
                 role.
         """
-        _validate_relation_by_interface_and_direction(
-            charm, relation_name, RELATION_INTERFACE_NAME, ops.RelationRole.provides
-        )
-
-        super().__init__(charm, relation_name)
-        self.topology = ProviderTopology.from_charm(charm)
-
-        self._charm = charm
         self._relation_name = relation_name
         # sanitize job configurations to the supported subset of parameters
         jobs = [] if jobs is None else jobs
         self._jobs = [_sanitize_scrape_configuration(job) for job in jobs]
 
-        events = self._charm.on[self._relation_name]
-        self.framework.observe(events.relation_joined, self._publish_all_relation_data)
-        self.framework.observe(events.relation_changed, self._publish_all_relation_data)
-
-        if not refresh_event:
-            if len(self._charm.meta.containers) == 1:
-                if "kubernetes" in self._charm.meta.series:
-                    # This is a podspec charm
-                    refresh_event = [self._charm.on.update_status]
-                else:
-                    # This is a sidecar/pebble charm
-                    container = list(self._charm.meta.containers.values())[0]
-                    refresh_event = [self._charm.on[container.name.replace("-", "_")].pebble_ready]
-            else:
-                refresh_event = [self._charm.on.update_status]
-
-        else:
-            if not isinstance(refresh_event, list):
-                refresh_event = [refresh_event]
-
-        for ev in refresh_event:
-            self.framework.observe(ev, self._set_unit_ip)
-
-        self.framework.observe(self._charm.on.upgrade_charm, self._publish_all_relation_data)
-        # If there is no leader during relation_joined we will still need to set alert rules.
-        self.framework.observe(self._charm.on.leader_elected, self._publish_all_relation_data)
-
-    def update_scrape_job_spec(self, jobs):
+    def reconcile(self, charm: ops.CharmBase, jobs=None):
         """Update scrape job specification.
 
         This will override the job specs you passed to the constructor.
         Use it if for some reason you can't rely on that being up to date.
         """
-        self._jobs = [_sanitize_scrape_configuration(job) for job in jobs]
-        self._publish_all_relation_data()
+        _validate_relation_by_interface_and_direction(charm, self._relation_name, RELATION_INTERFACE_NAME,
+                                                      RelationRole.provides)
 
-    def _publish_all_relation_data(self, _event=None):
-        self._set_unit_ip()
+        relations = charm.model.relations[self._relation_name]
+        self._publish_unit_data(charm.unit, relations)
 
-        if not self._charm.unit.is_leader():
+        if not charm.unit.is_leader():
             return
 
-        for relation in self._charm.model.relations[self._relation_name]:
-            relation.data[self._charm.app]["scrape_metadata"] = json.dumps(self._scrape_metadata)
-            relation.data[self._charm.app]["scrape_jobs"] = json.dumps(self._scrape_jobs)
+        jobs = [_sanitize_scrape_configuration(job) for job in jobs] or self._jobs or [DEFAULT_JOB]
+        self._publish_app_data(charm.app, relations, JujuTopology.from_charm(charm).as_dict(), jobs)
 
-    def set_scrape_job_spec(self):
-        """Ensure the scrape target information (as passed to this object on __init__) is published.
-
-        When a profiling provider charm is related to a Parca charm, the profiling provider sets
-        specification and metadata related to its own scrape configuration. This information is set
-        using Juju application data. Each of the consumer units also sets its own host address in
-        Juju unit relation data.
-        """
-        self._publish_all_relation_data()
-
-    def _set_unit_ip(self, _event=None):
+    @staticmethod
+    def _publish_unit_data(unit: ops.Unit, relations: List[ops.Relation]):
         """Set unit host address.
 
         Each time a profiling provider charm container is restarted it updates its own host address
         in the unit relation data for the Parca charm. The only argument specified is an event and
         it is ignored.
         """
-        for relation in self._charm.model.relations[self._relation_name]:
-            relation.data[self._charm.unit]["parca_scrape_unit_address"] = socket.getfqdn()
-            relation.data[self._charm.unit]["parca_scrape_unit_name"] = str(
-                self._charm.model.unit.name
-            )
+        for relation in relations:
+            relation.data[unit]["parca_scrape_unit_address"] = socket.getfqdn()
+            relation.data[unit]["parca_scrape_unit_name"] = str(unit.name)
 
-    def _is_valid_unit_address(self, address: str) -> bool:
-        """Validate a unit address.
-
-        Args:
-            address: a string representing a unit address
-        """
-        try:
-            _ = ipaddress.ip_address(address)
-            return True
-        except ValueError:
-            return False
-
-    @property
-    def _scrape_jobs(self) -> list:
-        """Fetch list of scrape jobs.
-
-        Returns:
-           A list of dictionaries, where each dictionary specifies a single scrape job for Parca.
-        """
-        return self._jobs if self._jobs else [DEFAULT_JOB]
-
-    @property
-    def _scrape_metadata(self) -> dict:
-        """Generate scrape metadata.
-
-        Returns:
-            Scrape configuration metadata for this profiling provider charm.
-        """
-        return self.topology.as_dict()
+    @staticmethod
+    def _publish_app_data(app: ops.Application,
+                          relations: List[ops.Relation],
+                          scrape_metadata: dict,
+                          jobs: List[ScrapeJobsConfig]):
+        for relation in relations:
+            relation.data[app]["scrape_metadata"] = json.dumps(scrape_metadata)
+            relation.data[app]["scrape_jobs"] = json.dumps(jobs)
