@@ -92,11 +92,7 @@ def base_state(
     )
 
 
-def test_endpoint_with_tls_enabled(
-    context,
-    base_state,
-    certificates,
-):
+def test_endpoint_with_tls_enabled(context, base_state, certificates, ca):
     # GIVEN a charm with certificates relation
     # WHEN we process any event
     with context(context.on.relation_changed(certificates), base_state) as mgr:
@@ -104,6 +100,9 @@ def test_endpoint_with_tls_enabled(
         # THEN we have TLS enabled
         assert charm._tls_ready
         assert charm._external_url.startswith("https://")
+        scrape_config = charm._self_profiling_scrape_config
+        assert "scheme" in scrape_config and scrape_config["scheme"] == "https"
+        assert "tls_config" in scrape_config and scrape_config["tls_config"]["ca"] == ca.raw
 
 
 def test_endpoint_with_tls_disabled(
@@ -118,3 +117,5 @@ def test_endpoint_with_tls_disabled(
         # THEN we have TLS disabled
         assert not charm._tls_ready
         assert charm._external_url.startswith("http://")
+        scrape_config = charm._self_profiling_scrape_config
+        assert "scheme" not in scrape_config

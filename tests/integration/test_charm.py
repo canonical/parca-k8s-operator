@@ -5,6 +5,7 @@
 import asyncio
 
 import requests
+from helpers import get_pubic_address
 from pytest import mark
 from pytest_operator.plugin import OpsTest
 from tenacity import retry
@@ -30,8 +31,7 @@ async def test_deploy(ops_test: OpsTest, parca_charm, parca_resources):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 async def test_application_is_up(ops_test: OpsTest):
-    status = await ops_test.model.get_status()  # noqa: F821
-    address = status["applications"][PARCA]["public-address"]
+    address = await get_pubic_address(ops_test, PARCA)
     response = requests.get(f"http://{address}:8080/")
     assert response.status_code == 200
     response = requests.get(f"http://{address}:8080/metrics")
@@ -61,10 +61,16 @@ async def test_profiling_endpoint_relation(ops_test: OpsTest):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_profiling_relation_is_configured(ops_test: OpsTest):
-    status = await ops_test.model.get_status()  # noqa: F821
-    address = status["applications"][PARCA]["public-address"]
+    address = await get_pubic_address(ops_test, PARCA)
     response = requests.get(f"http://{address}:8080/metrics")
     assert "zinc" in response.text
+
+
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
+async def test_self_profiling(ops_test: OpsTest):
+    address = await get_pubic_address(ops_test, PARCA)
+    response = requests.get(f"http://{address}:8080/metrics")
+    assert f'"{PARCA}"' in response.text
 
 
 @mark.abort_on_fail

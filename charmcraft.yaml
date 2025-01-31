@@ -113,7 +113,7 @@ provides:
   self-profiling-endpoint:
     interface: parca_scrape
     description: |
-      The profiling endpoint at which profiles for this parca instance are served.
+      Endpoint to allow this parca instance profiles to be scraped by a remote parca instance.
   parca-store-endpoint:
     interface: parca_store
     description: |
