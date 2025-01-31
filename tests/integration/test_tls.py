@@ -55,7 +55,9 @@ async def test_direct_url_200(ops_test):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_self_profiling_scraping(ops_test):
-    exit_code, output = query_parca_server(ops_test.model_name, PARCA, url_path="/metrics")
+    exit_code, output = query_parca_server(
+        ops_test.model_name, PARCA, tls=True, url_path="/metrics"
+    )
     assert exit_code == 0, f"Failed to query the parca server. {output}"
     assert f'"{PARCA}"' in output
 
