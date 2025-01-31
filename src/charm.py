@@ -390,7 +390,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             endpoint = self.workload_tracing.get_endpoint("otlp_grpc")
             # TODO: Parca fails to send traces over TLS.
             # https://github.com/canonical/parca-k8s-operator/issues/405
-            if endpoint and self._server_cert:
+            if endpoint and self._tls_ready:
                 logger.warning(
                     "Sending workload traces over TLS is not yet supported. Disable TLS to continue sending workload traces."
                 )
