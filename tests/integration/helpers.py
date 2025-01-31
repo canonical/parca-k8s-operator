@@ -5,8 +5,6 @@ import json
 from subprocess import getoutput, getstatusoutput
 
 import requests
-from juju.application import Application
-from juju.unit import Unit
 from minio import Minio
 from pytest_operator.plugin import OpsTest
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -15,8 +13,6 @@ from nginx import CA_CERT_PATH, NGINX_PORT
 
 PARCA = "parca"
 
-from minio import Minio
-from pytest_operator.plugin import OpsTest
 
 TESTING_MINIO_ACCESS_KEY = "accesskey"
 TESTING_MINIO_SECRET_KEY = "secretkey"
@@ -88,6 +84,7 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     action_result = await action.wait()
     assert action_result.status == "completed"
 
+
 async def deploy_tempo_cluster(ops_test: OpsTest):
     """Deploys tempo in its HA version together with minio and s3-integrator."""
     tempo_app = "tempo"
@@ -118,10 +115,12 @@ async def deploy_tempo_cluster(ops_test: OpsTest):
             raise_on_error=False,
         )
 
+
 async def get_pubic_address(ops_test: OpsTest, app_name):
     """Return a juju application's public address."""
     status = await ops_test.model.get_status()  # noqa: F821
     return status["applications"][app_name]["public-address"]
+
 
 @retry(stop=stop_after_attempt(15), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def get_traces(tempo_host: str, service_name="tracegen-otlp_http", tls=True):

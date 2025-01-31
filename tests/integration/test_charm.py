@@ -5,7 +5,9 @@
 import asyncio
 
 import requests
-from helpers import deploy_tempo_cluster, get_traces, get_unit_ip, query_parca_server, get_pubic_address
+from helpers import (
+    get_pubic_address,
+)
 from pytest import mark
 from pytest_operator.plugin import OpsTest
 from tenacity import retry

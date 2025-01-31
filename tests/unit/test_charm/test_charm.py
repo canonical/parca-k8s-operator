@@ -368,6 +368,8 @@ def test_self_profiling_endpoint_relation(context, base_state):
         # AND self-profiling scrape job is sent to remote app
         rel_out = state_out.get_relation(relation.id)
         assert rel_out.local_app_data["scrape_jobs"] == json.dumps(expected_scrape_jobs)
+
+
 def test_parca_workload_tracing_relation(context, base_state):
     remote_app_databag = {
         "receivers": json.dumps(

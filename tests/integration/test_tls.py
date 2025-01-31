@@ -6,18 +6,11 @@ import asyncio
 
 import pytest
 from helpers import (
-    get_unit_fqdn,
-    deploy_tempo_cluster,
-    get_traces,
-    get_unit_ip,
     query_parca_server,
 )
 from tenacity import retry
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential as wexp
-from pytest_operator.plugin import OpsTest
-
-from nginx import CA_CERT_PATH, NGINX_PORT
 
 PARCA = "parca"
 PARCA_TESTER = "parca-tester"
