@@ -10,6 +10,7 @@ import pytest
 from ops.model import ActiveStatus, WaitingStatus
 from ops.testing import CharmEvents, Relation, State
 
+from charm import RELABEL_CONFIG
 from nginx import NGINX_PORT
 from parca import DEFAULT_CONFIG_PATH, PARCA_PORT
 from tests.unit.test_charm.container_utils import (
@@ -235,19 +236,7 @@ def test_profiling_endpoint_relation(context, base_state):
                 }
             ],
             "job_name": f"test-model_{str(_uuid).split('-')[0]}_profiled-app_my-first-job",
-            "relabel_configs": [
-                {
-                    "source_labels": [
-                        "juju_model",
-                        "juju_model_uuid",
-                        "juju_application",
-                        "juju_unit",
-                    ],
-                    "separator": "_",
-                    "target_label": "instance",
-                    "regex": "(.*)",
-                }
-            ],
+            "relabel_configs": RELABEL_CONFIG,
         }
     ]
     with context(
@@ -345,19 +334,7 @@ def test_self_profiling_no_endpoint_relation(context, base_state):
     expected_scrape_config = [
         {
             "job_name": "parca",
-            "relabel_configs": [
-                {
-                    "source_labels": [
-                        "juju_model",
-                        "juju_model_uuid",
-                        "juju_application",
-                        "juju_unit",
-                    ],
-                    "separator": "_",
-                    "target_label": "instance",
-                    "regex": "(.*)",
-                }
-            ],
+            "relabel_configs": RELABEL_CONFIG,
             "static_configs": [
                 {
                     "targets": [f"{socket.getfqdn()}:{NGINX_PORT}"],

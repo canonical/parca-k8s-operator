@@ -39,7 +39,7 @@ from nginx import (
     Nginx,
 )
 from nginx_prometheus_exporter import NginxPrometheusExporter
-from parca import Parca, ScrapeJob, ScrapeJobsConfig
+from parca import Parca, RelabelConfig, ScrapeJob, ScrapeJobsConfig
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,19 @@ NGINX_CONTAINER = "nginx"
 
 # we can ask s3 for a bucket name, but we may get back a different one
 PREFERRED_BUCKET_NAME = "parca"
+RELABEL_CONFIG = [
+    {
+        "source_labels": [
+            "juju_model",
+            "juju_model_uuid",
+            "juju_application",
+            "juju_unit",
+        ],
+        "separator": "_",
+        "target_label": "instance",
+        "regex": "(.*)",
+    }
+]
 
 
 @trace_charm(
@@ -280,19 +293,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         This config also adds juju topology to the scraped profiles.
         """
         job_name = "parca"
-        relabel_configs = [
-            {
-                "source_labels": [
-                    "juju_model",
-                    "juju_model_uuid",
-                    "juju_application",
-                    "juju_unit",
-                ],
-                "separator": "_",
-                "target_label": "instance",
-                "regex": "(.*)",
-            }
-        ]
         # add the juju_ prefix to labels
         labels = {
             "juju_{}".format(key): value
@@ -306,27 +306,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             profiles_path=self._external_url_path,
             labels=labels,
             job_name=job_name,
-            relabel_configs=relabel_configs,
+            relabel_configs=RELABEL_CONFIG,
         )[0]
-
-    def _update_status(self, _):
-        """Handle the update status hook on an interval dictated by model config."""
-        self.unit.set_workload_version(self.parca.version)
-
-    @property
-    def _tls_ready(self) -> bool:
-        """Return True if tls is enabled and the necessary data is available."""
-        return bool(self._tls_config)
-
-    def _get_certificate_request_attributes(self) -> CertificateRequestAttributes:
-        sans_dns: FrozenSet[str] = frozenset([self._fqdn])
-        return CertificateRequestAttributes(
-            # common_name is required and has a limit of 64 chars.
-            # it is superseded by sans anyway, so we can use a constrained name,
-            # such as app_name
-            common_name=self.app.name,
-            sans_dns=sans_dns,
-        )
 
     # STORAGE CONFIG
     @property
