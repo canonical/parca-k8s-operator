@@ -191,7 +191,8 @@ def parca_command_line(
         path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
     """
-    # FIXME: do we need --storage-enable-wal ???
+    # FIXME: do we need --storage-enable-wal?
+    #  https://github.com/canonical/parca-k8s-operator/issues/408
 
     cmd = [str(bin_path), f"--config-path={config_path}", f"--http-address={http_address}"]
 
