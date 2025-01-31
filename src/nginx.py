@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 import crossplane
 from ops import Container, pebble
 
-from tls_config import TLSConfig
+from models import TLSConfig
 
 logger = logging.getLogger(__name__)
 

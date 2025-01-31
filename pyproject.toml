@@ -31,7 +31,8 @@ dev = [
     "tenacity",
     "sh",
     "pyright",
-    "ops[testing]"
+    "ops[testing]",
+    "minio"
 ]
 
 [tool.coverage.run]

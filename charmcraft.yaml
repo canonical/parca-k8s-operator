@@ -69,6 +69,9 @@ requires:
   catalogue:
     interface: catalogue
     description: Display parca entry in the COS catalogue frontend.
+  s3:
+    interface: s3
+    description: S3 bucket to store the profiles in.
   profiling-endpoint:
     interface: parca_scrape
     description: |

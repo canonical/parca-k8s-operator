@@ -6,6 +6,7 @@
 import logging
 import re
 import time
+import typing
 import urllib.request
 from typing import Dict, List, Literal, Optional, Sequence, TypedDict
 
@@ -14,7 +15,9 @@ from ops import Container
 from ops.pebble import Layer
 
 from nginx import CA_CERT_PATH
-from tls_config import TLSConfig
+
+if typing.TYPE_CHECKING:  # pragma: nocover
+    from models import S3Config, TLSConfig
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +30,7 @@ PARCA_PORT = 7070
 DEFAULT_BIN_PATH = "/parca"
 DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
 DEFAULT_PROFILE_PATH = "/var/lib/parca"
+S3_TLS_CA_CERT_PATH = "/etc/parca/s3_ca.crt"
 
 ScrapeJob = Dict[str, List[str]]
 
@@ -60,7 +64,8 @@ class Parca:
         memory_storage_limit: Optional[int] = None,
         store_config: Optional[Dict[str, str]] = None,
         path_prefix: Optional[str] = None,
-        tls_config: Optional[TLSConfig] = None,
+        tls_config: Optional["TLSConfig"] = None,
+        s3_config: Optional["S3Config"] = None,
     ):
         self._container = container
         self._scrape_configs = scrape_configs
@@ -69,32 +74,38 @@ class Parca:
         self._store_config = store_config
         self._path_prefix = path_prefix
         self._tls_config = tls_config
+        self._s3_config = s3_config
 
     @property
     def _config(self) -> str:
         """YAML-encoded parca config file."""
-        return ParcaConfig(self._scrape_configs).to_yaml()
+        return ParcaConfig(self._scrape_configs, s3_config=self._s3_config).to_yaml()
 
     def reconcile(self):
         """Unconditional control logic."""
         if self._container.can_connect():
-            self._reconcile_parca_config()
+            # keep the reconcile_tls_config call on top: otherwise, parca may be configured
+            # with tls (and error out on start) before the certs are actually written to disk.
             self._reconcile_tls_config()
+            self._reconcile_parca_config()
 
     def _reconcile_tls_config(self):
-        if self._tls_config:
-            # parca container needs the CA certificate when scraping https profiling endpoint
-            current_ca_cert = (
-                self._container.pull(CA_CERT_PATH).read()
-                if self._container.exists(CA_CERT_PATH)
-                else ""
-            )
-            if current_ca_cert == self._tls_config.certificate.ca.raw:
-                # No update needed
-                return
-            self._container.push(CA_CERT_PATH, self._tls_config.certificate.ca.raw, make_dirs=True)
-        else:
-            self._container.remove_path(CA_CERT_PATH, recursive=True)
+        for cert, cert_path in (
+            (self._tls_config.certificate.ca.raw if self._tls_config else None, CA_CERT_PATH),
+            (self._s3_config.ca_cert if self._s3_config else None, S3_TLS_CA_CERT_PATH),
+        ):
+            if cert:
+                current = (
+                    self._container.pull(cert_path).read()
+                    if self._container.exists(cert_path)
+                    else ""
+                )
+                if current == cert:
+                    continue
+                self._container.push(cert_path, cert, make_dirs=True)
+
+            else:
+                self._container.remove_path(cert_path, recursive=True)
 
         # TODO: uncomment when parca container has update-ca-certificates command
         #  and only run if there's been changes.
@@ -125,7 +136,7 @@ class Parca:
                             # and are forced to go through nginx instead.
                             http_address=f"localhost:{PARCA_PORT}",
                             memory_storage_limit=self._memory_storage_limit,
-                            enable_persistence=self._enable_persistence,
+                            enable_persistence=bool(self._enable_persistence or self._s3_config),
                             store_config=self._store_config,
                             path_prefix=self._path_prefix,
                         ),
@@ -180,6 +191,9 @@ def parca_command_line(
         path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
     """
+    # FIXME: do we need --storage-enable-wal?
+    #  https://github.com/canonical/parca-k8s-operator/issues/408
+
     cmd = [str(bin_path), f"--config-path={config_path}", f"--http-address={http_address}"]
 
     if path_prefix:
@@ -219,34 +233,52 @@ def parca_command_line(
     return " ".join(cmd)
 
 
-def parse_version(vstr: str) -> str:
-    """Parse the output of 'parca --version' and return a representative string."""
-    splits = vstr.split(" ")
-    # If we're not on a 'proper' released version, include the first few digits of
-    # the commit we're build from - e.g. 0.12.1-next+deadbeef
-    if "-next" in splits[2]:
-        return f"{splits[2]}+{splits[4][:6]}"
-    return splits[2]
-
-
 class ParcaConfig:
     """Class representing the Parca config file."""
 
     def __init__(
         self,
         scrape_configs: Optional[Sequence[ScrapeJobsConfig]] = None,
+        s3_config: Optional["S3Config"] = None,
         *,
         profile_path=DEFAULT_PROFILE_PATH,
     ):
         self._profile_path = str(profile_path)
         self._scrape_configs = scrape_configs or []
+        self._s3_config = s3_config
+
+    def _parca_s3_config(self, s3_config: "S3Config"):
+        bucket_config = {
+            "bucket": s3_config.bucket,
+            "region": s3_config.region,
+            "endpoint": s3_config.endpoint,
+            "secret_key": s3_config.secret_key,
+            "access_key": s3_config.access_key,
+            "insecure": not s3_config.ca_cert,
+        }
+        if s3_config.ca_cert:
+            http_config = {
+                "tls_config": {
+                    "ca_file": S3_TLS_CA_CERT_PATH,
+                    "insecure_skip_verify": False,
+                }
+            }
+            bucket_config["http_config"] = http_config
+
+        return {
+            "type": "S3",
+            "config": bucket_config,
+        }
 
     @property
     def _config(self) -> dict:
+        if s3_config := self._s3_config:
+            bucket_spec = self._parca_s3_config(s3_config=s3_config)
+        else:
+            bucket_spec = {"type": "FILESYSTEM", "config": {"directory": self._profile_path}}
+
         return {
-            "object_storage": {
-                "bucket": {"type": "FILESYSTEM", "config": {"directory": self._profile_path}}
-            },
+            "object_storage": {"bucket": bucket_spec},
             "scrape_configs": self._scrape_configs,
         }
 

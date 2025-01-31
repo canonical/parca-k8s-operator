@@ -12,7 +12,9 @@ from typing import FrozenSet, List, Optional
 from urllib.parse import urlparse
 
 import ops
+import pydantic
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
+from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
@@ -30,13 +32,13 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 )
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 
+from models import S3Config, TLSConfig
 from nginx import (
     Address,
     Nginx,
 )
 from nginx_prometheus_exporter import NginxPrometheusExporter
 from parca import Parca, ScrapeJob, ScrapeJobsConfig
-from tls_config import TLSConfig
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,9 @@ CA_CERT_PATH = "/usr/local/share/ca-certificates/ca.cert"
 CERTIFICATES_RELATION_NAME = "certificates"
 PARCA_CONTAINER = "parca"
 NGINX_CONTAINER = "nginx"
+
+# we can ask s3 for a bucket name, but we may get back a different one
+PREFERRED_BUCKET_NAME = "parca"
 
 
 @trace_charm(
@@ -97,6 +102,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             refresh_event=[self.certificates.on.certificate_available],
         )
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
+        self.s3_requirer = S3Requirer(self, "s3", bucket_name=PREFERRED_BUCKET_NAME)
         self.catalogue = CatalogueConsumer(
             self,
             item=CatalogueItem(
@@ -140,6 +146,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             store_config=self.store_requirer.config,
             path_prefix=self._external_url_path,
             tls_config=self._tls_config,
+            s3_config=self._s3_config,
         )
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container(NginxPrometheusExporter.container_name),
@@ -249,6 +256,18 @@ class ParcaOperatorCharm(ops.CharmBase):
             common_name=self.app.name,
             sans_dns=sans_dns,
         )
+
+    # STORAGE CONFIG
+    @property
+    def _s3_config(self) -> Optional[S3Config]:
+        """Cast and validate the untyped s3 databag to something we can handle."""
+        try:
+            # we have to type-ignore here because the s3 lib's type annotation is wrong
+            raw = self.s3_requirer.get_s3_connection_info()
+            return S3Config(**raw)  # type: ignore
+        except pydantic.ValidationError:
+            logger.debug("s3 connection absent or corrupt")
+            return None
 
     # SCRAPE JOBS CONFIGURATION
     @property
