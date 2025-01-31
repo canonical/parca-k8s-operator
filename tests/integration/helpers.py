@@ -1,13 +1,10 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import json
 from subprocess import getoutput, getstatusoutput
 
-import requests
 from minio import Minio
 from pytest_operator.plugin import OpsTest
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from nginx import CA_CERT_PATH, NGINX_PORT
 
@@ -85,55 +82,10 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     assert action_result.status == "completed"
 
 
-async def deploy_tempo_cluster(ops_test: OpsTest):
-    """Deploys tempo in its HA version together with minio and s3-integrator."""
-    tempo_app = "tempo"
-    worker_app = "tempo-worker"
-    tempo_worker_charm_url, worker_channel = "tempo-worker-k8s", "edge"
-    tempo_coordinator_charm_url, coordinator_channel = "tempo-coordinator-k8s", "edge"
-    await ops_test.model.deploy(
-        tempo_worker_charm_url, application_name=worker_app, channel=worker_channel, trust=True
-    )
-    await ops_test.model.deploy(
-        tempo_coordinator_charm_url,
-        application_name=tempo_app,
-        channel=coordinator_channel,
-        trust=True,
-    )
-    await ops_test.model.deploy("s3-integrator", channel="edge")
-
-    await ops_test.model.integrate(tempo_app + ":s3", "s3-integrator" + ":s3-credentials")
-    await ops_test.model.integrate(tempo_app + ":tempo-cluster", worker_app + ":tempo-cluster")
-
-    await deploy_and_configure_minio(ops_test)
-    async with ops_test.fast_forward():
-        await ops_test.model.wait_for_idle(
-            apps=[tempo_app, worker_app, "s3-integrator"],
-            status="active",
-            timeout=2000,
-            idle_period=30,
-            raise_on_error=False,
-        )
-
-
 async def get_pubic_address(ops_test: OpsTest, app_name):
     """Return a juju application's public address."""
     status = await ops_test.model.get_status()  # noqa: F821
     return status["applications"][app_name]["public-address"]
-
-
-@retry(stop=stop_after_attempt(15), wait=wait_exponential(multiplier=1, min=4, max=10))
-async def get_traces(tempo_host: str, service_name="tracegen-otlp_http", tls=True):
-    """Get traces directly from Tempo REST API."""
-    url = f"{'https' if tls else 'http'}://{tempo_host}:3200/api/search?tags=service.name={service_name}"
-    req = requests.get(
-        url,
-        verify=False,
-    )
-    assert req.status_code == 200
-    traces = json.loads(req.text)["traces"]
-    assert len(traces) > 0
-    return traces
 
 
 def query_parca_server(
@@ -148,5 +100,4 @@ def query_parca_server(
     # We can do that from inside another K8s pod, such as ssc.
     cert_flags = f"--cacert {ca_cert_path}" if tls else ""
     cmd = f"""juju exec --model {model_name} --unit {exec_target_app_name}/0 "curl {cert_flags} {url}" """
-    print(cmd)
     return getstatusoutput(cmd)
