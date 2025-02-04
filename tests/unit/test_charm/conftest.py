@@ -1,5 +1,5 @@
 from contextlib import ExitStack
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from ops.testing import Container, Context, PeerRelation
@@ -26,6 +26,12 @@ def patch_all(tmp_path):
         stack.enter_context(patch("charm.CA_CERT_PATH", str(ca_tmp_path)))
         stack.enter_context(patch("parca.CA_CERT_PATH", str(ca_tmp_path)))
         stack.enter_context(patch("parca.Parca.version", "v0.12.0"))
+        stack.enter_context(
+            patch(
+                "charm.JujuTopology.from_charm",
+                MagicMock(return_value=MagicMock(as_dict=MagicMock(return_value={}))),
+            )
+        )
         yield
 
 

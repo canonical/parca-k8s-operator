@@ -90,6 +90,11 @@ requires:
       Enables sending charm traces to a distributed tracing backend such as Tempo.
     limit: 1
     interface: tracing
+  workload-tracing:
+    interface: tracing
+    limit: 1
+    description: |
+      Enables sending workload traces to a distributed tracing backend such as Tempo.
   certificates:
     interface: tls-certificates
     limit: 1
@@ -113,7 +118,7 @@ provides:
   self-profiling-endpoint:
     interface: parca_scrape
     description: |
-      The profiling endpoint at which profiles for this parca instance are served.
+      Endpoint to allow this parca instance profiles to be scraped by a remote parca instance.
   parca-store-endpoint:
     interface: parca_store
     description: |

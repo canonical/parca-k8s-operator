@@ -166,11 +166,14 @@ the `parca_scrape_unit_name` and `parca_scrape_unit_address` keys. While the `sc
 eponymous information.
 
 """  # noqa: W505
-
+import ipaddress
 import json
 import logging
 import socket
 from typing import List
+from cosl import JujuTopology
+from typing import List, Optional, Union
+from ops.model import Relation
 
 import ops
 from ops import RelationRole
@@ -186,7 +189,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 3
+LIBPATCH = 5
 
 logger = logging.getLogger(__name__)
 
@@ -674,6 +677,16 @@ class ProfilingEndpointProvider:
         self._publish_app_data(charm.app, relations, JujuTopology.from_charm(charm).as_dict(), jobs)
 
     @staticmethod
+    def _publish_app_data(app: ops.Application,
+                          relations: List[ops.Relation],
+                          scrape_metadata: dict,
+                          jobs: List[ScrapeJobsConfig]):
+
+        for relation in relations:
+            relation.data[app]["scrape_metadata"] = json.dumps(scrape_metadata)
+            relation.data[app]["scrape_jobs"] = json.dumps(jobs)
+
+    @staticmethod
     def _publish_unit_data(unit: ops.Unit, relations: List[ops.Relation]):
         """Set unit host address.
 
@@ -685,11 +698,12 @@ class ProfilingEndpointProvider:
             relation.data[unit]["parca_scrape_unit_address"] = socket.getfqdn()
             relation.data[unit]["parca_scrape_unit_name"] = str(unit.name)
 
-    @staticmethod
-    def _publish_app_data(app: ops.Application,
-                          relations: List[ops.Relation],
-                          scrape_metadata: dict,
-                          jobs: List[ScrapeJobsConfig]):
-        for relation in relations:
-            relation.data[app]["scrape_metadata"] = json.dumps(scrape_metadata)
-            relation.data[app]["scrape_jobs"] = json.dumps(jobs)
+    def is_ready(self, charm:ops.CharmBase) -> bool:
+        """Check if the relation(s) on this endpoint are ready."""
+        relations = charm.model.relations[self._relation_name]
+        if not relations:
+            logger.debug(f"no relation on {self._relation_name!r}.")
+            return False
+
+        # TODO: once we have a pydantic model, we can also check for the integrity of the databags.
+        return all((relation.app and relation.data) for relation in relations)

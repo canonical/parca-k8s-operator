@@ -5,6 +5,9 @@
 import asyncio
 
 import requests
+from helpers import (
+    get_pubic_address,
+)
 from pytest import mark
 from pytest_operator.plugin import OpsTest
 from tenacity import retry
@@ -30,8 +33,7 @@ async def test_deploy(ops_test: OpsTest, parca_charm, parca_resources):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 async def test_application_is_up(ops_test: OpsTest):
-    status = await ops_test.model.get_status()  # noqa: F821
-    address = status["applications"][PARCA]["public-address"]
+    address = await get_pubic_address(ops_test, PARCA)
     response = requests.get(f"http://{address}:8080/")
     assert response.status_code == 200
     response = requests.get(f"http://{address}:8080/metrics")
@@ -61,10 +63,16 @@ async def test_profiling_endpoint_relation(ops_test: OpsTest):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_profiling_relation_is_configured(ops_test: OpsTest):
-    status = await ops_test.model.get_status()  # noqa: F821
-    address = status["applications"][PARCA]["public-address"]
+    address = await get_pubic_address(ops_test, PARCA)
     response = requests.get(f"http://{address}:8080/metrics")
     assert "zinc" in response.text
+
+
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
+async def test_self_profiling(ops_test: OpsTest):
+    address = await get_pubic_address(ops_test, PARCA)
+    response = requests.get(f"http://{address}:8080/metrics")
+    assert f'"{PARCA}"' in response.text
 
 
 @mark.abort_on_fail
@@ -115,3 +123,31 @@ async def test_grafana_dashboard_relation(ops_test: OpsTest):
             timeout=1000,
         ),
     )
+
+
+# FIXME: uncomment test once https://github.com/canonical/parca-k8s-operator/issues/403 is fixed
+# async def test_workload_tracing_relation(ops_test: OpsTest):
+#     await deploy_tempo_cluster(ops_test)
+#     await asyncio.gather(
+#         ops_test.model.integrate(f"{PARCA}:workload-tracing", "tempo"),
+#         ops_test.model.wait_for_idle(
+#             apps=[PARCA, "tempo", "tempo-worker"],
+#             status="active",
+#             raise_on_blocked=True,
+#             timeout=500,
+#         ),
+#     )
+
+#     # Stimulate parca to generate traces
+#     exit_code, output = query_parca_server(
+#         ops_test.model_name,
+#         "tempo",
+#     )
+#     assert exit_code == 0, f"Failed to query the parca server. {output}"
+
+#     # Verify workload traces from parca are ingested into Tempo
+#     assert await get_traces(
+#         await get_unit_ip(ops_test.model_name, "tempo", 0),
+#         service_name=PARCA,
+#         tls=False,
+#     )

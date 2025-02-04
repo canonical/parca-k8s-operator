@@ -8,7 +8,7 @@ import re
 import time
 import typing
 import urllib.request
-from typing import Dict, List, Literal, Optional, Sequence, TypedDict
+from typing import Dict, List, Literal, Optional, Sequence, TypedDict, Union
 
 import yaml
 from ops import Container
@@ -32,7 +32,8 @@ DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
 DEFAULT_PROFILE_PATH = "/var/lib/parca"
 S3_TLS_CA_CERT_PATH = "/etc/parca/s3_ca.crt"
 
-ScrapeJob = Dict[str, List[str]]
+ScrapeJob = Dict[str, Union[List[str], Dict[str, str]]]
+RelabelConfig = Dict[str, Union[list[str], str]]
 
 
 class ScrapeJobsConfig(TypedDict, total=False):
@@ -43,6 +44,8 @@ class ScrapeJobsConfig(TypedDict, total=False):
     metrics_path: str
     scheme: Optional[Literal["https"]]
     tls_config: Dict[str, str]
+    job_name: Optional[str]
+    relabel_configs: Optional[List[RelabelConfig]]
 
 
 class Parca:
@@ -66,6 +69,7 @@ class Parca:
         path_prefix: Optional[str] = None,
         tls_config: Optional["TLSConfig"] = None,
         s3_config: Optional["S3Config"] = None,
+        tracing_endpoint: Optional[str] = None,
     ):
         self._container = container
         self._scrape_configs = scrape_configs
@@ -75,6 +79,7 @@ class Parca:
         self._path_prefix = path_prefix
         self._tls_config = tls_config
         self._s3_config = s3_config
+        self._tracing_endpoint = tracing_endpoint
 
     @property
     def _config(self) -> str:
@@ -139,6 +144,7 @@ class Parca:
                             enable_persistence=bool(self._enable_persistence or self._s3_config),
                             store_config=self._store_config,
                             path_prefix=self._path_prefix,
+                            tracing_endpoint=self._tracing_endpoint,
                         ),
                         "startup": "enabled",
                     }
@@ -178,6 +184,7 @@ def parca_command_line(
     profile_path: str = DEFAULT_PROFILE_PATH,
     path_prefix: Optional[str] = None,
     store_config: Optional[dict] = None,
+    tracing_endpoint: Optional[str] = None,
 ) -> str:
     """Generate a valid Parca command line.
 
@@ -190,6 +197,7 @@ def parca_command_line(
         profile_path: Path to profile storage directory.
         path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
+        tracing_endpoint: Address to send traces to.
     """
     # FIXME: do we need --storage-enable-wal?
     #  https://github.com/canonical/parca-k8s-operator/issues/408
@@ -229,6 +237,9 @@ def parca_command_line(
         if store_config_args:
             store_config_args.append("--mode=scraper-only")
             cmd += store_config_args
+
+    if tracing_endpoint:
+        cmd.append(f"--otlp-address={tracing_endpoint}")
 
     return " ".join(cmd)
 

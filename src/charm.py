@@ -8,7 +8,7 @@ import logging
 import socket
 import typing
 from pathlib import Path
-from typing import FrozenSet, List, Optional
+from typing import Dict, FrozenSet, List, Optional
 from urllib.parse import urlparse
 
 import ops
@@ -31,6 +31,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     TLSCertificatesRequiresV4,
 )
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
+from cosl import JujuTopology
 
 from models import S3Config, TLSConfig
 from nginx import (
@@ -39,6 +40,7 @@ from nginx import (
 )
 from nginx_prometheus_exporter import NginxPrometheusExporter
 from parca import Parca, ScrapeJob, ScrapeJobsConfig
+from parca import Parca, RelabelConfig, ScrapeJob, ScrapeJobsConfig
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,19 @@ NGINX_CONTAINER = "nginx"
 
 # we can ask s3 for a bucket name, but we may get back a different one
 PREFERRED_BUCKET_NAME = "parca"
+RELABEL_CONFIG = [
+    {
+        "source_labels": [
+            "juju_model",
+            "juju_model_uuid",
+            "juju_application",
+            "juju_unit",
+        ],
+        "separator": "_",
+        "target_label": "instance",
+        "regex": "(.*)",
+    }
+]
 
 
 @trace_charm(
@@ -95,6 +110,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             external_url=self._external_url,
             refresh_event=[self.certificates.on.certificate_available],
         )
+
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
             self,
             jobs=self._self_profiling_scrape_jobs,
@@ -135,29 +151,36 @@ class ParcaOperatorCharm(ops.CharmBase):
         self._charm_tracing_endpoint, self._server_cert = charm_tracing_config(
             self.charm_tracing, CA_CERT_PATH
         )
+        self.workload_tracing = TracingEndpointRequirer(
+            self,
+            relation_name="workload-tracing",
+            protocols=["otlp_grpc"],
+        )
 
         # WORKLOADS
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
-        self.parca = Parca(
-            container=self.unit.get_container(Parca.container_name),
-            scrape_configs=self.profiling_consumer.jobs(),
-            enable_persistence=typing.cast(bool, self.config.get("enable-persistence", None)),
-            memory_storage_limit=typing.cast(int, self.config.get("memory-storage-limit", None)),
-            store_config=self.store_requirer.config,
-            path_prefix=self._external_url_path,
-            tls_config=self._tls_config,
-            s3_config=self._s3_config,
-        )
-        self.nginx_exporter = NginxPrometheusExporter(
-            container=self.unit.get_container(NginxPrometheusExporter.container_name),
-            nginx_port=Nginx.port,
-        )
         self.nginx = Nginx(
             container=self.unit.get_container(Nginx.container_name),
             server_name=self._fqdn,
             address=Address(name="parca", port=Parca.port),
             path_prefix=self._external_url_path,
             tls_config=self._tls_config,
+        )
+        # parca needs to be instantiated after `nginx`, as it accesses self.nginx.port
+        self.parca = Parca(
+            container=self.unit.get_container(Parca.container_name),
+            scrape_configs=self._profiling_scrape_configs,
+            enable_persistence=typing.cast(bool, self.config.get("enable-persistence", None)),
+            memory_storage_limit=typing.cast(int, self.config.get("memory-storage-limit", None)),
+            store_config=self.store_requirer.config,
+            path_prefix=self._external_url_path,
+            tls_config=self._tls_config,
+            s3_config=self._s3_config,
+            tracing_endpoint=self._workload_tracing_endpoint,
+        )
+        self.nginx_exporter = NginxPrometheusExporter(
+            container=self.unit.get_container(NginxPrometheusExporter.container_name),
+            nginx_port=Nginx.port,
         )
 
         # event handlers
@@ -234,7 +257,6 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _tls_config(self) -> Optional["TLSConfig"]:
         if not self.model.relations.get(CERTIFICATES_RELATION_NAME):
             return None
-
         cr = self._get_certificate_request_attributes()
         certificate, key = self.certificates.get_assigned_certificate(certificate_request=cr)
 
@@ -256,6 +278,43 @@ class ParcaOperatorCharm(ops.CharmBase):
             common_name=self.app.name,
             sans_dns=sans_dns,
         )
+
+    # SCRAPE JOBS CONFIGURATION
+    @property
+    def _profiling_scrape_configs(self) -> List[ScrapeJobsConfig]:
+        """The scrape configuration that Parca will use for scraping profiles.
+
+        The configuration includes the targets scraped by Parca as well as Parca's
+        own workload profiles if they are not already being scraped by a remote Parca.
+        """
+        scrape_configs = self.profiling_consumer.jobs()
+        # Append parca's self scrape config if no remote parca instance is integrated over "self-profiling-endpoint"
+        if not self.self_profiling_endpoint_provider.is_ready():
+            scrape_configs.append(self._self_profiling_scrape_config)
+        return scrape_configs
+
+    @property
+    def _self_profiling_scrape_config(self) -> ScrapeJobsConfig:
+        """Profiling scrape config to scrape parca's own workload profiles.
+
+        This config also adds juju topology to the scraped profiles.
+        """
+        job_name = "parca"
+        # add the juju_ prefix to labels
+        labels = {
+            "juju_{}".format(key): value
+            for key, value in JujuTopology.from_charm(self).as_dict().items()
+            if value
+        }
+
+        return self._format_scrape_target(
+            self.nginx.port,
+            self._scheme,
+            profiles_path=self._external_url_path,
+            labels=labels,
+            job_name=job_name,
+            relabel_configs=RELABEL_CONFIG,
+        )[0]
 
     # STORAGE CONFIG
     @property
@@ -293,9 +352,18 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
 
     def _format_scrape_target(
-        self, port: int, scheme="http", metrics_path=None, profiles_path: Optional[str] = None
+        self,
+        port: int,
+        scheme="http",
+        metrics_path=None,
+        profiles_path: Optional[str] = None,
+        labels: Optional[Dict[str, str]] = None,
+        job_name: Optional[str] = None,
+        relabel_configs: Optional[List[RelabelConfig]] = None,
     ) -> List[ScrapeJobsConfig]:
         job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
+        if labels:
+            job["labels"] = labels
         jobs_config: ScrapeJobsConfig = {"static_configs": [job]}
         if metrics_path:
             jobs_config["metrics_path"] = metrics_path
@@ -309,8 +377,27 @@ class ParcaOperatorCharm(ops.CharmBase):
                     # https://github.com/canonical/prometheus-k8s-operator/issues/670
                     "ca_file" if metrics_path else "ca": Path(CA_CERT_PATH).read_text()
                 }
+        if job_name:
+            jobs_config["job_name"] = job_name
+        if relabel_configs:
+            jobs_config["relabel_configs"] = relabel_configs
 
         return [jobs_config]
+
+    # TRACING PROPERTIES
+    @property
+    def _workload_tracing_endpoint(self) -> Optional[str]:
+        if self.workload_tracing.is_ready():
+            endpoint = self.workload_tracing.get_endpoint("otlp_grpc")
+            # TODO: Parca fails to send traces over TLS.
+            # https://github.com/canonical/parca-k8s-operator/issues/405
+            if endpoint and self._tls_ready:
+                logger.warning(
+                    "Sending workload traces over TLS is not yet supported. Disable TLS to continue sending workload traces."
+                )
+                return None
+            return endpoint
+        return None
 
     # EVENT HANDLERS
     def _on_collect_unit_status(self, event: ops.CollectStatusEvent):
