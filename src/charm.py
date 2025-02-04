@@ -112,10 +112,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
 
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
-            self,
             jobs=self._self_profiling_scrape_jobs,
-            relation_name="self-profiling-endpoint",
-            refresh_event=[self.certificates.on.certificate_available],
         )
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
         self.s3_requirer = S3Requirer(self, "s3", bucket_name=PREFERRED_BUCKET_NAME)
