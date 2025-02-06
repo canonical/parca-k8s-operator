@@ -116,8 +116,9 @@ def test_config_changed_persistence(context, base_state):
         state_out,
         f"/parca --config-path={DEFAULT_CONFIG_PATH} "
         f"--http-address=localhost:{PARCA_PORT} "
-        f"--enable-persistence "
-        f"--storage-path=/var/lib/parca",
+        "--storage-enable-wal "
+        "--enable-persistence "
+        "--storage-path=/var/lib/parca",
     )
     assert_healthy(state_out)
 
@@ -133,6 +134,7 @@ def test_config_changed_active_memory(context, base_state):
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
         f"--http-address=localhost:{PARCA_PORT} "
+        "--storage-enable-wal "
         f"--storage-active-memory=2147483648",
     )
     assert_healthy(state_out)
@@ -172,6 +174,7 @@ def test_parca_pebble_layer_adjusted_memory(context, base_state):
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
         f"--http-address=localhost:{PARCA_PORT} "
+        "--storage-enable-wal "
         f"--storage-active-memory=1073741824",
     )
     assert_healthy(state_out_2)
@@ -192,8 +195,9 @@ def test_parca_pebble_layer_storage_persist(context, base_state):
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
         f"--http-address=localhost:{PARCA_PORT} "
-        f"--enable-persistence "
-        f"--storage-path=/var/lib/parca",
+        "--storage-enable-wal "
+        "--enable-persistence "
+        "--storage-path=/var/lib/parca",
     )
     assert_healthy(state_out_2)
 
@@ -318,14 +322,15 @@ def test_parca_external_store_relation(context, base_state):
     # Check the Parca is started with the correct command including store flags
     assert_parca_command_equals(
         state_out,
-        f"/parca "
+        "/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
         f"--http-address=localhost:{PARCA_PORT} "
-        f"--storage-active-memory=4294967296 "
-        f"--store-address=grpc.polarsignals.com:443 "
-        f"--bearer-token=deadbeef "
-        f"--insecure=false "
-        f"--mode=scraper-only",
+        "--storage-enable-wal "
+        "--storage-active-memory=4294967296 "
+        "--store-address=grpc.polarsignals.com:443 "
+        "--bearer-token=deadbeef "
+        "--insecure=false "
+        "--mode=scraper-only",
     )
 
 
@@ -391,6 +396,7 @@ def test_parca_workload_tracing_relation(context, base_state):
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
         f"--http-address=localhost:{PARCA_PORT} "
-        f"--storage-active-memory=4294967296 "
+        "--storage-enable-wal "
+        "--storage-active-memory=4294967296 "
         "--otlp-address=192.0.2.0/24",
     )

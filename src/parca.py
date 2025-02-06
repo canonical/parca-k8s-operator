@@ -199,10 +199,10 @@ def parca_command_line(
         store_config: Configuration to send profiles to a remote store
         tracing_endpoint: Address to send traces to.
     """
-    # FIXME: do we need --storage-enable-wal?
-    #  https://github.com/canonical/parca-k8s-operator/issues/408
-
-    cmd = [str(bin_path), f"--config-path={config_path}", f"--http-address={http_address}"]
+    cmd = [str(bin_path),
+           f"--config-path={config_path}",
+           f"--http-address={http_address}",
+           "--storage-enable-wal"]
 
     if path_prefix:
         if not path_prefix.startswith("/"):

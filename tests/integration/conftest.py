@@ -4,8 +4,15 @@
 from pathlib import Path
 
 import yaml
+from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from pytest import fixture
 from pytest_operator.plugin import OpsTest
+
+
+@fixture(scope="module", autouse=True)
+def patch_all():
+    with charm_tracing_disabled():
+        yield
 
 
 @fixture(scope="module")
