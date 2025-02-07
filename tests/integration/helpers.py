@@ -17,6 +17,15 @@ MINIO = "minio"
 S3_INTEGRATOR = "s3-integrator"
 BUCKET_NAME = "parca"
 
+from minio import Minio
+from pytest_operator.plugin import OpsTest
+
+TESTING_MINIO_ACCESS_KEY = "accesskey"
+TESTING_MINIO_SECRET_KEY = "secretkey"
+MINIO = "minio"
+S3_INTEGRATOR = "s3-integrator"
+BUCKET_NAME = "parca"
+
 
 def get_unit_ip(model_name, app_name, unit_id):
     """Return a juju unit's IP."""

@@ -39,6 +39,7 @@ from nginx import (
     Nginx,
 )
 from nginx_prometheus_exporter import NginxPrometheusExporter
+from parca import Parca, ScrapeJob, ScrapeJobsConfig
 from parca import Parca, RelabelConfig, ScrapeJob, ScrapeJobsConfig
 
 logger = logging.getLogger(__name__)
@@ -111,10 +112,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
 
         self.self_profiling_endpoint_provider = ProfilingEndpointProvider(
-            self,
             jobs=self._self_profiling_scrape_jobs,
-            relation_name="self-profiling-endpoint",
-            refresh_event=[self.certificates.on.certificate_available],
         )
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
         self.s3_requirer = S3Requirer(self, "s3", bucket_name=PREFERRED_BUCKET_NAME)
@@ -209,7 +207,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # mechanism to ensure we don't miss any events. This data should always be up to date,
         # and it's a cheap operation to push it, so we always do it.
         self.metrics_endpoint_provider.set_scrape_job_spec()
-        self.self_profiling_endpoint_provider.set_scrape_job_spec()
+        self.self_profiling_endpoint_provider.reconcile(self)
         self.grafana_source_provider.update_source(source_url=self._external_url)
 
     def _reconcile_tls_config(self) -> None:
