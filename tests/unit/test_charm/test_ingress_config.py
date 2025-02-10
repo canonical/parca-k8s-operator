@@ -18,11 +18,13 @@ def test_prefix_ingress_pebble_ready(
     context = Context(ParcaOperatorCharm)
 
     state = State(
+        leader=True,
         containers={parca_container, nginx_container, nginx_prometheus_exporter_container},
         relations={
             Relation(
                 "ingress",
-                remote_app_data={"ingress": json.dumps({"url": f"http://example.com/{path}"})},
+                remote_app_data={"external_host": f"example.com",
+                                             "scheme": "http"},
             )
         },
     )
