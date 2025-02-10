@@ -6,13 +6,14 @@
 import socket
 from typing import Dict, Optional
 
-from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from ops import CharmBase
+
+from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 
 
 class TraefikRouteEndpoint:
     """Represents a traefik route endpoint and the parca ingress configuration it needs."""
-    _endpoint_name =  "ingress"
+    _endpoint_name = "ingress"
 
     # totally arbitrary ports, picked not to collide with tempo's.
     _ports = {
@@ -20,29 +21,32 @@ class TraefikRouteEndpoint:
         "parca_http": 7994,
     }
 
-    def __init__(self, charm:CharmBase, tls:bool):
+    def __init__(self, charm: CharmBase, tls: bool):
         self._is_leader = charm.unit.is_leader()
         self._tls = tls
         self._app_name = charm.app.name
         self._model_name = charm.model.name
         self._fqdn = socket.getfqdn()
-        self._ingress = TraefikRouteRequirer(charm,
-                                             charm.model.get_relation(self._endpoint_name),
-                                             self._endpoint_name)
+        self._ingress = TraefikRouteRequirer(
+            charm,
+            # cfr: https://github.com/canonical/traefik-k8s-operator/issues/448
+            charm.model.get_relation(self._endpoint_name), # type: ignore
+            self._endpoint_name
+        )
 
     @property
-    def is_ready(self)->bool:
+    def is_ready(self) -> bool:
         """Whether traefik_route is ready."""
         return self._ingress.is_ready()
 
     @property
-    def http_external_url(self)->Optional[str]:
+    def http_external_url(self) -> Optional[str]:
         """The external url, if available."""
         if self._ingress.is_ready() and self._ingress.scheme and self._ingress.external_host:
             return f"{self._ingress.scheme}://{self._ingress.external_host}"
 
     @property
-    def grpc_external_url(self)->Optional[str]:
+    def grpc_external_url(self) -> Optional[str]:
         """The external url, if available.
 
         Will omit the scheme.
@@ -90,7 +94,7 @@ class TraefikRouteEndpoint:
                 "rule": "ClientIP(`0.0.0.0/0`)",
             }
             if (
-                protocol == "parca_grpc"
+                    protocol == "parca_grpc"
             ) and not self._tls:
                 # to send traces to unsecured GRPC endpoints, we need h2c
                 # see https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-http-h2c
