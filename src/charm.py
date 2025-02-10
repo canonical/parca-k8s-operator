@@ -97,11 +97,11 @@ class ParcaOperatorCharm(ops.CharmBase):
             certificate_requests=[self._get_certificate_request_attributes()],
             mode=Mode.UNIT,
         )
-        self.ingress = TraefikRouteEndpoint(self)
+        self.ingress = TraefikRouteEndpoint(self, tls=self._tls_ready)
         self.metrics_endpoint_provider = MetricsEndpointProvider(
             self,
             jobs=self._metrics_scrape_jobs,
-            external_url=self._external_url,
+            external_url=self.http_server_url,
             refresh_event=[self.certificates.on.certificate_available],
         )
 
@@ -118,7 +118,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             item=CatalogueItem(
                 "Parca UI",
                 icon="chart-areaspline",
-                url=self._external_url,
+                url=self.http_server_url,
                 description="""Continuous profiling backend. Allows you to collect, store,
                  query and visualize profiles from your distributed deployment.""",
             ),
@@ -127,7 +127,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self,
             port=Nginx.port,
             insecure=True,
-            external_url=self._external_url,
+            external_url=self.grpc_server_url,
         )
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"
@@ -138,7 +138,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
             source_type="parca",
-            source_url=self._external_url,
+            source_url=self.http_server_url,
             # no need to use refresh_events logic as we refresh on reconcile.
         )
 
@@ -159,6 +159,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             address=Address(name="parca", port=Parca.port),
             path_prefix=self._external_url_path,
             tls_config=self._tls_config,
+            http_port=self.ingress.http_server_port,
+            grpc_port=self.ingress.grpc_server_port,
         )
         # parca needs to be instantiated after `nginx`, as it accesses self.nginx.port
         self.parca = Parca(
@@ -205,7 +207,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # and it's a cheap operation to push it, so we always do it.
         self.metrics_endpoint_provider.set_scrape_job_spec()
         self.self_profiling_endpoint_provider.set_scrape_job_spec()
-        self.grafana_source_provider.update_source(source_url=self._external_url)
+        self.grafana_source_provider.update_source(source_url=self.http_server_url)
         self.ingress.reconcile()
 
     def _reconcile_tls_config(self) -> None:
@@ -220,9 +222,21 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     # INGRESS/ROUTING PROPERTIES
     @property
-    def _internal_url(self):
-        """Return workload's internal URL."""
+    def http_server_url(self):
+        """Http server url; ingressed if available, else over fqdn."""
+        if external_url := self.ingress.http_external_url:
+            return f"{external_url}:{self.ingress.http_server_port}"
         return f"{self._scheme}://{self._fqdn}:{Nginx.port}"
+
+    @property
+    def grpc_server_url(self):
+        """Grpc server url; ingressed if available, else over fqdn.
+
+        It will NOT include the scheme.
+        """
+        if external_url := self.ingress.grpc_external_url:
+            return f"{external_url}:{self.ingress.grpc_server_port}"
+        return f"{self._fqdn}:{Nginx.port}"
 
     @property
     def _scheme(self) -> str:
@@ -230,22 +244,15 @@ class ParcaOperatorCharm(ops.CharmBase):
         return "https" if self._tls_ready else "http"
 
     @property
-    def _external_url(self) -> str:
-        """Return the external hostname if configured, else the internal one."""
-        if self.ingress.is_ready() and self.ingress.scheme and self.ingress.external_host:
-            return f"{self.ingress.scheme}://{self.ingress.external_host}"
-        return  self._internal_url
-
-    @property
     def _external_url_path(self) -> Optional[str]:
         """The path part of our external url if we are ingressed, else None.
 
         This is used to configure the parca server so it can resolve its internal links.
         """
-        if not self.ingress.is_ready():
+        if not self.ingress.is_ready:
             return None
 
-        external_url = urlparse(self._external_url)
+        external_url = urlparse(self.http_server_url)
         # external_url.path already includes a trailing /
         return str(external_url.path) or None
 
@@ -349,14 +356,14 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
 
     def _format_scrape_target(
-        self,
-        port: int,
-        scheme="http",
-        metrics_path=None,
-        profiles_path: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        job_name: Optional[str] = None,
-        relabel_configs: Optional[List[RelabelConfig]] = None,
+            self,
+            port: int,
+            scheme="http",
+            metrics_path=None,
+            profiles_path: Optional[str] = None,
+            labels: Optional[Dict[str, str]] = None,
+            job_name: Optional[str] = None,
+            relabel_configs: Optional[List[RelabelConfig]] = None,
     ) -> List[ScrapeJobsConfig]:
         job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
         if labels:
@@ -412,7 +419,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         else:
             self.unit.set_workload_version(self.parca.version)
 
-        event.add_status(ops.ActiveStatus(f"UI ready at {self._external_url}"))
+        event.add_status(ops.ActiveStatus(f"UI ready at {self.http_server_url}"))
 
 
 if __name__ == "__main__":  # pragma: nocover

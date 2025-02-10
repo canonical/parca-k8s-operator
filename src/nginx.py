@@ -263,6 +263,10 @@ class NginxConfig:
                     },
                     {"directive": "proxy_read_timeout", "args": ["300"]},
                     # server block
+                    # internally, the parca server listens only to a single (7070 by default) port;
+                    # however, we can't generically configure nginx to do proxy_pass AND grpc_pass on the same
+                    # external port, so we configure two separate ones that have the same upstream and send
+                    # everything to the one parca server.
                     self._build_server_config(self._grpc_port, address.name, self._tls, grpc=True),
                     self._build_server_config(self._http_port, address.name, self._tls),
                 ],

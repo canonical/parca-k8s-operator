@@ -106,7 +106,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 
 DEFAULT_RELATION_NAME = "parca-store-endpoint"
@@ -131,15 +131,15 @@ class ParcaStoreEndpointProvider(ops.Object):
 
         Args:
             charm: a `ops.CharmBase` object that manages this
-                `ParcaStoreEndpointProvider` object. Typically this is `self` in the instantiating
+                `ParcaStoreEndpointProvider` object. Typically, this is `self` in the instantiating
                 class.
             port: an optional integer that represents the port on which the Parca Store listens.
-            insecure: an optional boolean that instructs clients whether or not to use TLS when
+            insecure: an optional boolean that instructs clients whether to use TLS when
                 connecting to the endpoint provided. Defaults to False, implying that by default
                 TLS should be used.
             external_url: an optional string that represents the URL at which the Parca Store
                 endpoint can be reached. Useful when the Parca Store implementation is behind
-                an ingress or reverse proxy.
+                an ingress or reverse proxy. Should NOT include the grpc(s):// scheme.
             token_generator: an optional method or lambda that can generate valid bearer tokens
                 for the Parca Store. Defaults to a lambda that returns an empty string.
             relation_name: an optional string that denotes the name of the relation endpoint.
@@ -169,16 +169,17 @@ class ParcaStoreEndpointProvider(ops.Object):
         """
         for relation in self._charm.model.relations[self._relation_name]:
             unit_ip = str(self._charm.model.get_binding(relation).network.bind_address)
+            if external_url := self._external_url:
+                store_address = external_url
 
-            if self._external_url:
-                parsed = urlparse(self._external_url)
-                unit_address = parsed.hostname
-            elif self._is_valid_unit_address(unit_ip):
-                unit_address = unit_ip
             else:
-                unit_address = socket.getfqdn()
+                if self._is_valid_unit_address(unit_ip):
+                    unit_address = unit_ip
+                else:
+                    unit_address = socket.getfqdn()
+                store_address = f"{unit_address}:{self._port}"
 
-            relation.data[self._app]["remote-store-address"] = f"{unit_address}:{self._port}"
+            relation.data[self._app]["remote-store-address"] = store_address
             relation.data[self._app]["remote-store-bearer-token"] = self._token_generator()
             relation.data[self._app]["remote-store-insecure"] = str(self._insecure).lower()
 
