@@ -171,11 +171,11 @@ import ipaddress
 import json
 import logging
 import socket
-from cosl import JujuTopology
 from typing import List, Optional, Union
-from ops.model import Relation
 
 import ops
+from cosl import JujuTopology
+from ops.model import Relation
 
 # The unique Charmhub library identifier, never change it
 LIBID = "dbc3d2e89cb24917b99c40e14354dd25"

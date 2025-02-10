@@ -94,7 +94,6 @@ import ipaddress
 import json
 import socket
 from typing import Callable
-from urllib.parse import urlparse
 
 import ops
 

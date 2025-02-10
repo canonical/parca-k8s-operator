@@ -11,6 +11,7 @@ from ops import CharmBase
 
 
 class TraefikRouteEndpoint:
+    """Represents a traefik route endpoint and the parca ingress configuration it needs."""
     _endpoint_name =  "ingress"
 
     # totally arbitrary ports, picked not to collide with tempo's.
