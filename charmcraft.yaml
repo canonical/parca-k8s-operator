@@ -75,10 +75,11 @@ requires:
     description: |
       Integration to configure parca to scrape a profiling endpoint from a related charm.
   ingress:
-    interface: ingress
-    limit: 1
+    interface: traefik_route
     description: |
-      Expose parca's UI and push API endpoint over an ingress.
+      Ingress integration for the Parca server and profiling ingestion endpoints,
+      so that cross-model workloads can send their profiles to Parca through the ingress.
+      Uses `traefik_route` to open the right ports on the Traefik host.
   external-parca-store-endpoint:
     interface: parca_store
     description: |

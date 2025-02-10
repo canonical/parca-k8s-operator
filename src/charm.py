@@ -30,9 +30,9 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     Mode,
     TLSCertificatesRequiresV4,
 )
-from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from cosl import JujuTopology
 
+from ingress_configuration import TraefikRouteEndpoint
 from models import S3Config, TLSConfig
 from nginx import (
     Address,
@@ -97,12 +97,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             certificate_requests=[self._get_certificate_request_attributes()],
             mode=Mode.UNIT,
         )
-        self.ingress = IngressPerAppRequirer(
-            self,
-            host=self._fqdn,
-            port=Nginx.port,
-            scheme=self._scheme,
-        )
+        self.ingress = TraefikRouteEndpoint(self)
         self.metrics_endpoint_provider = MetricsEndpointProvider(
             self,
             jobs=self._metrics_scrape_jobs,
@@ -144,7 +139,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self,
             source_type="parca",
             source_url=self._external_url,
-            refresh_event=[self.certificates.on.certificate_available],
+            # no need to use refresh_events logic as we refresh on reconcile.
         )
 
         self._charm_tracing_endpoint, self._server_cert = charm_tracing_config(
@@ -211,6 +206,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.metrics_endpoint_provider.set_scrape_job_spec()
         self.self_profiling_endpoint_provider.set_scrape_job_spec()
         self.grafana_source_provider.update_source(source_url=self._external_url)
+        self.ingress.reconcile()
 
     def _reconcile_tls_config(self) -> None:
         """Update the TLS certificates for the charm container."""
@@ -236,7 +232,9 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def _external_url(self) -> str:
         """Return the external hostname if configured, else the internal one."""
-        return self.ingress.url or self._internal_url
+        if self.ingress.is_ready() and self.ingress.scheme and self.ingress.external_host:
+            return f"{self.ingress.scheme}://{self.ingress.external_host}"
+        return  self._internal_url
 
     @property
     def _external_url_path(self) -> Optional[str]:
@@ -247,7 +245,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         if not self.ingress.is_ready():
             return None
 
-        external_url = urlparse(self.ingress.url)
+        external_url = urlparse(self._external_url)
         # external_url.path already includes a trailing /
         return str(external_url.path) or None
 
