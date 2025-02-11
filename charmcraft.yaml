@@ -76,6 +76,7 @@ requires:
       Integration to configure parca to scrape a profiling endpoint from a related charm.
   ingress:
     interface: traefik_route
+    limit: 1
     description: |
       Ingress integration for the Parca server and profiling ingestion endpoints,
       so that cross-model workloads can send their profiles to Parca through the ingress.

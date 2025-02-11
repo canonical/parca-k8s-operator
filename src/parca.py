@@ -179,7 +179,6 @@ def parca_command_line(
     bin_path: str = DEFAULT_BIN_PATH,
     config_path: str = DEFAULT_CONFIG_PATH,
     profile_path: str = DEFAULT_PROFILE_PATH,
-    path_prefix: Optional[str] = None,
     store_config: Optional[dict] = None,
     tracing_endpoint: Optional[str] = None,
 ) -> str:
@@ -192,7 +191,6 @@ def parca_command_line(
         bin_path: Path to the Parca binary to be started.
         config_path: Path to the Parca YAML configuration file.
         profile_path: Path to profile storage directory.
-        path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
         tracing_endpoint: Address to send traces to.
     """
@@ -200,16 +198,6 @@ def parca_command_line(
            f"--config-path={config_path}",
            f"--http-address={http_address}",
            "--storage-enable-wal"]
-
-    if path_prefix:
-        if not path_prefix.startswith("/"):
-            # parca will blow up if you try this
-            raise ValueError("invalid path_prefix: should start with a slash.")
-        # quote path_prefix so we don't have to escape the slashes
-        path_prefix_option = f"--path-prefix='{path_prefix}'"
-        cmd.append(path_prefix_option)
-
-    # Render the template files with the correct values
 
     if enable_persistence:
         # Add the correct command line options for disk persistence

@@ -227,8 +227,9 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def http_server_url(self):
         """Http server url; ingressed if available, else over fqdn."""
-        if external_url := self.ingress.http_external_url:
-            return f"{external_url}:{Nginx.parca_http_server_port}"
+        if external_host := self.ingress.http_external_host:
+            # this already includes the scheme: http or https, depending on the ingress
+            return f"{external_host}:{Nginx.parca_http_server_port}"
         return f"{self._scheme}://{self._fqdn}:{Nginx.parca_http_server_port}"
 
     @property
@@ -237,8 +238,9 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         It will NOT include the scheme.
         """
-        if external_url := self.ingress.grpc_external_url:
-            return f"{external_url}:{Nginx.parca_http_server_port}"
+        if external_host := self.ingress.grpc_external_host:
+            # this does not include any scheme.
+            return f"{external_host}:{Nginx.parca_http_server_port}"
         return f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
 
     @property

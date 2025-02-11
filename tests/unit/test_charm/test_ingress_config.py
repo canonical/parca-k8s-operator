@@ -22,7 +22,7 @@ def test_no_prefix_ingress_broken(
                 {
                     "override": "replace",
                     "summary": "parca",
-                    "command": parca_command_line("7070", DEFAULT_CONFIG, path_prefix=None),
+                    "command": parca_command_line("7070", DEFAULT_CONFIG),
                     "startup": "enabled",
                 }
             )

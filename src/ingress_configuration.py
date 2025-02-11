@@ -45,14 +45,14 @@ class TraefikRouteEndpoint:
         return self._ingress.is_ready()
 
     @property
-    def http_external_url(self) -> Optional[str]:
-        """The external url, if available."""
+    def http_external_host(self) -> Optional[str]:
+        """The external hostname for the http server, if available."""
         if self._ingress.is_ready() and self._ingress.scheme and self._ingress.external_host:
             return f"{self._ingress.scheme}://{self._ingress.external_host}"
 
     @property
-    def grpc_external_url(self) -> Optional[str]:
-        """The external url, if available.
+    def grpc_external_host(self) -> Optional[str]:
+        """The external hostname for the grpc server, if available.
 
         Will omit the scheme.
         """
