@@ -17,6 +17,7 @@ from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
+from charms.loki_k8s.v1.loki_push_api import LogForwarder
 from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.parca_k8s.v0.parca_store import (
     ParcaStoreEndpointProvider,
@@ -76,6 +77,7 @@ RELABEL_CONFIG = [
         MetricsEndpointProvider,
         ProfilingEndpointProvider,
         GrafanaDashboardProvider,
+        LogForwarder,
         ParcaStoreEndpointProvider,
         ParcaStoreEndpointRequirer,
         GrafanaSourceProvider,
@@ -118,6 +120,8 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
         self.grafana_dashboard_provider = GrafanaDashboardProvider(self)
         self.s3_requirer = S3Requirer(self, "s3", bucket_name=PREFERRED_BUCKET_NAME)
+        self.logging = LogForwarder(self)
+
         self.catalogue = CatalogueConsumer(
             self,
             item=CatalogueItem(
@@ -132,7 +136,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self,
             port=Nginx.port,
             insecure=True,
-            external_url=self._external_url,
+            external_url=self._external_url
         )
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"

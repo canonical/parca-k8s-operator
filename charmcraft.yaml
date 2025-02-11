@@ -99,6 +99,10 @@ requires:
     description: |
       Certificate and key files for securing Parca's external
       communications through TLS.
+  logging:
+    interface: loki_push_api
+    description: |
+        Enables sending workload logs to a loki-push-api compatible endpoint.
 
 provides:
   grafana-dashboard:
