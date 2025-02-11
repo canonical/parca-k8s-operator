@@ -4,7 +4,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from nginx import Nginx
 from parca import DEFAULT_CONFIG_PATH, Parca
 
 # Extract from a real response that Parca issued to test the regular expression works for capturing
