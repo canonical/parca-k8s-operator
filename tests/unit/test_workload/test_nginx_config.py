@@ -56,7 +56,7 @@ def test_certs_on_disk(certificate_mounts: dict, nginx_context: testing.Context)
         ),
     ) as mgr:
         charm = mgr.charm
-        nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
+        nginx = Nginx(charm.unit.get_container("nginx"), "test", None, http_port=42, grpc_port=43)
 
         # THEN the certs exist on disk
         assert nginx._are_certificates_on_disk
@@ -82,7 +82,7 @@ def test_certs_deleted(certificate_mounts: dict, nginx_context: testing.Context)
         ),
     ) as mgr:
         charm = mgr.charm
-        nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
+        nginx = Nginx(charm.unit.get_container("nginx"), "test", None, http_port=42, grpc_port=43)
 
         # AND when we call delete_certificates
         nginx._delete_certificates()
@@ -96,7 +96,7 @@ def test_certs_deleted(certificate_mounts: dict, nginx_context: testing.Context)
     (Address("foo", 123), Address("bar", 42)),
 )
 def test_nginx_config_is_list_before_crossplane(address):
-    nginx = NginxConfig("localhost", False)
+    nginx = NginxConfig("localhost", False, http_port=42, grpc_port=43)
     prepared_config = nginx._prepare_config(address)
     assert isinstance(prepared_config, List)
 
@@ -106,7 +106,7 @@ def test_nginx_config_is_list_before_crossplane(address):
     (Address("foo", 123), Address("bar", 42)),
 )
 def test_nginx_config_is_parsed_by_crossplane(address):
-    nginx = NginxConfig("localhost", False)
+    nginx = NginxConfig("localhost", False, http_port=42, grpc_port=43)
     prepared_config = nginx.config(address)
     assert isinstance(prepared_config, str)
 
@@ -117,15 +117,18 @@ def test_nginx_config_is_parsed_by_crossplane(address):
 )
 @pytest.mark.parametrize("tls", (True, False))
 @pytest.mark.parametrize("hostname", ("localhost", "foobarhost"))
-def test_nginx_config_contains_upstreams_and_proxy_pass(address, tls, hostname):
+@pytest.mark.parametrize("http_port", (42, 43))
+@pytest.mark.parametrize("grpc_port", (44, 45))
+def test_nginx_config_contains_upstreams_and_proxy_pass(address, tls, hostname, http_port, grpc_port):
     with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
-        nginx = NginxConfig(hostname, False)
+        nginx = NginxConfig(hostname, False, http_port=http_port, grpc_port=grpc_port)
 
     prepared_config = nginx.config(address)
     assert f"resolver {sample_dns_ip};" in prepared_config
-
-    assert "listen 8080" in prepared_config
-    assert "listen [::]:8080" in prepared_config
+    assert f"listen {http_port}" in prepared_config
+    assert f"listen [::]:{http_port}" in prepared_config
+    assert f"listen {grpc_port}" in prepared_config
+    assert f"listen [::]:{grpc_port}" in prepared_config
 
     sanitised_name = address.name.replace("_", "-")
     assert f"upstream {sanitised_name}" in prepared_config

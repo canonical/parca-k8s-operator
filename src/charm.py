@@ -169,7 +169,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             enable_persistence=typing.cast(bool, self.config.get("enable-persistence", None)),
             memory_storage_limit=typing.cast(int, self.config.get("memory-storage-limit", None)),
             store_config=self.store_requirer.config,
-            path_prefix=self._external_url_path,
             tls_config=self._tls_config,
             s3_config=self._s3_config,
             tracing_endpoint=self._workload_tracing_endpoint,

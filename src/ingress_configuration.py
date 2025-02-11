@@ -6,9 +6,8 @@
 import socket
 from typing import Dict, Optional
 
-from ops import CharmBase
-
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
+from ops import CharmBase
 
 
 class TraefikRouteEndpoint:

@@ -66,7 +66,6 @@ class Parca:
         enable_persistence: Optional[bool] = None,
         memory_storage_limit: Optional[int] = None,
         store_config: Optional[Dict[str, str]] = None,
-        path_prefix: Optional[str] = None,
         tls_config: Optional["TLSConfig"] = None,
         s3_config: Optional["S3Config"] = None,
         tracing_endpoint: Optional[str] = None,
@@ -76,7 +75,6 @@ class Parca:
         self._enable_persistence = enable_persistence
         self._memory_storage_limit = memory_storage_limit
         self._store_config = store_config
-        self._path_prefix = path_prefix
         self._tls_config = tls_config
         self._s3_config = s3_config
         self._tracing_endpoint = tracing_endpoint
@@ -143,7 +141,6 @@ class Parca:
                             memory_storage_limit=self._memory_storage_limit,
                             enable_persistence=bool(self._enable_persistence or self._s3_config),
                             store_config=self._store_config,
-                            path_prefix=self._path_prefix,
                             tracing_endpoint=self._tracing_endpoint,
                         ),
                         "startup": "enabled",
