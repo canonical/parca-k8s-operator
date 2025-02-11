@@ -72,5 +72,5 @@ async def test_direct_endpoint_grpc(ops_test):
     parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
     # when hitting directly parca on the grpc port, requests gives a bad error:
     #  ConnectionError: 'Connection aborted.', BadStatusLine...
-    with pytest.raises(ConnectionError):
+    with pytest.raises(requests.exceptions.ConnectionError):
         requests.get(f"http://{parca_ip}:{Nginx.parca_grpc_server_port}")

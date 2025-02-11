@@ -42,7 +42,7 @@ async def test_application_is_up(ops_test: OpsTest):
     response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert response.status_code == 200
 
-    with pytest.raises(ConnectionError):
+    with pytest.raises(requests.exceptions.ConnectionError):
         # not a 404, but still nothing we can check without using grpcurl or smth
         requests.get(f"http://{address}:{Nginx.parca_grpc_server_port}/")
 
