@@ -71,14 +71,14 @@ async def test_profiling_endpoint_relation(ops_test: OpsTest):
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_profiling_relation_is_configured(ops_test: OpsTest):
     address = await get_public_address(ops_test, PARCA)
-    response = requests.get(f"http://{address}:8080/metrics")
+    response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert "zinc" in response.text
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_self_profiling(ops_test: OpsTest):
     address = await get_public_address(ops_test, PARCA)
-    response = requests.get(f"http://{address}:8080/metrics")
+    response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert f'"{PARCA}"' in response.text
 
 
