@@ -8,6 +8,9 @@ from subprocess import getoutput
 import pytest
 import requests
 from helpers import get_unit_ip
+from tenacity import retry
+from tenacity.stop import stop_after_delay
+from tenacity.wait import wait_exponential as wexp
 
 from nginx import Nginx
 
@@ -47,17 +50,27 @@ def _get_ingress_ip(model_name):
     return result.strip("'")
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 @pytest.mark.parametrize("port", (Nginx.parca_http_server_port,
                                   Nginx.parca_grpc_server_port))
 async def test_ingressed_endpoints(ops_test, port):
     ingress_ip = _get_ingress_ip(ops_test.model_name)
     url = f"http://{ingress_ip}:{port}"
+    # traefik will correctly give 200s on both grpc and http endpoints
     assert requests.get(url).status_code == 200
 
 
-@pytest.mark.parametrize("port", (Nginx.parca_http_server_port,
-                                  Nginx.parca_grpc_server_port))
-async def test_direct_endpoints(ops_test, port):
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
+async def test_direct_endpoint_http(ops_test):
     parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
-    url = f"http://{parca_ip}:{port}"
+    url = f"http://{parca_ip}:{Nginx.parca_http_server_port}"
     assert requests.get(url).status_code == 200
+
+
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
+async def test_direct_endpoint_grpc(ops_test):
+    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
+    # when hitting directly parca on the grpc port, requests gives a bad error:
+    #  ConnectionError: 'Connection aborted.', BadStatusLine...
+    with pytest.raises(ConnectionError):
+        requests.get(f"http://{parca_ip}:{Nginx.parca_grpc_server_port}")

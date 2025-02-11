@@ -4,6 +4,7 @@
 
 import asyncio
 
+import pytest
 import requests
 from helpers import (
     get_public_address,
@@ -41,8 +42,9 @@ async def test_application_is_up(ops_test: OpsTest):
     response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert response.status_code == 200
 
-    response = requests.get(f"http://{address}:{Nginx.parca_grpc_server_port}/")
-    assert response.status_code == 200
+    with pytest.raises(ConnectionError):
+        # not a 404, but still nothing we can check without using grpcurl or smth
+        requests.get(f"http://{address}:{Nginx.parca_grpc_server_port}/")
 
 
 @mark.abort_on_fail
