@@ -136,7 +136,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self,
             port=Nginx.port,
             insecure=True,
-            external_url=self._external_url, # + "/api"
+            external_url=self._external_url
         )
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"
