@@ -82,7 +82,7 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     assert action_result.status == "completed"
 
 
-async def get_pubic_address(ops_test: OpsTest, app_name):
+async def get_public_address(ops_test: OpsTest, app_name):
     """Return a juju application's public address."""
     status = await ops_test.model.get_status()  # noqa: F821
     return status["applications"][app_name]["public-address"]

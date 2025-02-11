@@ -56,7 +56,7 @@ def test_certs_on_disk(certificate_mounts: dict, nginx_context: testing.Context)
         ),
     ) as mgr:
         charm = mgr.charm
-        nginx = Nginx(charm.unit.get_container("nginx"), "test", None, http_port=42, grpc_port=43)
+        nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
 
         # THEN the certs exist on disk
         assert nginx._are_certificates_on_disk
@@ -82,7 +82,7 @@ def test_certs_deleted(certificate_mounts: dict, nginx_context: testing.Context)
         ),
     ) as mgr:
         charm = mgr.charm
-        nginx = Nginx(charm.unit.get_container("nginx"), "test", None, http_port=42, grpc_port=43)
+        nginx = Nginx(charm.unit.get_container("nginx"), "test", None)
 
         # AND when we call delete_certificates
         nginx._delete_certificates()

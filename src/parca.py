@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # reported by the Prometheus metrics is wrong at the time of writing.
 VERSION_PATTERN = re.compile('APP_VERSION="v([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)"')
 # parca server bind port
-PARCA_PORT = 7070
+_PARCA_PORT = 7070
 DEFAULT_BIN_PATH = "/parca"
 DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
 DEFAULT_PROFILE_PATH = "/var/lib/parca"
@@ -54,7 +54,7 @@ class Parca:
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
-    port = PARCA_PORT
+    port = _PARCA_PORT
     service_name = "parca"
     container_name = "parca"
     layer_name = "parca"
@@ -137,7 +137,7 @@ class Parca:
                         "command": parca_command_line(
                             # <localhost> prefix is to ensure users can't reach the server at :7070
                             # and are forced to go through nginx instead.
-                            http_address=f"localhost:{PARCA_PORT}",
+                            http_address=f"localhost:{_PARCA_PORT}",
                             memory_storage_limit=self._memory_storage_limit,
                             enable_persistence=bool(self._enable_persistence or self._s3_config),
                             store_config=self._store_config,
@@ -159,7 +159,7 @@ class Parca:
         retries = 0
         while True:
             try:
-                res = urllib.request.urlopen(f"http://localhost:{PARCA_PORT}")
+                res = urllib.request.urlopen(f"http://localhost:{_PARCA_PORT}")
                 m = VERSION_PATTERN.search(res.read().decode())
                 if m is None:
                     return ""
@@ -172,7 +172,7 @@ class Parca:
 
 
 def parca_command_line(
-    http_address: str = f":{PARCA_PORT}",
+    http_address: str = f":{_PARCA_PORT}",
     enable_persistence: Optional[bool] = False,
     memory_storage_limit: Optional[int] = None,
     *,

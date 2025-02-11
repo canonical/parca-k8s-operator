@@ -22,8 +22,6 @@ CERT_PATH = f"{NGINX_DIR}/certs/server.cert"
 RESOLV_CONF_PATH = "/etc/resolv.conf"
 CA_CERT_PATH = "/usr/local/share/ca-certificates/ca.cert"
 
-NGINX_PORT = 8080
-
 
 @dataclasses.dataclass
 class Address:
@@ -36,7 +34,11 @@ class Address:
 class Nginx:
     """Nginx workload."""
 
-    port = NGINX_PORT
+    # totally arbitrary ports, picked not to collide with tempo's.
+    parca_grpc_server_port = 7993
+    parca_http_server_port = 7994
+
+    # port for the upstream
     config_path = NGINX_CONFIG
 
     service_name = "nginx"
@@ -48,8 +50,6 @@ class Nginx:
             container: Container,
             server_name: str,
             address: Address,
-            http_port: int,
-            grpc_port: int,
             path_prefix: Optional[str] = None,
             tls_config: Optional[TLSConfig] = None,
     ):
@@ -57,8 +57,6 @@ class Nginx:
         self._server_name = server_name
         self._path_prefix = path_prefix
         self._address = address
-        self._http_port = http_port
-        self._grpc_port = grpc_port
         self._tls_config = tls_config
 
     @property
@@ -164,8 +162,8 @@ class Nginx:
     def _reconcile_nginx_config(self):
         new_config = NginxConfig(
             self._server_name, tls=self._are_certificates_on_disk, path_prefix=self._path_prefix,
-            http_port=self._http_port,
-            grpc_port=self._grpc_port,
+            http_port=self.parca_http_server_port,
+            grpc_port=self.parca_grpc_server_port,
         ).config(self._address)
         should_restart: bool = self._has_config_changed(new_config)
         self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
