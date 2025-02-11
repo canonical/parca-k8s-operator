@@ -3,14 +3,13 @@
 # See LICENSE file for licensing details.
 
 import asyncio
-import json
 from subprocess import getoutput
 
 import pytest
 import requests
 from helpers import get_unit_ip
 
-from nginx import NGINX_PORT
+from nginx import Nginx
 
 TRAEFIK = "traefik"
 PARCA = "parca"
@@ -41,41 +40,6 @@ async def test_setup(ops_test, parca_charm, parca_resources):
     await ops_test.model.wait_for_idle(apps=apps, status="active", timeout=1000)
 
 
-@pytest.fixture
-def prefix(ops_test):
-    return f"{ops_test.model_name}-{PARCA}"
-
-
-async def test_proxied_endpoint(ops_test, prefix):
-    proxied_endpoints = await _retrieve_proxied_endpoints(ops_test, TRAEFIK)
-    ingress_ip = _get_ingress_ip(ops_test.model_name)
-    assert proxied_endpoints.get(PARCA, None) == {"url": f"http://{ingress_ip}/{prefix}"}
-
-
-async def test_ingressed_url_200(ops_test, prefix):
-    ingress_ip = _get_ingress_ip(ops_test.model_name)
-    url = f"http://{ingress_ip}/{prefix}"
-    assert requests.get(url).status_code == 200
-
-
-async def test_direct_url_200(ops_test, prefix):
-    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
-    url = f"http://{parca_ip}:{NGINX_PORT}/{prefix}"
-    assert requests.get(url).status_code == 200
-
-
-async def test_direct_url_root_200(ops_test):
-    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
-    url = f"http://{parca_ip}:{NGINX_PORT}"
-    assert requests.get(url).status_code == 200
-
-
-async def test_direct_url_trailing_slash_200(ops_test, prefix):
-    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
-    url = f"http://{parca_ip}:{NGINX_PORT}/{prefix}/"
-    assert requests.get(url).status_code == 200
-
-
 def _get_ingress_ip(model_name):
     result = getoutput(
         f"sudo microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
@@ -83,11 +47,17 @@ def _get_ingress_ip(model_name):
     return result.strip("'")
 
 
-async def _retrieve_proxied_endpoints(ops_test, traefik_application_name):
-    traefik_application = ops_test.model.applications[traefik_application_name]
-    traefik_first_unit = next(iter(traefik_application.units))
-    action = await traefik_first_unit.run_action("show-proxied-endpoints")
-    await action.wait()
-    result = await ops_test.model.get_action_output(action.id)
+@pytest.mark.parametrize("port", (Nginx.parca_http_server_port,
+                                  Nginx.parca_grpc_server_port))
+async def test_ingressed_endpoints(ops_test, port):
+    ingress_ip = _get_ingress_ip(ops_test.model_name)
+    url = f"http://{ingress_ip}:{port}"
+    assert requests.get(url).status_code == 200
 
-    return json.loads(result["proxied-endpoints"])
+
+@pytest.mark.parametrize("port", (Nginx.parca_http_server_port,
+                                  Nginx.parca_grpc_server_port))
+async def test_direct_endpoints(ops_test, port):
+    parca_ip = get_unit_ip(ops_test.model_name, PARCA, 0)
+    url = f"http://{parca_ip}:{port}"
+    assert requests.get(url).status_code == 200
