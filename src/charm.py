@@ -17,7 +17,7 @@ from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
-from charms.loki_k8s.v1.loki_push_api import LogForwarder, LokiPushApiConsumer
+from charms.loki_k8s.v1.loki_push_api import LogForwarder
 from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.parca_k8s.v0.parca_store import (
     ParcaStoreEndpointProvider,
@@ -77,7 +77,7 @@ RELABEL_CONFIG = [
         MetricsEndpointProvider,
         ProfilingEndpointProvider,
         GrafanaDashboardProvider,
-        LokiPushApiConsumer,
+        LogForwarder,
         ParcaStoreEndpointProvider,
         ParcaStoreEndpointRequirer,
         GrafanaSourceProvider,
