@@ -9,7 +9,6 @@ import socket
 import typing
 from pathlib import Path
 from typing import Dict, FrozenSet, List, Optional
-from urllib.parse import urlparse
 
 import ops
 import pydantic
@@ -167,7 +166,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             container=self.unit.get_container(Nginx.container_name),
             server_name=self._fqdn,
             address=Address(name="parca", port=Parca.port),
-            path_prefix=self._external_url_path,
             tls_config=self._tls_config
         )
         self.parca = Parca(
@@ -252,19 +250,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         """Return 'https' if TLS is available else 'http'."""
         return "https" if self._tls_ready else "http"
 
-    @property
-    def _external_url_path(self) -> Optional[str]:
-        """The path part of our external url if we are ingressed, else None.
-
-        This is used to configure the parca server so it can resolve its internal links.
-        """
-        if not self.ingress.is_ready:
-            return None
-
-        external_url = urlparse(self.http_server_url)
-        # external_url.path already includes a trailing /
-        return str(external_url.path) or None
-
     # TLS CONFIG
     @property
     def _tls_config(self) -> Optional["TLSConfig"]:
@@ -323,7 +308,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         return self._format_scrape_target(
             Nginx.parca_http_server_port,
             self._scheme,
-            profiles_path=self._external_url_path,
             labels=labels,
             job_name=job_name,
             relabel_configs=RELABEL_CONFIG,
@@ -355,13 +339,13 @@ class ParcaOperatorCharm(ops.CharmBase):
         ) + self._format_scrape_target(
             Nginx.parca_http_server_port,
             scheme=self._scheme,
-            metrics_path=f"{self._external_url_path or ''}/metrics",
+            metrics_path="/metrics",
         )
 
     @property
     def _self_profiling_scrape_jobs(self) -> List[ScrapeJobsConfig]:
         return self._format_scrape_target(
-            Nginx.parca_http_server_port, self._scheme, profiles_path=self._external_url_path
+            Nginx.parca_http_server_port, self._scheme
         )
 
     def _format_scrape_target(
@@ -369,7 +353,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             port: int,
             scheme="http",
             metrics_path=None,
-            profiles_path: Optional[str] = None,
             labels: Optional[Dict[str, str]] = None,
             job_name: Optional[str] = None,
             relabel_configs: Optional[List[RelabelConfig]] = None,
@@ -380,8 +363,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         jobs_config: ScrapeJobsConfig = {"static_configs": [job]}
         if metrics_path:
             jobs_config["metrics_path"] = metrics_path
-        if profiles_path:
-            jobs_config["profiling_config"] = {"path_prefix": profiles_path}
         if scheme == "https":
             jobs_config["scheme"] = "https"  # noqa
             if Path(CA_CERT_PATH).exists():

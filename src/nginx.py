@@ -50,12 +50,10 @@ class Nginx:
             container: Container,
             server_name: str,
             address: Address,
-            path_prefix: Optional[str] = None,
             tls_config: Optional[TLSConfig] = None,
     ):
         self._container = container
         self._server_name = server_name
-        self._path_prefix = path_prefix
         self._address = address
         self._tls_config = tls_config
 
@@ -161,7 +159,7 @@ class Nginx:
 
     def _reconcile_nginx_config(self):
         new_config = NginxConfig(
-            self._server_name, tls=self._are_certificates_on_disk, path_prefix=self._path_prefix,
+            self._server_name, tls=self._are_certificates_on_disk,
             http_port=self.parca_http_server_port,
             grpc_port=self.parca_grpc_server_port,
         ).config(self._address)
@@ -199,12 +197,11 @@ class NginxConfig:
     def __init__(self, server_name: str, tls: bool,
                  http_port: int,
                  grpc_port: int,
-                 path_prefix: Optional[str] = None):
+                 ):
         self._tls = tls
         self._http_port = http_port
         self._grpc_port = grpc_port
         self.server_name = server_name
-        self._path_prefix = path_prefix
         self.dns_IP_address = _get_dns_ip_address()
 
     def config(self, address: Address) -> str:
@@ -316,45 +313,27 @@ class NginxConfig:
     def _locations(self, upstream: str, grpc: bool) -> List[Dict[str, Any]]:
         # our locations only use http/grpc (no -secure), because parca doesn't take TLS.
         # nginx has to terminate TLS in both cases and forward all unencrypted to parca.
-
         protocol = "grpc" if grpc else "http"
-        prefix = self._path_prefix  # starts with /
-
-        proxy_block = [
-            # upstream server is not running with TLS, so we proxy the request as http
-            {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
-            {
-                "directive": "grpc_pass" if grpc else "proxy_pass",
-                "args": ["$backend"],
-            },
-            # if a server is down, no need to wait for a long time to pass on
-            # the request to the next available one
-            {
-                "directive": "proxy_connect_timeout",
-                "args": ["5s"],
-            },
-        ]
-        redirect_block = [
-            {
-                "directive": "return",
-                "args": ["302", prefix],
-            }
-        ]
         nginx_locations = [
             {
                 "directive": "location",
                 "args": ["/"],
-                "block": redirect_block if prefix else proxy_block,
+                "block": [
+                    # upstream server is not running with TLS, so we proxy the request as http
+                    {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
+                    {
+                        "directive": "grpc_pass" if grpc else "proxy_pass",
+                        "args": ["$backend"],
+                    },
+                    # if a server is down, no need to wait for a long time to pass on
+                    # the request to the next available one
+                    {
+                        "directive": "proxy_connect_timeout",
+                        "args": ["5s"],
+                    },
+                ],
             },
         ]
-        if prefix:
-            nginx_locations.append(
-                {
-                    "directive": "location",
-                    "args": [prefix],
-                    "block": proxy_block,
-                }
-            )
         return nginx_locations
 
     def _resolver(
