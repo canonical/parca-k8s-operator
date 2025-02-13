@@ -6,10 +6,9 @@ from subprocess import getoutput, getstatusoutput
 from minio import Minio
 from pytest_operator.plugin import OpsTest
 
-from nginx import CA_CERT_PATH, NGINX_PORT
+from nginx import CA_CERT_PATH, Nginx
 
 PARCA = "parca"
-
 
 TESTING_MINIO_ACCESS_KEY = "accesskey"
 TESTING_MINIO_SECRET_KEY = "secretkey"
@@ -82,18 +81,18 @@ async def deploy_and_configure_minio(ops_test: OpsTest):
     assert action_result.status == "completed"
 
 
-async def get_pubic_address(ops_test: OpsTest, app_name):
+async def get_public_address(ops_test: OpsTest, app_name):
     """Return a juju application's public address."""
     status = await ops_test.model.get_status()  # noqa: F821
     return status["applications"][app_name]["public-address"]
 
 
 def query_parca_server(
-    model_name, exec_target_app_name, tls=False, ca_cert_path=CA_CERT_PATH, url_path=""
+        model_name, exec_target_app_name, tls=False, ca_cert_path=CA_CERT_PATH, url_path=""
 ):
     """Run a query the parca server."""
     parca_address = get_unit_fqdn(model_name, PARCA, 0)
-    url = f"{'https' if tls else 'http'}://{parca_address}:{NGINX_PORT}{url_path}"
+    url = f"{'https' if tls else 'http'}://{parca_address}:{Nginx.parca_http_server_port}{url_path}"
     # Parca's certificate only contains the fqdn address of parca as SANs.
     # To query the parca server with TLS while validating the certificate, we need to perform the query
     # against the parca server's fqdn.

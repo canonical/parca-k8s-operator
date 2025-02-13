@@ -4,7 +4,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from parca import DEFAULT_CONFIG_PATH, PARCA_PORT, Parca
+from parca import DEFAULT_CONFIG_PATH, Parca
 
 # Extract from a real response that Parca issued to test the regular expression works for capturing
 # the version from the served page.
@@ -31,7 +31,7 @@ class TestParca(unittest.TestCase):
                     "override": "replace",
                     "command": f"/parca "
                                f"--config-path={DEFAULT_CONFIG_PATH} "
-                               f"--http-address=localhost:{PARCA_PORT} "
+                               f"--http-address=localhost:{Parca.port} "
                                "--storage-enable-wal "
                                "--storage-active-memory=1073741824",
                 }

@@ -22,8 +22,6 @@ CERT_PATH = f"{NGINX_DIR}/certs/server.cert"
 RESOLV_CONF_PATH = "/etc/resolv.conf"
 CA_CERT_PATH = "/usr/local/share/ca-certificates/ca.cert"
 
-NGINX_PORT = 8080
-
 
 @dataclasses.dataclass
 class Address:
@@ -36,7 +34,11 @@ class Address:
 class Nginx:
     """Nginx workload."""
 
-    port = NGINX_PORT
+    # totally arbitrary ports, picked not to collide with tempo's.
+    parca_grpc_server_port = 7993
+    parca_http_server_port = 7994
+
+    # port for the upstream
     config_path = NGINX_CONFIG
 
     service_name = "nginx"
@@ -44,16 +46,14 @@ class Nginx:
     layer_name = "nginx"
 
     def __init__(
-        self,
-        container: Container,
-        server_name: str,
-        address: Address,
-        path_prefix: Optional[str] = None,
-        tls_config: Optional[TLSConfig] = None,
+            self,
+            container: Container,
+            server_name: str,
+            address: Address,
+            tls_config: Optional[TLSConfig] = None,
     ):
         self._container = container
         self._server_name = server_name
-        self._path_prefix = path_prefix
         self._address = address
         self._tls_config = tls_config
 
@@ -61,10 +61,10 @@ class Nginx:
     def _are_certificates_on_disk(self) -> bool:
         """Return True if the certificates files are on disk."""
         return (
-            self._container.can_connect()
-            and self._container.exists(CERT_PATH)
-            and self._container.exists(KEY_PATH)
-            and self._container.exists(CA_CERT_PATH)
+                self._container.can_connect()
+                and self._container.exists(CERT_PATH)
+                and self._container.exists(KEY_PATH)
+                and self._container.exists(CA_CERT_PATH)
         )
 
     def _update_certificates(self, server_cert: str, ca_cert: str, private_key: str) -> None:
@@ -83,9 +83,9 @@ class Nginx:
                 else ""
             )
             if (
-                current_server_cert == server_cert
-                and current_private_key == private_key
-                and current_ca_cert == ca_cert
+                    current_server_cert == server_cert
+                    and current_private_key == private_key
+                    and current_ca_cert == ca_cert
             ):
                 # No update needed
                 return
@@ -159,7 +159,9 @@ class Nginx:
 
     def _reconcile_nginx_config(self):
         new_config = NginxConfig(
-            self._server_name, tls=self._are_certificates_on_disk, path_prefix=self._path_prefix
+            self._server_name, tls=self._are_certificates_on_disk,
+            http_port=self.parca_http_server_port,
+            grpc_port=self.parca_grpc_server_port,
         ).config(self._address)
         should_restart: bool = self._has_config_changed(new_config)
         self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
@@ -192,10 +194,14 @@ class Nginx:
 class NginxConfig:
     """Nginx config builder."""
 
-    def __init__(self, server_name: str, tls: bool, path_prefix: Optional[str] = None):
+    def __init__(self, server_name: str, tls: bool,
+                 http_port: int,
+                 grpc_port: int,
+                 ):
         self._tls = tls
+        self._http_port = http_port
+        self._grpc_port = grpc_port
         self.server_name = server_name
-        self._path_prefix = path_prefix
         self.dns_IP_address = _get_dns_ip_address()
 
     def config(self, address: Address) -> str:
@@ -252,13 +258,19 @@ class NginxConfig:
                     },
                     {"directive": "proxy_read_timeout", "args": ["300"]},
                     # server block
-                    self._build_server_config(8080, address.name, self._tls),
+                    # internally, the parca server listens only to a single (7070 by default) port;
+                    # however, we can't generically configure nginx to do proxy_pass AND grpc_pass on the same
+                    # external port, so we configure two separate ones that have the same upstream and send
+                    # everything to the one parca server.
+                    self._build_server_config(self._grpc_port, address.name, self._tls, grpc=True),
+                    self._build_server_config(self._http_port, address.name, self._tls),
                 ],
             },
         ]
         return full_config
 
-    def _log_verbose(self, verbose: bool = True) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _log_verbose(verbose: bool = True) -> List[Dict[str, Any]]:
         if verbose:
             return [{"directive": "access_log", "args": ["/dev/stderr", "main"]}]
         return [
@@ -273,7 +285,8 @@ class NginxConfig:
             {"directive": "access_log", "args": ["/dev/stderr"]},
         ]
 
-    def _upstream(self, address: Address) -> Dict[str, Any]:
+    @staticmethod
+    def _upstream(address: Address) -> Dict[str, Any]:
         return {
             "directive": "upstream",
             "args": [address.name],
@@ -297,49 +310,35 @@ class NginxConfig:
             ],
         }
 
-    def _locations(self, upstream: str) -> List[Dict[str, Any]]:
-        prefix = self._path_prefix  # starts with /
-
-        proxy_block = [
-            # upstream server is not running with TLS, so we proxy the request as http
-            {"directive": "set", "args": ["$backend", f"http://{upstream}"]},
-            {
-                "directive": "proxy_pass",
-                "args": ["$backend"],
-            },
-            # if a server is down, no need to wait for a long time to pass on
-            # the request to the next available one
-            {
-                "directive": "proxy_connect_timeout",
-                "args": ["5s"],
-            },
-        ]
-        redirect_block = [
-            {
-                "directive": "return",
-                "args": ["302", prefix],
-            }
-        ]
+    def _locations(self, upstream: str, grpc: bool) -> List[Dict[str, Any]]:
+        # our locations only use http/grpc (no -secure), because parca doesn't take TLS.
+        # nginx has to terminate TLS in both cases and forward all unencrypted to parca.
+        protocol = "grpc" if grpc else "http"
         nginx_locations = [
             {
                 "directive": "location",
                 "args": ["/"],
-                "block": redirect_block if prefix else proxy_block,
+                "block": [
+                    # upstream server is not running with TLS, so we proxy the request as http
+                    {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
+                    {
+                        "directive": "grpc_pass" if grpc else "proxy_pass",
+                        "args": ["$backend"],
+                    },
+                    # if a server is down, no need to wait for a long time to pass on
+                    # the request to the next available one
+                    {
+                        "directive": "proxy_connect_timeout",
+                        "args": ["5s"],
+                    },
+                ],
             },
         ]
-        if prefix:
-            nginx_locations.append(
-                {
-                    "directive": "location",
-                    "args": [prefix],
-                    "block": proxy_block,
-                }
-            )
         return nginx_locations
 
     def _resolver(
-        self,
-        custom_resolver: Optional[str] = None,
+            self,
+            custom_resolver: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         # pass a custom resolver, such as kube-dns.kube-system.svc.cluster.local.
         if custom_resolver:
@@ -353,7 +352,8 @@ class NginxConfig:
             }
         ]
 
-    def _basic_auth(self, enabled: bool) -> List[Optional[Dict[str, Any]]]:
+    @staticmethod
+    def _basic_auth(enabled: bool) -> List[Optional[Dict[str, Any]]]:
         if enabled:
             return [
                 {"directive": "auth_basic", "args": ['"Tempo"']},
@@ -364,14 +364,28 @@ class NginxConfig:
             ]
         return []
 
-    def _listen(self, port: int, ssl: bool) -> List[Dict[str, Any]]:
+    def _listen(self, port: int, ssl: bool, grpc: bool) -> List[Dict[str, Any]]:
+        # listen both on ipv4 and ipv6 to be safe
         directives = [
-            {"directive": "listen", "args": [f"{port}"] + (["ssl"] if ssl else [])},
-            {"directive": "listen", "args": [f"[::]:{port}"] + (["ssl"] if ssl else [])},
+            {"directive": "listen", "args": self._listen_args(port, False, ssl, grpc=grpc)},
+            {"directive": "listen", "args": self._listen_args(port, True, ssl, grpc=grpc)},
         ]
         return directives
 
-    def _build_server_config(self, port: int, upstream: str, tls: bool = False) -> Dict[str, Any]:
+    @staticmethod
+    def _listen_args(port: int, ipv6: bool, ssl: bool, grpc: bool) -> List[str]:
+        args = []
+        if ipv6:
+            args.append(f"[::]:{port}")
+        else:
+            args.append(f"{port}")
+        if ssl:
+            args.append("ssl")
+        if grpc:
+            args.append("http2")
+        return args
+
+    def _build_server_config(self, port: int, upstream: str, tls: bool = False, grpc: bool = False) -> Dict[str, Any]:
         auth_enabled = False
 
         if tls:
@@ -379,7 +393,7 @@ class NginxConfig:
                 "directive": "server",
                 "args": [],
                 "block": [
-                    *self._listen(port, ssl=True),
+                    *self._listen(port, ssl=True, grpc=grpc),
                     *self._basic_auth(auth_enabled),
                     {
                         "directive": "proxy_set_header",
@@ -391,7 +405,7 @@ class NginxConfig:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
                     {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
-                    *self._locations(upstream),
+                    *self._locations(upstream, grpc=grpc),
                 ],
             }
 
@@ -399,14 +413,14 @@ class NginxConfig:
             "directive": "server",
             "args": [],
             "block": [
-                *self._listen(port, ssl=False),
+                *self._listen(port, ssl=False, grpc=grpc),
                 *self._basic_auth(auth_enabled),
                 {
                     "directive": "proxy_set_header",
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
                 {"directive": "server_name", "args": [self.server_name]},
-                *self._locations(upstream),
+                *self._locations(upstream, grpc=grpc),
             ],
         }
 

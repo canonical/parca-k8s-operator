@@ -99,7 +99,8 @@ def test_endpoint_with_tls_enabled(context, base_state, certificates, ca):
         charm: ParcaOperatorCharm = mgr.charm
         # THEN we have TLS enabled
         assert charm._tls_ready
-        assert charm._external_url.startswith("https://")
+        assert charm._scheme == "https"
+        assert charm.http_server_url.startswith("https://")
         scrape_config = charm._self_profiling_scrape_config
         assert "scheme" in scrape_config and scrape_config["scheme"] == "https"
         assert "tls_config" in scrape_config and scrape_config["tls_config"]["ca"] == ca.raw
@@ -116,6 +117,7 @@ def test_endpoint_with_tls_disabled(
         charm: ParcaOperatorCharm = mgr.charm
         # THEN we have TLS disabled
         assert not charm._tls_ready
-        assert charm._external_url.startswith("http://")
+        assert charm._scheme == "http"
+        assert charm.http_server_url.startswith("http://")
         scrape_config = charm._self_profiling_scrape_config
         assert "scheme" not in scrape_config

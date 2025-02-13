@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # reported by the Prometheus metrics is wrong at the time of writing.
 VERSION_PATTERN = re.compile('APP_VERSION="v([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)"')
 # parca server bind port
-PARCA_PORT = 7070
+_PARCA_PORT = 7070
 DEFAULT_BIN_PATH = "/parca"
 DEFAULT_CONFIG_PATH = "/etc/parca/parca.yaml"
 DEFAULT_PROFILE_PATH = "/var/lib/parca"
@@ -41,7 +41,6 @@ class ScrapeJobsConfig(TypedDict, total=False):
 
     static_configs: List[ScrapeJob]
     profiling_config: Dict[str, str]
-    metrics_path: str
     scheme: Optional[Literal["https"]]
     tls_config: Dict[str, str]
     job_name: Optional[str]
@@ -54,7 +53,7 @@ class Parca:
     # Seconds to wait in between requests to version endpoint
     _version_retry_wait = 3
 
-    port = PARCA_PORT
+    port = _PARCA_PORT
     service_name = "parca"
     container_name = "parca"
     layer_name = "parca"
@@ -66,7 +65,6 @@ class Parca:
         enable_persistence: Optional[bool] = None,
         memory_storage_limit: Optional[int] = None,
         store_config: Optional[Dict[str, str]] = None,
-        path_prefix: Optional[str] = None,
         tls_config: Optional["TLSConfig"] = None,
         s3_config: Optional["S3Config"] = None,
         tracing_endpoint: Optional[str] = None,
@@ -76,7 +74,6 @@ class Parca:
         self._enable_persistence = enable_persistence
         self._memory_storage_limit = memory_storage_limit
         self._store_config = store_config
-        self._path_prefix = path_prefix
         self._tls_config = tls_config
         self._s3_config = s3_config
         self._tracing_endpoint = tracing_endpoint
@@ -139,11 +136,10 @@ class Parca:
                         "command": parca_command_line(
                             # <localhost> prefix is to ensure users can't reach the server at :7070
                             # and are forced to go through nginx instead.
-                            http_address=f"localhost:{PARCA_PORT}",
+                            http_address=f"localhost:{_PARCA_PORT}",
                             memory_storage_limit=self._memory_storage_limit,
                             enable_persistence=bool(self._enable_persistence or self._s3_config),
                             store_config=self._store_config,
-                            path_prefix=self._path_prefix,
                             tracing_endpoint=self._tracing_endpoint,
                         ),
                         "startup": "enabled",
@@ -162,7 +158,7 @@ class Parca:
         retries = 0
         while True:
             try:
-                res = urllib.request.urlopen(f"http://localhost:{PARCA_PORT}")
+                res = urllib.request.urlopen(f"http://localhost:{_PARCA_PORT}")
                 m = VERSION_PATTERN.search(res.read().decode())
                 if m is None:
                     return ""
@@ -175,14 +171,13 @@ class Parca:
 
 
 def parca_command_line(
-    http_address: str = f":{PARCA_PORT}",
+    http_address: str = f":{_PARCA_PORT}",
     enable_persistence: Optional[bool] = False,
     memory_storage_limit: Optional[int] = None,
     *,
     bin_path: str = DEFAULT_BIN_PATH,
     config_path: str = DEFAULT_CONFIG_PATH,
     profile_path: str = DEFAULT_PROFILE_PATH,
-    path_prefix: Optional[str] = None,
     store_config: Optional[dict] = None,
     tracing_endpoint: Optional[str] = None,
 ) -> str:
@@ -195,7 +190,6 @@ def parca_command_line(
         bin_path: Path to the Parca binary to be started.
         config_path: Path to the Parca YAML configuration file.
         profile_path: Path to profile storage directory.
-        path_prefix: Path prefix to configure parca server with. Must start with a ``/``.
         store_config: Configuration to send profiles to a remote store
         tracing_endpoint: Address to send traces to.
     """
@@ -203,16 +197,6 @@ def parca_command_line(
            f"--config-path={config_path}",
            f"--http-address={http_address}",
            "--storage-enable-wal"]
-
-    if path_prefix:
-        if not path_prefix.startswith("/"):
-            # parca will blow up if you try this
-            raise ValueError("invalid path_prefix: should start with a slash.")
-        # quote path_prefix so we don't have to escape the slashes
-        path_prefix_option = f"--path-prefix='{path_prefix}'"
-        cmd.append(path_prefix_option)
-
-    # Render the template files with the correct values
 
     if enable_persistence:
         # Add the correct command line options for disk persistence

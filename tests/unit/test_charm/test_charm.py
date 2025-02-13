@@ -11,8 +11,8 @@ from ops.model import ActiveStatus, WaitingStatus
 from ops.testing import CharmEvents, Relation, State
 
 from charm import RELABEL_CONFIG
-from nginx import NGINX_PORT
-from parca import DEFAULT_CONFIG_PATH, PARCA_PORT
+from nginx import Nginx
+from parca import DEFAULT_CONFIG_PATH, Parca
 from tests.unit.test_charm.container_utils import (
     assert_parca_command_equals,
     assert_parca_config_equals,
@@ -24,7 +24,7 @@ DEFAULT_PLAN = {
             "summary": "parca",
             "startup": "enabled",
             "override": "replace",
-            "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{PARCA_PORT} --storage-active-memory=4294967296",
+            "command": f"/parca --config-path={DEFAULT_CONFIG_PATH} --http-address=localhost:{Parca.port} --storage-active-memory=4294967296",
         }
     }
 }
@@ -115,7 +115,7 @@ def test_config_changed_persistence(context, base_state):
     assert_parca_command_equals(
         state_out,
         f"/parca --config-path={DEFAULT_CONFIG_PATH} "
-        f"--http-address=localhost:{PARCA_PORT} "
+        f"--http-address=localhost:{Parca.port} "
         "--storage-enable-wal "
         "--enable-persistence "
         "--storage-path=/var/lib/parca",
@@ -133,7 +133,7 @@ def test_config_changed_active_memory(context, base_state):
         state_out,
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
-        f"--http-address=localhost:{PARCA_PORT} "
+        f"--http-address=localhost:{Parca.port} "
         "--storage-enable-wal "
         f"--storage-active-memory=2147483648",
     )
@@ -173,7 +173,7 @@ def test_parca_pebble_layer_adjusted_memory(context, base_state):
         state_out_2,
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
-        f"--http-address=localhost:{PARCA_PORT} "
+        f"--http-address=localhost:{Parca.port} "
         "--storage-enable-wal "
         f"--storage-active-memory=1073741824",
     )
@@ -194,7 +194,7 @@ def test_parca_pebble_layer_storage_persist(context, base_state):
         state_out_2,
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
-        f"--http-address=localhost:{PARCA_PORT} "
+        f"--http-address=localhost:{Parca.port} "
         "--storage-enable-wal "
         "--enable-persistence "
         "--storage-path=/var/lib/parca",
@@ -291,7 +291,7 @@ def test_parca_store_relation(context, base_state):
     rel_out = state_out.get_relation(relation.id)
     # Ensure that the unit set its targets correctly
     expected = {
-        "remote-store-address": f"{socket.getfqdn()}:{NGINX_PORT}",
+        "remote-store-address": f"{socket.getfqdn()}:{Nginx.parca_grpc_server_port}",
         "remote-store-insecure": "true",
     }
     for key, val in expected.items():
@@ -324,7 +324,7 @@ def test_parca_external_store_relation(context, base_state):
         state_out,
         "/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
-        f"--http-address=localhost:{PARCA_PORT} "
+        f"--http-address=localhost:{Parca.port} "
         "--storage-enable-wal "
         "--storage-active-memory=4294967296 "
         "--store-address=grpc.polarsignals.com:443 "
@@ -342,7 +342,7 @@ def test_self_profiling_no_endpoint_relation(context, base_state):
             "relabel_configs": RELABEL_CONFIG,
             "static_configs": [
                 {
-                    "targets": [f"{socket.getfqdn()}:{NGINX_PORT}"],
+                    "targets": [f"{socket.getfqdn()}:{Nginx.parca_http_server_port}"],
                 }
             ],
         }
@@ -355,7 +355,7 @@ def test_self_profiling_no_endpoint_relation(context, base_state):
 
 def test_self_profiling_endpoint_relation(context, base_state):
     expected_scrape_jobs = [
-        {"static_configs": [{"targets": [f"{socket.getfqdn()}:{NGINX_PORT}"]}]}
+        {"static_configs": [{"targets": [f"{socket.getfqdn()}:{Nginx.parca_http_server_port}"]}]}
     ]
     # GIVEN a self-profiling-endpoint relation
     relation = Relation("self-profiling-endpoint")
@@ -395,7 +395,7 @@ def test_parca_workload_tracing_relation(context, base_state):
         state_out,
         f"/parca "
         f"--config-path={DEFAULT_CONFIG_PATH} "
-        f"--http-address=localhost:{PARCA_PORT} "
+        f"--http-address=localhost:{Parca.port} "
         "--storage-enable-wal "
         "--storage-active-memory=4294967296 "
         "--otlp-address=192.0.2.0/24",

@@ -9,7 +9,6 @@ import socket
 import typing
 from pathlib import Path
 from typing import Dict, FrozenSet, List, Optional
-from urllib.parse import urlparse
 
 import ops
 import pydantic
@@ -31,9 +30,9 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     Mode,
     TLSCertificatesRequiresV4,
 )
-from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from cosl import JujuTopology
 
+from ingress_configuration import EntryPoint, Protocol, TraefikRouteEndpoint
 from models import S3Config, TLSConfig
 from nginx import (
     Address,
@@ -99,16 +98,17 @@ class ParcaOperatorCharm(ops.CharmBase):
             certificate_requests=[self._get_certificate_request_attributes()],
             mode=Mode.UNIT,
         )
-        self.ingress = IngressPerAppRequirer(
+        self.ingress = TraefikRouteEndpoint(
             self,
-            host=self._fqdn,
-            port=Nginx.port,
-            scheme=self._scheme,
-        )
+            tls=self._tls_ready,
+            entrypoints=(
+                EntryPoint("parca-grpc", Protocol.grpc, Nginx.parca_grpc_server_port),
+                EntryPoint("parca-http", Protocol.http, Nginx.parca_http_server_port),
+            ))
         self.metrics_endpoint_provider = MetricsEndpointProvider(
             self,
             jobs=self._metrics_scrape_jobs,
-            external_url=self._external_url,
+            external_url=self.http_server_url,
             refresh_event=[self.certificates.on.certificate_available],
         )
 
@@ -127,16 +127,16 @@ class ParcaOperatorCharm(ops.CharmBase):
             item=CatalogueItem(
                 "Parca UI",
                 icon="chart-areaspline",
-                url=self._external_url,
+                url=self.http_server_url,
                 description="""Continuous profiling backend. Allows you to collect, store,
                  query and visualize profiles from your distributed deployment.""",
             ),
         )
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
             self,
-            port=Nginx.port,
+            port=Nginx.parca_grpc_server_port,
             insecure=True,
-            external_url=self._external_url
+            external_url=self.grpc_server_url,
         )
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"
@@ -147,8 +147,8 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
             source_type="parca",
-            source_url=self._external_url,
-            refresh_event=[self.certificates.on.certificate_available],
+            source_url=self.http_server_url,
+            # no need to use refresh_events logic as we refresh on reconcile.
         )
 
         self._charm_tracing_endpoint, self._server_cert = charm_tracing_config(
@@ -166,38 +166,36 @@ class ParcaOperatorCharm(ops.CharmBase):
             container=self.unit.get_container(Nginx.container_name),
             server_name=self._fqdn,
             address=Address(name="parca", port=Parca.port),
-            path_prefix=self._external_url_path,
-            tls_config=self._tls_config,
+            tls_config=self._tls_config
         )
-        # parca needs to be instantiated after `nginx`, as it accesses self.nginx.port
         self.parca = Parca(
             container=self.unit.get_container(Parca.container_name),
             scrape_configs=self._profiling_scrape_configs,
             enable_persistence=typing.cast(bool, self.config.get("enable-persistence", None)),
             memory_storage_limit=typing.cast(int, self.config.get("memory-storage-limit", None)),
             store_config=self.store_requirer.config,
-            path_prefix=self._external_url_path,
             tls_config=self._tls_config,
             s3_config=self._s3_config,
             tracing_endpoint=self._workload_tracing_endpoint,
         )
         self.nginx_exporter = NginxPrometheusExporter(
             container=self.unit.get_container(NginxPrometheusExporter.container_name),
-            nginx_port=Nginx.port,
+            nginx_port=Nginx.parca_http_server_port,
         )
 
         # event handlers
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         # unconditional logic
-        self._reconcile()
+        self.reconcile()
 
     # RECONCILERS
-    def _reconcile(self):
+    def reconcile(self):
         """Unconditional logic to run regardless of the event we're processing.
 
         This will ensure all workloads are up and running if the preconditions are met.
         """
-        self.unit.set_ports(Nginx.port)
+        self.unit.set_ports(Nginx.parca_http_server_port,
+                            Nginx.parca_grpc_server_port)
 
         self.nginx.reconcile()
         self.nginx_exporter.reconcile()
@@ -214,7 +212,8 @@ class ParcaOperatorCharm(ops.CharmBase):
         # and it's a cheap operation to push it, so we always do it.
         self.metrics_endpoint_provider.set_scrape_job_spec()
         self.self_profiling_endpoint_provider.set_scrape_job_spec()
-        self.grafana_source_provider.update_source(source_url=self._external_url)
+        self.grafana_source_provider.update_source(source_url=self.http_server_url)
+        self.ingress.reconcile()
 
     def _reconcile_tls_config(self) -> None:
         """Update the TLS certificates for the charm container."""
@@ -228,32 +227,28 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     # INGRESS/ROUTING PROPERTIES
     @property
-    def _internal_url(self):
-        """Return workload's internal URL."""
-        return f"{self._scheme}://{self._fqdn}:{Nginx.port}"
+    def http_server_url(self):
+        """Http server url; ingressed if available, else over fqdn."""
+        if external_host := self.ingress.http_external_host:
+            # this already includes the scheme: http or https, depending on the ingress
+            return f"{external_host}:{Nginx.parca_http_server_port}"
+        return f"{self._scheme}://{self._fqdn}:{Nginx.parca_http_server_port}"
+
+    @property
+    def grpc_server_url(self):
+        """Grpc server url; ingressed if available, else over fqdn.
+
+        It will NOT include the scheme.
+        """
+        if external_host := self.ingress.grpc_external_host:
+            # this does not include any scheme.
+            return f"{external_host}:{Nginx.parca_http_server_port}"
+        return f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
 
     @property
     def _scheme(self) -> str:
         """Return 'https' if TLS is available else 'http'."""
         return "https" if self._tls_ready else "http"
-
-    @property
-    def _external_url(self) -> str:
-        """Return the external hostname if configured, else the internal one."""
-        return self.ingress.url or self._internal_url
-
-    @property
-    def _external_url_path(self) -> Optional[str]:
-        """The path part of our external url if we are ingressed, else None.
-
-        This is used to configure the parca server so it can resolve its internal links.
-        """
-        if not self.ingress.is_ready():
-            return None
-
-        external_url = urlparse(self.ingress.url)
-        # external_url.path already includes a trailing /
-        return str(external_url.path) or None
 
     # TLS CONFIG
     @property
@@ -282,7 +277,19 @@ class ParcaOperatorCharm(ops.CharmBase):
             sans_dns=sans_dns,
         )
 
-    # SCRAPE JOBS CONFIGURATION
+    # STORAGE CONFIG
+    @property
+    def _s3_config(self) -> Optional[S3Config]:
+        """Cast and validate the untyped s3 databag to something we can handle."""
+        try:
+            # we have to type-ignore here because the s3 lib's type annotation is wrong
+            raw = self.s3_requirer.get_s3_connection_info()
+            return S3Config(**raw)  # type: ignore
+        except pydantic.ValidationError:
+            logger.debug("s3 connection absent or corrupt")
+            return None
+
+    # PROFILING SCRAPE JOBS CONFIGURATION
     @property
     def _profiling_scrape_configs(self) -> List[ScrapeJobsConfig]:
         """The scrape configuration that Parca will use for scraping profiles.
@@ -295,6 +302,11 @@ class ParcaOperatorCharm(ops.CharmBase):
         if not self.self_profiling_endpoint_provider.is_ready():
             scrape_configs.append(self._self_profiling_scrape_config)
         return scrape_configs
+
+    @property
+    def _self_profiling_scrape_jobs(self) -> List[ScrapeJobsConfig]:
+        """The self-profiling scrape jobs that will become other parca's scrape configs."""
+        return self._parca_scrape_target()
 
     @property
     def _self_profiling_scrape_config(self) -> ScrapeJobsConfig:
@@ -310,31 +322,15 @@ class ParcaOperatorCharm(ops.CharmBase):
             if value
         }
 
-        return self._format_scrape_target(
-            self.nginx.port,
-            self._scheme,
-            profiles_path=self._external_url_path,
+        return self._parca_scrape_target(
             labels=labels,
             job_name=job_name,
             relabel_configs=RELABEL_CONFIG,
         )[0]
 
-    # STORAGE CONFIG
-    @property
-    def _s3_config(self) -> Optional[S3Config]:
-        """Cast and validate the untyped s3 databag to something we can handle."""
-        try:
-            # we have to type-ignore here because the s3 lib's type annotation is wrong
-            raw = self.s3_requirer.get_s3_connection_info()
-            return S3Config(**raw)  # type: ignore
-        except pydantic.ValidationError:
-            logger.debug("s3 connection absent or corrupt")
-            return None
-
-    # SCRAPE JOBS CONFIGURATION
     @property
     def _metrics_scrape_jobs(self) -> List[ScrapeJobsConfig]:
-        return self._format_scrape_target(
+        return self._prometheus_scrape_target(
             NginxPrometheusExporter.port,
             # FIXME: https://github.com/canonical/parca-k8s-operator/issues/399
             #  nginx-prometheus-exporter does not natively run with TLS
@@ -342,50 +338,24 @@ class ParcaOperatorCharm(ops.CharmBase):
             #  /nginx-metrics to localhost:9411/metrics
             #  so once we relate with SSC, will metrics scraping be broken?
             scheme="http",
-        ) + self._format_scrape_target(
-            Nginx.port,
+        ) + self._prometheus_scrape_target(
+            Nginx.parca_http_server_port,
             scheme=self._scheme,
-            metrics_path=f"{self._external_url_path or ''}/metrics",
         )
 
-    @property
-    def _self_profiling_scrape_jobs(self) -> List[ScrapeJobsConfig]:
-        return self._format_scrape_target(
-            Nginx.port, self._scheme, profiles_path=self._external_url_path
-        )
+    def _parca_scrape_target(self, **kwargs):
+        return _generic_scrape_target(
+            fqdn=self._fqdn,
+            port=Nginx.parca_http_server_port,
+            scheme=self._scheme,
+            tls_config_ca_file_key="ca", **kwargs)
 
-    def _format_scrape_target(
-        self,
-        port: int,
-        scheme="http",
-        metrics_path=None,
-        profiles_path: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        job_name: Optional[str] = None,
-        relabel_configs: Optional[List[RelabelConfig]] = None,
-    ) -> List[ScrapeJobsConfig]:
-        job: ScrapeJob = {"targets": [f"{self._fqdn}:{port}"]}
-        if labels:
-            job["labels"] = labels
-        jobs_config: ScrapeJobsConfig = {"static_configs": [job]}
-        if metrics_path:
-            jobs_config["metrics_path"] = metrics_path
-        if profiles_path:
-            jobs_config["profiling_config"] = {"path_prefix": profiles_path}
-        if scheme == "https":
-            jobs_config["scheme"] = "https"
-            if Path(CA_CERT_PATH).exists():
-                jobs_config["tls_config"] = {
-                    # ca_file should hold the CA path, but prometheus charm expects ca_file to hold the cert contents.
-                    # https://github.com/canonical/prometheus-k8s-operator/issues/670
-                    "ca_file" if metrics_path else "ca": Path(CA_CERT_PATH).read_text()
-                }
-        if job_name:
-            jobs_config["job_name"] = job_name
-        if relabel_configs:
-            jobs_config["relabel_configs"] = relabel_configs
-
-        return [jobs_config]
+    def _prometheus_scrape_target(self, port: int, **kwargs):
+        # ca_file should hold the CA path, but prometheus charm expects ca_file to hold the cert contents.
+        # https://github.com/canonical/prometheus-k8s-operator/issues/670
+        return _generic_scrape_target(
+            fqdn=self._fqdn, port=port,
+            tls_config_ca_file_key="ca_file", **kwargs)
 
     # TRACING PROPERTIES
     @property
@@ -418,7 +388,34 @@ class ParcaOperatorCharm(ops.CharmBase):
         else:
             self.unit.set_workload_version(self.parca.version)
 
-        event.add_status(ops.ActiveStatus(f"UI ready at {self._external_url}"))
+        event.add_status(ops.ActiveStatus(f"UI ready at {self.http_server_url}"))
+
+
+def _generic_scrape_target(
+        fqdn: str,
+        port: int,
+        tls_config_ca_file_key: str,
+        scheme="http",
+        labels: Optional[Dict[str, str]] = None,
+        job_name: Optional[str] = None,
+        relabel_configs: Optional[List[RelabelConfig]] = None,
+) -> List[ScrapeJobsConfig]:
+    """Generate a list of scrape job configs, valid for parca or prometheus."""
+    job: ScrapeJob = {"targets": [f"{fqdn}:{port}"]}
+    if labels:
+        job["labels"] = labels
+    jobs_config: ScrapeJobsConfig = {"static_configs": [job]}
+    if scheme == "https":
+        jobs_config["scheme"] = "https"  # noqa
+        if Path(CA_CERT_PATH).exists():
+            jobs_config["tls_config"] = {
+                tls_config_ca_file_key: Path(CA_CERT_PATH).read_text()
+            }
+    if job_name:
+        jobs_config["job_name"] = job_name
+    if relabel_configs:
+        jobs_config["relabel_configs"] = relabel_configs
+    return [jobs_config]
 
 
 if __name__ == "__main__":  # pragma: nocover

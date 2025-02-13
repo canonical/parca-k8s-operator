@@ -4,15 +4,18 @@
 
 import asyncio
 
+import pytest
 import requests
 from helpers import (
-    get_pubic_address,
+    get_public_address,
 )
 from pytest import mark
 from pytest_operator.plugin import OpsTest
 from tenacity import retry
 from tenacity.stop import stop_after_attempt, stop_after_delay
 from tenacity.wait import wait_exponential as wexp
+
+from nginx import Nginx
 
 PARCA = "parca"
 
@@ -33,11 +36,15 @@ async def test_deploy(ops_test: OpsTest, parca_charm, parca_resources):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 async def test_application_is_up(ops_test: OpsTest):
-    address = await get_pubic_address(ops_test, PARCA)
-    response = requests.get(f"http://{address}:8080/")
+    address = await get_public_address(ops_test, PARCA)
+    response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/")
     assert response.status_code == 200
-    response = requests.get(f"http://{address}:8080/metrics")
+    response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert response.status_code == 200
+
+    with pytest.raises(requests.exceptions.ConnectionError):
+        # not a 404, but still nothing we can check without using grpcurl or smth
+        requests.get(f"http://{address}:{Nginx.parca_grpc_server_port}/")
 
 
 @mark.abort_on_fail
@@ -63,15 +70,15 @@ async def test_profiling_endpoint_relation(ops_test: OpsTest):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_profiling_relation_is_configured(ops_test: OpsTest):
-    address = await get_pubic_address(ops_test, PARCA)
-    response = requests.get(f"http://{address}:8080/metrics")
+    address = await get_public_address(ops_test, PARCA)
+    response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert "zinc" in response.text
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_self_profiling(ops_test: OpsTest):
-    address = await get_pubic_address(ops_test, PARCA)
-    response = requests.get(f"http://{address}:8080/metrics")
+    address = await get_public_address(ops_test, PARCA)
+    response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert f'"{PARCA}"' in response.text
 
 
