@@ -41,7 +41,6 @@ class ScrapeJobsConfig(TypedDict, total=False):
 
     static_configs: List[ScrapeJob]
     profiling_config: Dict[str, str]
-    metrics_path: str
     scheme: Optional[Literal["https"]]
     tls_config: Dict[str, str]
     job_name: Optional[str]
