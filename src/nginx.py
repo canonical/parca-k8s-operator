@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import crossplane
+from cosl.coordinated_workers.nginx import is_ipv6_enabled
 from ops import Container, pebble
 
 from models import TLSConfig
@@ -46,11 +47,11 @@ class Nginx:
     layer_name = "nginx"
 
     def __init__(
-            self,
-            container: Container,
-            server_name: str,
-            address: Address,
-            tls_config: Optional[TLSConfig] = None,
+        self,
+        container: Container,
+        server_name: str,
+        address: Address,
+        tls_config: Optional[TLSConfig] = None,
     ):
         self._container = container
         self._server_name = server_name
@@ -61,10 +62,10 @@ class Nginx:
     def _are_certificates_on_disk(self) -> bool:
         """Return True if the certificates files are on disk."""
         return (
-                self._container.can_connect()
-                and self._container.exists(CERT_PATH)
-                and self._container.exists(KEY_PATH)
-                and self._container.exists(CA_CERT_PATH)
+            self._container.can_connect()
+            and self._container.exists(CERT_PATH)
+            and self._container.exists(KEY_PATH)
+            and self._container.exists(CA_CERT_PATH)
         )
 
     def _update_certificates(self, server_cert: str, ca_cert: str, private_key: str) -> None:
@@ -83,9 +84,9 @@ class Nginx:
                 else ""
             )
             if (
-                    current_server_cert == server_cert
-                    and current_private_key == private_key
-                    and current_ca_cert == ca_cert
+                current_server_cert == server_cert
+                and current_private_key == private_key
+                and current_ca_cert == ca_cert
             ):
                 # No update needed
                 return
@@ -159,7 +160,8 @@ class Nginx:
 
     def _reconcile_nginx_config(self):
         new_config = NginxConfig(
-            self._server_name, tls=self._are_certificates_on_disk,
+            self._server_name,
+            tls=self._are_certificates_on_disk,
             http_port=self.parca_http_server_port,
             grpc_port=self.parca_grpc_server_port,
         ).config(self._address)
@@ -194,15 +196,19 @@ class Nginx:
 class NginxConfig:
     """Nginx config builder."""
 
-    def __init__(self, server_name: str, tls: bool,
-                 http_port: int,
-                 grpc_port: int,
-                 ):
+    def __init__(
+        self,
+        server_name: str,
+        tls: bool,
+        http_port: int,
+        grpc_port: int,
+    ):
         self._tls = tls
         self._http_port = http_port
         self._grpc_port = grpc_port
         self.server_name = server_name
         self.dns_IP_address = _get_dns_ip_address()
+        self.ipv6_enabled = is_ipv6_enabled()
 
     def config(self, address: Address) -> str:
         """Build and return the Nginx configuration."""
@@ -337,8 +343,8 @@ class NginxConfig:
         return nginx_locations
 
     def _resolver(
-            self,
-            custom_resolver: Optional[str] = None,
+        self,
+        custom_resolver: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         # pass a custom resolver, such as kube-dns.kube-system.svc.cluster.local.
         if custom_resolver:
@@ -368,8 +374,11 @@ class NginxConfig:
         # listen both on ipv4 and ipv6 to be safe
         directives = [
             {"directive": "listen", "args": self._listen_args(port, False, ssl, grpc=grpc)},
-            {"directive": "listen", "args": self._listen_args(port, True, ssl, grpc=grpc)},
         ]
+        if self.ipv6_enabled:
+            directives.append(
+                {"directive": "listen", "args": self._listen_args(port, True, ssl, grpc=grpc)}
+            )
         return directives
 
     @staticmethod
@@ -385,7 +394,9 @@ class NginxConfig:
             args.append("http2")
         return args
 
-    def _build_server_config(self, port: int, upstream: str, tls: bool = False, grpc: bool = False) -> Dict[str, Any]:
+    def _build_server_config(
+        self, port: int, upstream: str, tls: bool = False, grpc: bool = False
+    ) -> Dict[str, Any]:
         auth_enabled = False
 
         if tls:

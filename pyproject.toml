@@ -10,7 +10,7 @@ dependencies = [
     "lightkube-models",
     "jsonschema",
     "pydantic <3",
-    "cosl",
+    "cosl>=0.0.55",
     "crossplane",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
@@ -21,7 +21,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "cosl",
     "coverage[toml]",
     "juju",
     "pydantic",
@@ -32,7 +31,7 @@ dev = [
     "sh",
     "pyright",
     "ops[testing]",
-    "minio"
+    "minio",
 ]
 
 [tool.coverage.run]
