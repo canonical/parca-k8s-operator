@@ -3,7 +3,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import List
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import ops
 import pytest
@@ -111,6 +111,7 @@ def test_nginx_config_is_parsed_by_crossplane(address):
     assert isinstance(prepared_config, str)
 
 
+@pytest.mark.parametrize("ipv6", (True, False))
 @pytest.mark.parametrize(
     "address",
     (Address("foo", 123), Address("bar", 42)),
@@ -119,21 +120,39 @@ def test_nginx_config_is_parsed_by_crossplane(address):
 @pytest.mark.parametrize("hostname", ("localhost", "foobarhost"))
 @pytest.mark.parametrize("http_port", (42, 43))
 @pytest.mark.parametrize("grpc_port", (44, 45))
-def test_nginx_config_contains_upstreams_and_proxy_pass(address, tls, hostname, http_port, grpc_port):
-    with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
-        nginx = NginxConfig(hostname, False, http_port=http_port, grpc_port=grpc_port)
+def test_nginx_config_contains_upstreams_and_proxy_pass(
+    address, tls, hostname, http_port, grpc_port, ipv6
+):
+    with mock_ipv6(ipv6):
+        with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
+            nginx = NginxConfig(hostname, False, http_port=http_port, grpc_port=grpc_port)
 
     prepared_config = nginx.config(address)
     assert f"resolver {sample_dns_ip};" in prepared_config
     assert f"listen {http_port}" in prepared_config
-    assert f"listen [::]:{http_port}" in prepared_config
+    assert (
+        (f"listen [::]:{http_port}" in prepared_config)
+        if ipv6
+        else (f"listen [::]:{http_port}" not in prepared_config)
+    )
+
     assert f"listen {grpc_port}" in prepared_config
-    assert f"listen [::]:{grpc_port}" in prepared_config
+    assert (
+        (f"listen [::]:{grpc_port}" in prepared_config)
+        if ipv6
+        else (f"listen [::]:{grpc_port}" not in prepared_config)
+    )
 
     sanitised_name = address.name.replace("_", "-")
     assert f"upstream {sanitised_name}" in prepared_config
     assert f"set $backend http{'s' if tls else ''}://{sanitised_name}"
     assert "proxy_pass $backend" in prepared_config
+
+
+@contextmanager
+def mock_ipv6(enable: bool):
+    with patch("nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
+        yield
 
 
 @contextmanager
