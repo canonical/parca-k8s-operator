@@ -14,7 +14,7 @@ dependencies = [
     "crossplane",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
-    "opentelemetry-exporter-otlp-proto-http==1.21.0",
+    "opentelemetry-exporter-otlp-proto-http==1.30.0",
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
 ]
