@@ -393,8 +393,19 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _on_list_endpoints_action(self, event: ops.ActionEvent):
         """React to the list-endpoints action."""
+        out = {
+            "direct-http-url": f"{self._scheme}://{self._fqdn}:{Nginx.parca_http_server_port}",
+            "direct-grpc-url": f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
+        }
 
-
+        if external_host := self.ingress.http_external_host:
+            out.update(
+                {
+                    "ingressed-http-url": f"{external_host}:{Nginx.parca_http_server_port}",
+                    "ingressed-grpc-url": f"{external_host}:{Nginx.parca_grpc_server_port}",
+                }
+            )
+        event.set_results(out)
 
 
 def _generic_scrape_target(
