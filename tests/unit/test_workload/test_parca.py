@@ -1,8 +1,10 @@
 # Copyright 2025 Canonical
 # See LICENSE file for licensing details.
 
-import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+import pytest
+from six import StringIO
 
 from parca import DEFAULT_CONFIG_PATH, Parca
 
@@ -12,65 +14,48 @@ MOCK_WEB_RESPONSE_V1 = b'<script>window.PATH_PREFIX="",window.APP_VERSION="v0.18
 MOCK_WEB_RESPONSE_V2 = b'<script>window.PATH_PREFIX="",window.APP_VERSION="v0.18.0"</s>'
 
 
-class TestParca(unittest.TestCase):
-    def setUp(self):
-        container_mock = MagicMock()
-        self.parca = Parca(
-            container=container_mock,
-            scrape_configs=[],
-            enable_persistence=False,
-            memory_storage_limit=1024,
-        )
+@pytest.fixture
+def parca():
+    container_mock = MagicMock()
+    return Parca(
+        container=container_mock,
+        scrape_configs=[],
+        enable_persistence=False,
+        memory_storage_limit=1024,
+    )
 
-    def test_pebble_layer(self):
-        expected = {
-            "services": {
-                "parca": {
-                    "summary": "parca",
-                    "startup": "enabled",
-                    "override": "replace",
-                    "command": f"/parca "
-                               f"--config-path={DEFAULT_CONFIG_PATH} "
-                               f"--http-address=localhost:{Parca.port} "
-                               "--storage-enable-wal "
-                               "--storage-active-memory=1073741824",
-                }
+
+def test_default_pebble_layer(parca):
+    expected = {
+        "services": {
+            "parca": {
+                "summary": "parca",
+                "startup": "enabled",
+                "override": "replace",
+                "command": f"/parca "
+                           f"--config-path={DEFAULT_CONFIG_PATH} "
+                           f"--http-address=localhost:{Parca.port} "
+                           "--storage-enable-wal "
+                           "--storage-active-memory=1073741824",
             }
         }
-        self.assertEqual(
-            self.parca._pebble_layer(),
-            expected,
-        )
+    }
+    assert parca._pebble_layer() == expected
 
-    @patch("urllib.request.urlopen")
-    def test_fetch_version_no_commit_hash_suffix(self, uo):
-        m = MagicMock()
-        m.getcode.return_value = 200
-        m.read.return_value = MOCK_WEB_RESPONSE_V1
-        uo.return_value = m
 
-        self.assertEqual(self.parca._fetch_version(), "0.18.0-2b08f0bd")
+def _mock_container_exec_return_value(parca, value):
+    pebble_exec_out = MagicMock()
+    pebble_exec_out.stdout = StringIO(value)
+    parca._container.exec.return_value = pebble_exec_out
 
-    @patch("urllib.request.urlopen")
-    def test_fetch_version_with_commit_hash_suffix(self, uo):
-        m = MagicMock()
-        m.getcode.return_value = 200
-        m.read.return_value = MOCK_WEB_RESPONSE_V2
-        uo.return_value = m
 
-        self.assertEqual(self.parca._fetch_version(), "0.18.0")
+@pytest.mark.parametrize("version", ("0.18.0-2b08f0bd", "0.18.0"))
+def test_fetch_version_valid(parca, version):
+    _mock_container_exec_return_value(parca, f"parca, version {version} (commit: b144...db)")
+    assert parca.version == version
 
-    @patch("urllib.request.urlopen")
-    def test_version_fetch_raises_empty_string_response(self, fv):
-        fv.side_effect = Exception
-        # Don't wait 3 seconds in between retry calls
-        self.parca._version_retry_wait = 0.1
-        self.assertEqual(self.parca.version, "")
 
-    @patch("urllib.request.urlopen")
-    def test_fetch_version_retries(self, uo):
-        uo.side_effect = Exception
-        # Don't wait 3 seconds in between retry calls
-        self.parca._version_retry_wait = 0.1
-        self.parca._fetch_version()
-        self.assertEqual(uo.call_count, 3)
+@pytest.mark.parametrize("version", ("", "booboontu", "42"))
+def test_fetch_version_invalid(parca, version):
+    _mock_container_exec_return_value(parca, f"parca, version {version} (commit: b144...db)")
+    assert parca.version == ""

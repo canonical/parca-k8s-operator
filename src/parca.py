@@ -5,11 +5,10 @@
 
 import logging
 import re
-import time
 import typing
-import urllib.request
 from typing import Dict, List, Literal, Optional, Sequence, TypedDict, Union
 
+import ops.pebble
 import yaml
 from ops import Container
 from ops.pebble import Layer
@@ -21,10 +20,7 @@ if typing.TYPE_CHECKING:  # pragma: nocover
 
 logger = logging.getLogger(__name__)
 
-# This pattern is for parsing the Parca version from the HTML page returned by Parca.
-# A bit hacky, but the API is more complex to use (gRPC) and the version string
-# reported by the Prometheus metrics is wrong at the time of writing.
-VERSION_PATTERN = re.compile('APP_VERSION="v([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)"')
+VERSION_PATTERN = re.compile('([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)')
 # parca server bind port
 _PARCA_PORT = 7070
 DEFAULT_BIN_PATH = "/parca"
@@ -150,24 +146,23 @@ class Parca:
 
     @property
     def version(self) -> str:
-        """Report the version of Parca."""
-        return self._fetch_version()
+        """Fetch the version from the binary."""
+        try:
+            version_out = self._container.exec(["/parca", "--version"]).stdout
+        except ops.pebble.Error:
+            logger.exception("error attempting to fetch parca version from container")
+            return ""
 
-    def _fetch_version(self) -> str:
-        """Fetch the version from the running workload using the Parca API."""
-        retries = 0
-        while True:
-            try:
-                res = urllib.request.urlopen(f"http://localhost:{_PARCA_PORT}")
-                m = VERSION_PATTERN.search(res.read().decode())
-                if m is None:
-                    return ""
-                return m.groups()[0]
-            except Exception:
-                if retries == 2:
-                    return ""
-                retries += 1
-                time.sleep(self._version_retry_wait)
+        if not version_out:
+            logger.error("unable to get version from parca: `/parca --version` has no stdout.")
+            return ""
+
+        match = VERSION_PATTERN.search(version_out.read())
+        if not match:
+            logger.error(f"unable to get version from parca: `/parca --version` returned {version_out!r}, "
+                         f"which didn't match the expected {VERSION_PATTERN.pattern!r}")
+            return ""
+        return match.groups()[0]
 
 
 def parca_command_line(

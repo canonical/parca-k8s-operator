@@ -66,8 +66,8 @@ def check_object_in_minio(minio_url, obj_name: str):
 async def test_s3_usage(ops_test):
     """Verify that parca is using s3."""
     model_name = ops_test.model.name
-    # rely on the fact that parca will force-flush its in-memory buffer when pkilled
-    check_call(shlex.split(f"juju ssh -m {model_name} --container parca parca/0 pkill -f parca"))
+    # rely on the fact that parca will force-flush its in-memory buffer when restarted
+    check_call(shlex.split(f"juju ssh -m {model_name} --container parca parca/0 pebble restart parca"))
     minio_url = f"{get_unit_ip(model_name, MINIO, 0)}:9000"
     check_object_in_minio(minio_url, "blocks/")
 
