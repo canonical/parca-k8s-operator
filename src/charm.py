@@ -185,6 +185,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # event handlers
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
+        self.framework.observe(self.on.list_endpoints_action, self._on_list_endpoints_action)
         # unconditional logic
         self.reconcile()
 
@@ -389,6 +390,11 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.unit.set_workload_version(self.parca.version)
 
         event.add_status(ops.ActiveStatus(f"UI ready at {self.http_server_url}"))
+
+    def _on_list_endpoints_action(self, event: ops.ActionEvent):
+        """React to the list-endpoints action."""
+
+
 
 
 def _generic_scrape_target(
