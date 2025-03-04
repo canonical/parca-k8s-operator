@@ -292,7 +292,27 @@ def test_parca_store_relation(context, base_state):
     # Ensure that the unit set its targets correctly
     expected = {
         "remote-store-address": f"{socket.getfqdn()}:{Nginx.parca_grpc_server_port}",
-        "remote-store-insecure": "true",
+        "remote-store-insecure": "false",
+    }
+    for key, val in expected.items():
+        assert rel_out.local_app_data[key] == val
+
+    # GIVEN an ingress relation
+    ingress = Relation(
+        "ingress",
+        remote_app_name="bar",
+        remote_app_data={"external_host": "1.2.3.4", "scheme": "http"},
+    )
+    # WHEN any event fires
+    state_out = context.run(
+        context.on.relation_joined(ingress),
+        replace(base_state, leader=True, relations={relation, ingress}),
+    )
+    rel_out = state_out.get_relation(relation.id)
+    # THEN remote-store-address gets updated with the ingress host
+    expected = {
+        "remote-store-address": f"1.2.3.4:{Nginx.parca_grpc_server_port}",
+        "remote-store-insecure": "false",
     }
     for key, val in expected.items():
         assert rel_out.local_app_data[key] == val

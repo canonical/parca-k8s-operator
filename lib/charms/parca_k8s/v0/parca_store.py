@@ -105,7 +105,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 2
+LIBPATCH = 3
 
 
 DEFAULT_RELATION_NAME = "parca-store-endpoint"
@@ -155,11 +155,11 @@ class ParcaStoreEndpointProvider(ops.Object):
         self._app = self._charm.app
 
         events = self._charm.on[self._relation_name]
-        self.framework.observe(events.relation_joined, self._set_relation_data)
-        self.framework.observe(events.relation_changed, self._set_relation_data)
-        self.framework.observe(self._charm.on.upgrade_charm, self._set_relation_data)
+        self.framework.observe(events.relation_joined, self.set_remote_store_connection_data)
+        self.framework.observe(events.relation_changed, self.set_remote_store_connection_data)
+        self.framework.observe(self._charm.on.upgrade_charm, self.set_remote_store_connection_data)
 
-    def _set_relation_data(self, _):
+    def set_remote_store_connection_data(self, _=None):
         """Set relation data for each relation providing store connection details.
 
         Each time a profiling provider charm container is restarted it updates its own host address
