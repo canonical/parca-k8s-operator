@@ -429,14 +429,14 @@ def test_list_endpoints_action(context, base_state, tls, ingress):
     fqdn = socket.getfqdn()
 
     expected_results = {
+        'direct-http-url': f'{scheme}://{fqdn}:{Nginx.parca_http_server_port}',
         'direct-grpc-url': f'{fqdn}:{Nginx.parca_grpc_server_port}',
-        'direct-http-url': f'{scheme}://{fqdn}:{Nginx.parca_http_server_port}'
     }
     if ingress:
         expected_results.update(
             {
                 "ingressed-http-url": f"{scheme}://{external_host}:{Nginx.parca_http_server_port}",
-                "ingressed-grpc-url": f"{scheme}://{external_host}:{Nginx.parca_grpc_server_port}",
+                "ingressed-grpc-url": f"{external_host}:{Nginx.parca_grpc_server_port}",
             }
         )
     assert results == expected_results

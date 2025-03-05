@@ -398,13 +398,10 @@ class ParcaOperatorCharm(ops.CharmBase):
             "direct-grpc-url": f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
         }
 
-        if external_host := self.ingress.http_external_host:
-            out.update(
-                {
-                    "ingressed-http-url": f"{external_host}:{Nginx.parca_http_server_port}",
-                    "ingressed-grpc-url": f"{external_host}:{Nginx.parca_grpc_server_port}",
-                }
-            )
+        if http_external_host := self.ingress.http_external_host:
+            out["ingressed-http-url"]= f"{http_external_host}:{Nginx.parca_http_server_port}"
+        if grpc_external_host := self.ingress.grpc_external_host:
+            out["ingressed-grpc-url"]= f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
         event.set_results(out)
 
 
