@@ -1,0 +1,74 @@
+# Testing tools configuration
+[project]
+name = "parca-k8s-operator"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+dependencies = [
+    "ops",
+    "lightkube",
+    "lightkube-models",
+    "jsonschema",
+    "pydantic <3",
+    "cosl>=0.0.55",
+    "crossplane",
+    # ---PYDEPS---
+    # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
+    "opentelemetry-exporter-otlp-proto-http==1.21.0",
+    # lib/charms/tls_certificates_interface/v4/tls_certificates.py
+    "cryptography",
+]
+
+[project.optional-dependencies]
+dev = [
+    "coverage[toml]",
+    "juju",
+    "pydantic",
+    "pytest-operator",
+    "pytest",
+    "ruff",
+    "tenacity",
+    "sh",
+    "pyright",
+    "ops[testing]",
+    "minio",
+]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+minversion = "6.0"
+log_cli_level = "INFO"
+addopts = "--tb=native --verbose --capture=no --log-cli-level=INFO"
+
+
+# Linting tools configuration
+[tool.ruff]
+line-length = 99
+extend-exclude = ["__pycache__", "*.egg_info"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "C", "N", "D", "I001"]
+ignore = ["E501", "D107"]
+extend-ignore = [
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+]
+per-file-ignores = { "tests/*" = ["D100", "D101", "D102", "D103", "D104"] }
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
