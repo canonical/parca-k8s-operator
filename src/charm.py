@@ -137,6 +137,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             self,
             port=Nginx.parca_grpc_server_port,
             external_url=self.grpc_server_url,
+            insecure=(self._scheme == "http"),
         )
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"
@@ -232,7 +233,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         if external_host := self.ingress.http_external_host:
             # this already includes the scheme: http or https, depending on the ingress
             return f"{external_host}:{Nginx.parca_http_server_port}"
-        return f"{self._scheme}://{self._fqdn}:{Nginx.parca_http_server_port}"
+        return f"{self._internal_scheme}://{self._fqdn}:{Nginx.parca_http_server_port}"
 
     @property
     def grpc_server_url(self):
@@ -246,7 +247,11 @@ class ParcaOperatorCharm(ops.CharmBase):
         return f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
 
     @property
-    def _scheme(self) -> str:
+    def _scheme(self):
+        return self.ingress.scheme or self._internal_scheme
+
+    @property
+    def _internal_scheme(self) -> str:
         """Return 'https' if TLS is available else 'http'."""
         return "https" if self._tls_ready else "http"
 
@@ -340,14 +345,14 @@ class ParcaOperatorCharm(ops.CharmBase):
             scheme="http",
         ) + self._prometheus_scrape_target(
             Nginx.parca_http_server_port,
-            scheme=self._scheme,
+            scheme=self._internal_scheme,
         )
 
     def _parca_scrape_target(self, **kwargs):
         return _generic_scrape_target(
             fqdn=self._fqdn,
             port=Nginx.parca_http_server_port,
-            scheme=self._scheme,
+            scheme=self._internal_scheme,
             tls_config_ca_file_key="ca",
             **kwargs,
         )
