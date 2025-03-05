@@ -3,6 +3,7 @@
 
 import json
 import socket
+import types
 from dataclasses import replace
 from uuid import uuid4
 
@@ -278,12 +279,23 @@ def test_metrics_endpoint_relation(context, base_state):
         assert rel_out.local_unit_data[key] == val
 
 
-def test_parca_store_relation(context, base_state):
+@pytest.mark.parametrize(
+    "event",
+    (
+        CharmEvents().update_status(),
+        CharmEvents().start(),
+        CharmEvents().install(),
+        CharmEvents().config_changed(),
+        CharmEvents().relation_changed,
+        CharmEvents().relation_joined,
+        CharmEvents().relation_departed,
+    ),
+)
+def test_parca_store_relation(event, context, base_state):
     # Create a relation to an app named "parca-store-endpoint"
     relation = Relation("parca-store-endpoint", remote_app_name="foo")
-
     state_out = context.run(
-        context.on.relation_joined(relation),
+        event(relation) if isinstance(event, types.FunctionType) else event,
         replace(base_state, leader=True, relations={relation}),
     )
 
@@ -305,7 +317,7 @@ def test_parca_store_relation(context, base_state):
     )
     # WHEN any event fires
     state_out = context.run(
-        context.on.relation_joined(ingress),
+        event(relation) if isinstance(event, types.FunctionType) else event,
         replace(base_state, leader=True, relations={relation, ingress}),
     )
     rel_out = state_out.get_relation(relation.id)
@@ -317,6 +329,21 @@ def test_parca_store_relation(context, base_state):
     }
     for key, val in expected.items():
         assert rel_out.local_app_data[key] == val
+
+
+def test_parca_store_relation_empty(context, base_state):
+    # Create a relation to an app named "parca-store-endpoint"
+    relation = Relation("parca-store-endpoint", remote_app_name="foo")
+
+    state_out = context.run(
+        context.on.relation_broken(relation),
+        replace(base_state, leader=True, relations={relation}),
+    )
+
+    # Grab the unit data from the relation
+    rel_out = state_out.get_relation(relation.id)
+    # Ensure that the unit data is empty
+    assert rel_out.local_app_data == {}
 
 
 def test_parca_external_store_relation(context, base_state):

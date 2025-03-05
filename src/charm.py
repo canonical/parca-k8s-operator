@@ -248,6 +248,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     @property
     def _scheme(self):
+        """Return ingress scheme if available, else return the internal scheme."""
         return self.ingress.scheme or self._internal_scheme
 
     @property
