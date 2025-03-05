@@ -3,6 +3,7 @@
 
 import json
 import socket
+import types
 from dataclasses import replace
 from unittest.mock import patch
 from uuid import uuid4
@@ -279,12 +280,23 @@ def test_metrics_endpoint_relation(context, base_state):
         assert rel_out.local_unit_data[key] == val
 
 
-def test_parca_store_relation(context, base_state):
+@pytest.mark.parametrize(
+    "event",
+    (
+        CharmEvents().update_status(),
+        CharmEvents().start(),
+        CharmEvents().install(),
+        CharmEvents().config_changed(),
+        CharmEvents().relation_changed,
+        CharmEvents().relation_joined,
+        CharmEvents().relation_departed,
+    ),
+)
+def test_parca_store_relation(event, context, base_state):
     # Create a relation to an app named "parca-store-endpoint"
     relation = Relation("parca-store-endpoint", remote_app_name="foo")
-
     state_out = context.run(
-        context.on.relation_joined(relation),
+        event(relation) if isinstance(event, types.FunctionType) else event,
         replace(base_state, leader=True, relations={relation}),
     )
 
@@ -297,6 +309,42 @@ def test_parca_store_relation(context, base_state):
     }
     for key, val in expected.items():
         assert rel_out.local_app_data[key] == val
+
+    # GIVEN an ingress relation over TLS
+    ingress = Relation(
+        "ingress",
+        remote_app_name="bar",
+        remote_app_data={"external_host": "1.2.3.4", "scheme": "https"},
+    )
+    # WHEN any event fires
+    state_out = context.run(
+        event(relation) if isinstance(event, types.FunctionType) else event,
+        replace(base_state, leader=True, relations={relation, ingress}),
+    )
+    rel_out = state_out.get_relation(relation.id)
+    # THEN remote-store-address gets updated with the ingress host
+    # AND remote-store-insecure is false
+    expected = {
+        "remote-store-address": f"1.2.3.4:{Nginx.parca_grpc_server_port}",
+        "remote-store-insecure": "false",
+    }
+    for key, val in expected.items():
+        assert rel_out.local_app_data[key] == val
+
+
+def test_parca_store_relation_empty(context, base_state):
+    # Create a relation to an app named "parca-store-endpoint"
+    relation = Relation("parca-store-endpoint", remote_app_name="foo")
+
+    state_out = context.run(
+        context.on.relation_broken(relation),
+        replace(base_state, leader=True, relations={relation}),
+    )
+
+    # Grab the unit data from the relation
+    rel_out = state_out.get_relation(relation.id)
+    # Ensure that the unit data is empty
+    assert rel_out.local_app_data == {}
 
 
 def test_parca_external_store_relation(context, base_state):

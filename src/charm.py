@@ -104,7 +104,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             entrypoints=(
                 EntryPoint("parca-grpc", Protocol.grpc, Nginx.parca_grpc_server_port),
                 EntryPoint("parca-http", Protocol.http, Nginx.parca_http_server_port),
-            ))
+            ),
+        )
         self.metrics_endpoint_provider = MetricsEndpointProvider(
             self,
             jobs=self._metrics_scrape_jobs,
@@ -135,8 +136,8 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.parca_store_endpoint = ParcaStoreEndpointProvider(
             self,
             port=Nginx.parca_grpc_server_port,
-            insecure=True,
             external_url=self.grpc_server_url,
+            insecure=(self._scheme == "http"),
         )
         self.store_requirer = ParcaStoreEndpointRequirer(
             self, relation_name="external-parca-store-endpoint"
@@ -166,7 +167,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             container=self.unit.get_container(Nginx.container_name),
             server_name=self._fqdn,
             address=Address(name="parca", port=Parca.port),
-            tls_config=self._tls_config
+            tls_config=self._tls_config,
         )
         self.parca = Parca(
             container=self.unit.get_container(Parca.container_name),
@@ -195,8 +196,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         This will ensure all workloads are up and running if the preconditions are met.
         """
-        self.unit.set_ports(Nginx.parca_http_server_port,
-                            Nginx.parca_grpc_server_port)
+        self.unit.set_ports(Nginx.parca_http_server_port, Nginx.parca_grpc_server_port)
 
         self.nginx.reconcile()
         self.nginx_exporter.reconcile()
@@ -214,6 +214,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.metrics_endpoint_provider.set_scrape_job_spec()
         self.self_profiling_endpoint_provider.set_scrape_job_spec()
         self.grafana_source_provider.update_source(source_url=self.http_server_url)
+        self.parca_store_endpoint.set_remote_store_connection_data()
         self.ingress.reconcile()
 
     def _reconcile_tls_config(self) -> None:
@@ -233,7 +234,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         if external_host := self.ingress.http_external_host:
             # this already includes the scheme: http or https, depending on the ingress
             return f"{external_host}:{Nginx.parca_http_server_port}"
-        return f"{self._scheme}://{self._fqdn}:{Nginx.parca_http_server_port}"
+        return f"{self._internal_scheme}://{self._fqdn}:{Nginx.parca_http_server_port}"
 
     @property
     def grpc_server_url(self):
@@ -243,11 +244,16 @@ class ParcaOperatorCharm(ops.CharmBase):
         """
         if external_host := self.ingress.grpc_external_host:
             # this does not include any scheme.
-            return f"{external_host}:{Nginx.parca_http_server_port}"
+            return f"{external_host}:{Nginx.parca_grpc_server_port}"
         return f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
 
     @property
-    def _scheme(self) -> str:
+    def _scheme(self):
+        """Return ingress scheme if available, else return the internal scheme."""
+        return self.ingress.scheme or self._internal_scheme
+
+    @property
+    def _internal_scheme(self) -> str:
         """Return 'https' if TLS is available else 'http'."""
         return "https" if self._tls_ready else "http"
 
@@ -341,22 +347,24 @@ class ParcaOperatorCharm(ops.CharmBase):
             scheme="http",
         ) + self._prometheus_scrape_target(
             Nginx.parca_http_server_port,
-            scheme=self._scheme,
+            scheme=self._internal_scheme,
         )
 
     def _parca_scrape_target(self, **kwargs):
         return _generic_scrape_target(
             fqdn=self._fqdn,
             port=Nginx.parca_http_server_port,
-            scheme=self._scheme,
-            tls_config_ca_file_key="ca", **kwargs)
+            scheme=self._internal_scheme,
+            tls_config_ca_file_key="ca",
+            **kwargs,
+        )
 
     def _prometheus_scrape_target(self, port: int, **kwargs):
         # ca_file should hold the CA path, but prometheus charm expects ca_file to hold the cert contents.
         # https://github.com/canonical/prometheus-k8s-operator/issues/670
         return _generic_scrape_target(
-            fqdn=self._fqdn, port=port,
-            tls_config_ca_file_key="ca_file", **kwargs)
+            fqdn=self._fqdn, port=port, tls_config_ca_file_key="ca_file", **kwargs
+        )
 
     # TRACING PROPERTIES
     @property
@@ -406,13 +414,13 @@ class ParcaOperatorCharm(ops.CharmBase):
 
 
 def _generic_scrape_target(
-        fqdn: str,
-        port: int,
-        tls_config_ca_file_key: str,
-        scheme="http",
-        labels: Optional[Dict[str, str]] = None,
-        job_name: Optional[str] = None,
-        relabel_configs: Optional[List[RelabelConfig]] = None,
+    fqdn: str,
+    port: int,
+    tls_config_ca_file_key: str,
+    scheme="http",
+    labels: Optional[Dict[str, str]] = None,
+    job_name: Optional[str] = None,
+    relabel_configs: Optional[List[RelabelConfig]] = None,
 ) -> List[ScrapeJobsConfig]:
     """Generate a list of scrape job configs, valid for parca or prometheus."""
     job: ScrapeJob = {"targets": [f"{fqdn}:{port}"]}
@@ -422,9 +430,7 @@ def _generic_scrape_target(
     if scheme == "https":
         jobs_config["scheme"] = "https"  # noqa
         if Path(CA_CERT_PATH).exists():
-            jobs_config["tls_config"] = {
-                tls_config_ca_file_key: Path(CA_CERT_PATH).read_text()
-            }
+            jobs_config["tls_config"] = {tls_config_ca_file_key: Path(CA_CERT_PATH).read_text()}
     if job_name:
         jobs_config["job_name"] = job_name
     if relabel_configs:

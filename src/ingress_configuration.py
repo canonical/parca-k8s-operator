@@ -3,6 +3,7 @@
 # See LICENSE file for licensing details.
 
 """Traefik-route ingress configuration."""
+
 import enum
 import socket
 from collections import namedtuple
@@ -14,18 +15,21 @@ from ops import CharmBase
 
 EntryPoint = namedtuple("Port", "name, protocol, port")
 
+
 @enum.unique
 class Protocol(Enum):
     """Protocols supported by the Parca servers."""
+
     grpc = "grpc"
     http = "http"
 
 
 class TraefikRouteEndpoint:
     """Represents a traefik route endpoint and the parca ingress configuration it needs."""
+
     _endpoint_name = "ingress"
 
-    def __init__(self, charm: CharmBase, tls: bool, entrypoints:Sequence[EntryPoint]):
+    def __init__(self, charm: CharmBase, tls: bool, entrypoints: Sequence[EntryPoint]):
         self._is_leader = charm.unit.is_leader()
         self._tls = tls
         self._entrypoints = entrypoints
@@ -35,14 +39,20 @@ class TraefikRouteEndpoint:
         self._ingress = TraefikRouteRequirer(
             charm,
             # cfr: https://github.com/canonical/traefik-k8s-operator/issues/448
-            charm.model.get_relation(self._endpoint_name), # type: ignore
-            self._endpoint_name
+            charm.model.get_relation(self._endpoint_name),  # type: ignore
+            self._endpoint_name,
         )
 
     @property
     def is_ready(self) -> bool:
         """Whether traefik_route is ready."""
         return self._ingress.is_ready()
+
+    @property
+    def scheme(self) -> Optional[str]:
+        """The scheme used by the ingress, if available."""
+        if self._ingress.is_ready() and self._ingress.scheme:
+            return self._ingress.scheme
 
     @property
     def http_external_host(self) -> Optional[str]:
@@ -89,17 +99,19 @@ class TraefikRouteEndpoint:
             if protocol is Protocol.grpc and not self._tls:
                 # to send traces to unsecured GRPC endpoints, we need h2c
                 # see https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-http-h2c
-                http_services[
-                    f"juju-{self._model_name}-{self._app_name}-service-{name}"
-                ] = {"loadBalancer": {"servers": [self._build_lb_server_config("h2c", port)]}}
+                http_services[f"juju-{self._model_name}-{self._app_name}-service-{name}"] = {
+                    "loadBalancer": {"servers": [self._build_lb_server_config("h2c", port)]}
+                }
             else:
                 # anything else, including secured GRPC, can use _internal_url
                 # ref https://doc.traefik.io/traefik/v2.0/user-guides/grpc/#with-https
-                http_services[
-                    f"juju-{self._model_name}-{self._app_name}-service-{name}"
-                ] = {"loadBalancer": {"servers": [
-                    self._build_lb_server_config("https" if self._tls else "http", port)
-                ]}}
+                http_services[f"juju-{self._model_name}-{self._app_name}-service-{name}"] = {
+                    "loadBalancer": {
+                        "servers": [
+                            self._build_lb_server_config("https" if self._tls else "http", port)
+                        ]
+                    }
+                }
         return {
             "http": {
                 "routers": http_routers,
