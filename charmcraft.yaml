@@ -133,6 +133,12 @@ peers:
   parca-peers:
     interface: parca_peers
 
+actions:
+  list-endpoints:
+    description: | 
+      Return the ingestion endpoints that the parca server is listening on for grpc and http profiling data.
+      Will list both direct and ingressed hosts.
+
 config:
   options:
     enable-persistence:

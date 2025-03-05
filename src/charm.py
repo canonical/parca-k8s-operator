@@ -186,6 +186,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # event handlers
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
+        self.framework.observe(self.on.list_endpoints_action, self._on_list_endpoints_action)
         # unconditional logic
         self.reconcile()
 
@@ -397,6 +398,19 @@ class ParcaOperatorCharm(ops.CharmBase):
             self.unit.set_workload_version(self.parca.version)
 
         event.add_status(ops.ActiveStatus(f"UI ready at {self.http_server_url}"))
+
+    def _on_list_endpoints_action(self, event: ops.ActionEvent):
+        """React to the list-endpoints action."""
+        out = {
+            "direct-http-url": f"{self._scheme}://{self._fqdn}:{Nginx.parca_http_server_port}",
+            "direct-grpc-url": f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
+        }
+
+        if http_external_host := self.ingress.http_external_host:
+            out["ingressed-http-url"]= f"{http_external_host}:{Nginx.parca_http_server_port}"
+        if grpc_external_host := self.ingress.grpc_external_host:
+            out["ingressed-grpc-url"]= f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
+        event.set_results(out)
 
 
 def _generic_scrape_target(
