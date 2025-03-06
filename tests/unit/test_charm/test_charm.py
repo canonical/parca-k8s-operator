@@ -5,6 +5,7 @@ import json
 import socket
 import types
 from dataclasses import replace
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -82,10 +83,10 @@ def test_healthy_container_events(context, any_container, base_state):
 @pytest.mark.parametrize(
     "event",
     (
-        CharmEvents().update_status(),
-        CharmEvents().start(),
-        CharmEvents().install(),
-        CharmEvents().config_changed(),
+            CharmEvents().update_status(),
+            CharmEvents().start(),
+            CharmEvents().install(),
+            CharmEvents().config_changed(),
     ),
 )
 def test_healthy_lifecycle_events(context, event, base_state):
@@ -94,7 +95,7 @@ def test_healthy_lifecycle_events(context, event, base_state):
 
 
 def test_config_changed_container_not_ready(
-    context, parca_container, nginx_container, nginx_prometheus_exporter_container, parca_peers
+        context, parca_container, nginx_container, nginx_prometheus_exporter_container, parca_peers
 ):
     state = State(
         containers={
@@ -246,8 +247,8 @@ def test_profiling_endpoint_relation(context, base_state):
         }
     ]
     with context(
-        context.on.relation_changed(relation),
-        replace(base_state, relations={relation, self_profiling_relation}),
+            context.on.relation_changed(relation),
+            replace(base_state, relations={relation, self_profiling_relation}),
     ) as mgr:
         assert mgr.charm.profiling_consumer.jobs() == expected_jobs
         state_out = mgr.run()
@@ -360,8 +361,8 @@ def test_parca_external_store_relation(context, base_state):
 
     # Ensure that the pscloud config gets passed to the charm
     with context(
-        context.on.relation_changed(relation),
-        replace(base_state, leader=True, relations={relation}),
+            context.on.relation_changed(relation),
+            replace(base_state, leader=True, relations={relation}),
     ) as mgr:
         config = mgr.charm.store_requirer.config
         for key, val in pscloud_config.items():
@@ -411,8 +412,8 @@ def test_self_profiling_endpoint_relation(context, base_state):
 
     # WHEN we get a relation changed event
     with context(
-        context.on.relation_changed(relation),
-        replace(base_state, leader=True, relations={relation}),
+            context.on.relation_changed(relation),
+            replace(base_state, leader=True, relations={relation}),
     ) as mgr:
         state_out = mgr.run()
         scrape_config = mgr.charm._profiling_scrape_configs
@@ -449,6 +450,45 @@ def test_parca_workload_tracing_relation(context, base_state):
         "--storage-active-memory=4294967296 "
         "--otlp-address=192.0.2.0/24",
     )
+
+
+@pytest.mark.parametrize("tls", (True, False))
+@pytest.mark.parametrize("ingress", (True, False))
+def test_list_endpoints_action(context, base_state, tls, ingress):
+    # GIVEN (conditionally) TLS and ingress relations
+    base_state = replace(base_state, leader=True)
+    if ingress:
+        external_host = "162.42.42.42"
+        ingress_data = {
+            "external_host": external_host,
+            "scheme": "https" if tls else "http"
+        }
+        ingress_relation = Relation("ingress", remote_app_data=ingress_data)
+        base_state = replace(base_state, relations=set(base_state.relations).union({
+            ingress_relation
+        }))
+
+    with patch("charm.ParcaOperatorCharm._scheme", 'https' if tls else "http"):
+        # WHEN we run a list-endpoints action
+        context.run(context.on.action("list-endpoints"), base_state)
+        results = context.action_results
+
+    # THEN we get the expected action results
+    scheme = "https" if tls else "http"
+    fqdn = socket.getfqdn()
+
+    expected_results = {
+        'direct-http-url': f'{scheme}://{fqdn}:{Nginx.parca_http_server_port}',
+        'direct-grpc-url': f'{fqdn}:{Nginx.parca_grpc_server_port}',
+    }
+    if ingress:
+        expected_results.update(
+            {
+                "ingressed-http-url": f"{scheme}://{external_host}:{Nginx.parca_http_server_port}",
+                "ingressed-grpc-url": f"{external_host}:{Nginx.parca_grpc_server_port}",
+            }
+        )
+    assert results == expected_results
 
 @pytest.mark.parametrize("event", (
     CharmEvents.update_status(),
