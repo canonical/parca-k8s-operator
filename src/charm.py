@@ -400,7 +400,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         """Set unit status depending on the state."""
         if self.is_scaled_up():
             event.add_status(ops.BlockedStatus("You can't scale up parca-k8s."))
-            return
 
         containers_not_ready = [
             workload.container_name
