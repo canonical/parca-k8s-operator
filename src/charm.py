@@ -399,7 +399,7 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _on_collect_unit_status(self, event: ops.CollectStatusEvent):
         """Set unit status depending on the state."""
         if self.is_scaled_up():
-            event.add_status(ops.BlockedStatus("You can't scale up parca-k8s."))
+            event.add_status(ops.BlockedStatus("You can't scale up parca-k8s. Deploy a new application instead."))
 
         containers_not_ready = [
             workload.container_name
