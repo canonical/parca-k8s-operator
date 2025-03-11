@@ -186,9 +186,23 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # event handlers
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
+
+        # keep this after the collect-status observer, but before any other event handler
+        if self.is_scaled_up():
+            logger.error("Application has scale >1 but doesn't support scaling. "
+                         "Deploy a new application instead.")
+            return
+
         self.framework.observe(self.on.list_endpoints_action, self._on_list_endpoints_action)
         # unconditional logic
         self.reconcile()
+
+    def is_scaled_up(self)->bool:
+        """Check whether we have peers."""
+        peer_relation = self.model.get_relation("parca-peers")
+        if not peer_relation:
+            return False
+        return len(peer_relation.units) > 1
 
     # RECONCILERS
     def reconcile(self):
@@ -384,6 +398,9 @@ class ParcaOperatorCharm(ops.CharmBase):
     # EVENT HANDLERS
     def _on_collect_unit_status(self, event: ops.CollectStatusEvent):
         """Set unit status depending on the state."""
+        if self.is_scaled_up():
+            event.add_status(ops.BlockedStatus("You can't scale up parca-k8s. Deploy a new application instead."))
+
         containers_not_ready = [
             workload.container_name
             for workload in {Parca, Nginx, NginxPrometheusExporter}

@@ -11,6 +11,7 @@ from uuid import uuid4
 import pytest
 from ops.model import ActiveStatus, WaitingStatus
 from ops.testing import CharmEvents, Relation, State
+from scenario import BlockedStatus, PeerRelation
 
 from charm import RELABEL_CONFIG
 from nginx import Nginx
@@ -488,3 +489,16 @@ def test_list_endpoints_action(context, base_state, tls, ingress):
             }
         )
     assert results == expected_results
+
+@pytest.mark.parametrize("event", (
+    CharmEvents.update_status(),
+    CharmEvents.install(),
+    CharmEvents.update_status(),
+))
+def test_parca_blocks_if_scaled(context, base_state, event):
+    relation= PeerRelation("parca-peers", peers_data={0:{}, 1:{}})
+    state_out = context.run(
+        event,
+        replace(base_state, leader=True, relations={relation}),
+    )
+    assert isinstance(state_out.unit_status, BlockedStatus)
