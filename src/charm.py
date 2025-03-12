@@ -197,7 +197,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         # unconditional logic
         self.reconcile()
 
-    def is_scaled_up(self)->bool:
+    def is_scaled_up(self) -> bool:
         """Check whether we have peers."""
         peer_relation = self.model.get_relation("parca-peers")
         if not peer_relation:
@@ -424,20 +424,20 @@ class ParcaOperatorCharm(ops.CharmBase):
         }
 
         if http_external_host := self.ingress.http_external_host:
-            out["ingressed-http-url"]= f"{http_external_host}:{Nginx.parca_http_server_port}"
+            out["ingressed-http-url"] = f"{http_external_host}:{Nginx.parca_http_server_port}"
         if grpc_external_host := self.ingress.grpc_external_host:
-            out["ingressed-grpc-url"]= f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
+            out["ingressed-grpc-url"] = f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
         event.set_results(out)
 
 
 def _generic_scrape_target(
-    fqdn: str,
-    port: int,
-    tls_config_ca_file_key: str,
-    scheme="http",
-    labels: Optional[Dict[str, str]] = None,
-    job_name: Optional[str] = None,
-    relabel_configs: Optional[List[RelabelConfig]] = None,
+        fqdn: str,
+        port: int,
+        tls_config_ca_file_key: str,
+        scheme="http",
+        labels: Optional[Dict[str, str]] = None,
+        job_name: Optional[str] = None,
+        relabel_configs: Optional[List[RelabelConfig]] = None,
 ) -> List[ScrapeJobsConfig]:
     """Generate a list of scrape job configs, valid for parca or prometheus."""
     job: ScrapeJob = {"targets": [f"{fqdn}:{port}"]}
