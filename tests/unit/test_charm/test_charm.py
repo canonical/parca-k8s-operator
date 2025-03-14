@@ -83,10 +83,10 @@ def test_healthy_container_events(context, any_container, base_state):
 @pytest.mark.parametrize(
     "event",
     (
-            CharmEvents().update_status(),
-            CharmEvents().start(),
-            CharmEvents().install(),
-            CharmEvents().config_changed(),
+        CharmEvents().update_status(),
+        CharmEvents().start(),
+        CharmEvents().install(),
+        CharmEvents().config_changed(),
     ),
 )
 def test_healthy_lifecycle_events(context, event, base_state):
@@ -95,7 +95,7 @@ def test_healthy_lifecycle_events(context, event, base_state):
 
 
 def test_config_changed_container_not_ready(
-        context, parca_container, nginx_container, nginx_prometheus_exporter_container, parca_peers
+    context, parca_container, nginx_container, nginx_prometheus_exporter_container, parca_peers
 ):
     state = State(
         containers={
@@ -247,8 +247,8 @@ def test_profiling_endpoint_relation(context, base_state):
         }
     ]
     with context(
-            context.on.relation_changed(relation),
-            replace(base_state, relations={relation, self_profiling_relation}),
+        context.on.relation_changed(relation),
+        replace(base_state, relations={relation, self_profiling_relation}),
     ) as mgr:
         assert mgr.charm.profiling_consumer.jobs() == expected_jobs
         state_out = mgr.run()
@@ -361,8 +361,8 @@ def test_parca_external_store_relation(context, base_state):
 
     # Ensure that the pscloud config gets passed to the charm
     with context(
-            context.on.relation_changed(relation),
-            replace(base_state, leader=True, relations={relation}),
+        context.on.relation_changed(relation),
+        replace(base_state, leader=True, relations={relation}),
     ) as mgr:
         config = mgr.charm.store_requirer.config
         for key, val in pscloud_config.items():
@@ -412,8 +412,8 @@ def test_self_profiling_endpoint_relation(context, base_state):
 
     # WHEN we get a relation changed event
     with context(
-            context.on.relation_changed(relation),
-            replace(base_state, leader=True, relations={relation}),
+        context.on.relation_changed(relation),
+        replace(base_state, leader=True, relations={relation}),
     ) as mgr:
         state_out = mgr.run()
         scrape_config = mgr.charm._profiling_scrape_configs
@@ -425,19 +425,10 @@ def test_self_profiling_endpoint_relation(context, base_state):
         assert rel_out.local_app_data["scrape_jobs"] == json.dumps(expected_scrape_jobs)
 
 
-def test_parca_workload_tracing_relation(context, base_state):
-    remote_app_databag = {
-        "receivers": json.dumps(
-            [{"protocol": {"name": "otlp_grpc", "type": "grpc"}, "url": "192.0.2.0/24"}]
-        )
-    }
-    relation = Relation(
-        "workload-tracing", remote_app_name="backend", remote_app_data=remote_app_databag
-    )
-
+def test_parca_workload_tracing_relation(context, base_state, workload_tracing_relation):
     state_out = context.run(
-        context.on.relation_changed(relation),
-        replace(base_state, leader=True, relations={relation}),
+        context.on.relation_changed(workload_tracing_relation),
+        replace(base_state, leader=True, relations={workload_tracing_relation}),
     )
 
     # Check the Parca is started with the correct command including the tracing flag
@@ -448,7 +439,8 @@ def test_parca_workload_tracing_relation(context, base_state):
         f"--http-address=localhost:{Parca.port} "
         "--storage-enable-wal "
         "--storage-active-memory=4294967296 "
-        "--otlp-address=192.0.2.0/24",
+        "--otlp-address=192.0.2.0/24 "
+        "--otlp-insecure=True",
     )
 
 
@@ -459,16 +451,13 @@ def test_list_endpoints_action(context, base_state, tls, ingress):
     base_state = replace(base_state, leader=True)
     if ingress:
         external_host = "162.42.42.42"
-        ingress_data = {
-            "external_host": external_host,
-            "scheme": "https" if tls else "http"
-        }
+        ingress_data = {"external_host": external_host, "scheme": "https" if tls else "http"}
         ingress_relation = Relation("ingress", remote_app_data=ingress_data)
-        base_state = replace(base_state, relations=set(base_state.relations).union({
-            ingress_relation
-        }))
+        base_state = replace(
+            base_state, relations=set(base_state.relations).union({ingress_relation})
+        )
 
-    with patch("charm.ParcaOperatorCharm._scheme", 'https' if tls else "http"):
+    with patch("charm.ParcaOperatorCharm._scheme", "https" if tls else "http"):
         # WHEN we run a list-endpoints action
         context.run(context.on.action("list-endpoints"), base_state)
         results = context.action_results
@@ -478,8 +467,8 @@ def test_list_endpoints_action(context, base_state, tls, ingress):
     fqdn = socket.getfqdn()
 
     expected_results = {
-        'direct-http-url': f'{scheme}://{fqdn}:{Nginx.parca_http_server_port}',
-        'direct-grpc-url': f'{fqdn}:{Nginx.parca_grpc_server_port}',
+        "direct-http-url": f"{scheme}://{fqdn}:{Nginx.parca_http_server_port}",
+        "direct-grpc-url": f"{fqdn}:{Nginx.parca_grpc_server_port}",
     }
     if ingress:
         expected_results.update(
@@ -490,13 +479,17 @@ def test_list_endpoints_action(context, base_state, tls, ingress):
         )
     assert results == expected_results
 
-@pytest.mark.parametrize("event", (
-    CharmEvents.update_status(),
-    CharmEvents.install(),
-    CharmEvents.update_status(),
-))
+
+@pytest.mark.parametrize(
+    "event",
+    (
+        CharmEvents.update_status(),
+        CharmEvents.install(),
+        CharmEvents.update_status(),
+    ),
+)
 def test_parca_blocks_if_scaled(context, base_state, event):
-    relation= PeerRelation("parca-peers", peers_data={0:{}, 1:{}})
+    relation = PeerRelation("parca-peers", peers_data={0: {}, 1: {}})
     state_out = context.run(
         event,
         replace(base_state, leader=True, relations={relation}),

@@ -20,7 +20,7 @@ if typing.TYPE_CHECKING:  # pragma: nocover
 
 logger = logging.getLogger(__name__)
 
-VERSION_PATTERN = re.compile('([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)')
+VERSION_PATTERN = re.compile("([0-9]+[.][0-9]+[.][0-9]+[-0-9a-f]*)")
 # parca server bind port
 _PARCA_PORT = 7070
 DEFAULT_BIN_PATH = "/parca"
@@ -123,6 +123,9 @@ class Parca:
 
     def _pebble_layer(self) -> Layer:
         """Return a Pebble layer for Parca based on the current configuration."""
+        env = {}
+        if self._tls_config and self._tracing_endpoint:
+            env["OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE"] = CA_CERT_PATH
         return Layer(
             {
                 "services": {
@@ -137,8 +140,10 @@ class Parca:
                             enable_persistence=bool(self._enable_persistence or self._s3_config),
                             store_config=self._store_config,
                             tracing_endpoint=self._tracing_endpoint,
+                            tracing_insecure=not self._tls_config,
                         ),
                         "startup": "enabled",
+                        "environment": env,
                     }
                 },
             }
@@ -159,8 +164,10 @@ class Parca:
 
         match = VERSION_PATTERN.search(version_out.read())
         if not match:
-            logger.error(f"unable to get version from parca: `/parca --version` returned {version_out!r}, "
-                         f"which didn't match the expected {VERSION_PATTERN.pattern!r}")
+            logger.error(
+                f"unable to get version from parca: `/parca --version` returned {version_out!r}, "
+                f"which didn't match the expected {VERSION_PATTERN.pattern!r}"
+            )
             return ""
         return match.groups()[0]
 
@@ -175,6 +182,7 @@ def parca_command_line(
     profile_path: str = DEFAULT_PROFILE_PATH,
     store_config: Optional[dict] = None,
     tracing_endpoint: Optional[str] = None,
+    tracing_insecure: bool = True,
 ) -> str:
     """Generate a valid Parca command line.
 
@@ -187,11 +195,14 @@ def parca_command_line(
         profile_path: Path to profile storage directory.
         store_config: Configuration to send profiles to a remote store
         tracing_endpoint: Address to send traces to.
+        tracing_insecure: If true, disable sending traces over TLS.
     """
-    cmd = [str(bin_path),
-           f"--config-path={config_path}",
-           f"--http-address={http_address}",
-           "--storage-enable-wal"]
+    cmd = [
+        str(bin_path),
+        f"--config-path={config_path}",
+        f"--http-address={http_address}",
+        "--storage-enable-wal",
+    ]
 
     if enable_persistence:
         # Add the correct command line options for disk persistence
@@ -219,6 +230,7 @@ def parca_command_line(
 
     if tracing_endpoint:
         cmd.append(f"--otlp-address={tracing_endpoint}")
+        cmd.append(f"--otlp-insecure={tracing_insecure}")
 
     return " ".join(cmd)
 
