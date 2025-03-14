@@ -1,8 +1,9 @@
+import json
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ops.testing import Container, Context, PeerRelation
+from ops.testing import Container, Context, PeerRelation, Relation
 
 from charm import ParcaOperatorCharm
 
@@ -10,8 +11,8 @@ from charm import ParcaOperatorCharm
 @pytest.fixture(autouse=True)
 def patch_buffer_file_for_charm_tracing(tmp_path):
     with patch(
-            "charms.tempo_coordinator_k8s.v0.charm_tracing.BUFFER_DEFAULT_CACHE_FILE_NAME",
-            str(tmp_path / "foo.json"),
+        "charms.tempo_coordinator_k8s.v0.charm_tracing.BUFFER_DEFAULT_CACHE_FILE_NAME",
+        str(tmp_path / "foo.json"),
     ):
         yield
 
@@ -66,4 +67,16 @@ def nginx_prometheus_exporter_container():
     return Container(
         "nginx-prometheus-exporter",
         can_connect=True,
+    )
+
+
+@pytest.fixture
+def workload_tracing_relation():
+    remote_app_databag = {
+        "receivers": json.dumps(
+            [{"protocol": {"name": "otlp_grpc", "type": "grpc"}, "url": "192.0.2.0/24"}]
+        )
+    }
+    return Relation(
+        "workload-tracing", remote_app_name="backend", remote_app_data=remote_app_databag
     )

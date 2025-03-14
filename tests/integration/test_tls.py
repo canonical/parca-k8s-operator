@@ -86,9 +86,8 @@ async def test_profiling_scraping(ops_test):
     assert PARCA_TESTER in output
 
 
-# FIXME: uncomment test once
+# FIXME: We need to perform a profiles query on Parca to stimulate it to generate traces
 # https://github.com/canonical/parca-k8s-operator/issues/403
-# and https://github.com/canonical/parca-k8s-operator/issues/405 are fixed.
 # async def test_workload_tracing(ops_test: OpsTest):
 #     await deploy_tempo_cluster(ops_test)
 #     await asyncio.gather(

@@ -189,15 +189,17 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         # keep this after the collect-status observer, but before any other event handler
         if self.is_scaled_up():
-            logger.error("Application has scale >1 but doesn't support scaling. "
-                         "Deploy a new application instead.")
+            logger.error(
+                "Application has scale >1 but doesn't support scaling. "
+                "Deploy a new application instead."
+            )
             return
 
         self.framework.observe(self.on.list_endpoints_action, self._on_list_endpoints_action)
         # unconditional logic
         self.reconcile()
 
-    def is_scaled_up(self)->bool:
+    def is_scaled_up(self) -> bool:
         """Check whether we have peers."""
         peer_relation = self.model.get_relation("parca-peers")
         if not peer_relation:
@@ -385,13 +387,6 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _workload_tracing_endpoint(self) -> Optional[str]:
         if self.workload_tracing.is_ready():
             endpoint = self.workload_tracing.get_endpoint("otlp_grpc")
-            # TODO: Parca fails to send traces over TLS.
-            # https://github.com/canonical/parca-k8s-operator/issues/405
-            if endpoint and self._tls_ready:
-                logger.warning(
-                    "Sending workload traces over TLS is not yet supported. Disable TLS to continue sending workload traces."
-                )
-                return None
             return endpoint
         return None
 
@@ -399,7 +394,11 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _on_collect_unit_status(self, event: ops.CollectStatusEvent):
         """Set unit status depending on the state."""
         if self.is_scaled_up():
-            event.add_status(ops.BlockedStatus("You can't scale up parca-k8s. Deploy a new application instead."))
+            event.add_status(
+                ops.BlockedStatus(
+                    "You can't scale up parca-k8s. Deploy a new application instead."
+                )
+            )
 
         containers_not_ready = [
             workload.container_name
@@ -420,13 +419,13 @@ class ParcaOperatorCharm(ops.CharmBase):
         """React to the list-endpoints action."""
         out = {
             "direct-http-url": f"{self._scheme}://{self._fqdn}:{Nginx.parca_http_server_port}",
-            "direct-grpc-url": f"{self._fqdn}:{Nginx.parca_grpc_server_port}"
+            "direct-grpc-url": f"{self._fqdn}:{Nginx.parca_grpc_server_port}",
         }
 
         if http_external_host := self.ingress.http_external_host:
-            out["ingressed-http-url"]= f"{http_external_host}:{Nginx.parca_http_server_port}"
+            out["ingressed-http-url"] = f"{http_external_host}:{Nginx.parca_http_server_port}"
         if grpc_external_host := self.ingress.grpc_external_host:
-            out["ingressed-grpc-url"]= f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
+            out["ingressed-grpc-url"] = f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
         event.set_results(out)
 
 
