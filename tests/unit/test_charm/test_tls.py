@@ -78,6 +78,7 @@ def base_state(
     nginx_prometheus_exporter_container,
     certificates,
     private_key,
+    workload_tracing_relation,
 ):
     private_key_secret = Secret(
         {"private-key": private_key.raw},
@@ -86,7 +87,7 @@ def base_state(
     )
     return State(
         leader=True,
-        relations=[certificates],
+        relations=[certificates, workload_tracing_relation],
         containers=[parca_container, nginx_container, nginx_prometheus_exporter_container],
         secrets={private_key_secret},
     )
@@ -97,6 +98,8 @@ def test_endpoint_with_tls_enabled(context, base_state, certificates, ca):
     # WHEN we process any event
     with context(context.on.relation_changed(certificates), base_state) as mgr:
         charm: ParcaOperatorCharm = mgr.charm
+        state_out = mgr.run()
+        container = state_out.get_container("parca")
         # THEN we have TLS enabled
         assert charm._tls_ready
         assert charm._scheme == "https"
@@ -104,6 +107,7 @@ def test_endpoint_with_tls_enabled(context, base_state, certificates, ca):
         scrape_config = charm._self_profiling_scrape_config
         assert "scheme" in scrape_config and scrape_config["scheme"] == "https"
         assert "tls_config" in scrape_config and scrape_config["tls_config"]["ca"] == ca.raw
+        assert "--otlp-insecure=false" in container.plan.services["parca"].command
 
 
 def test_endpoint_with_tls_disabled(
