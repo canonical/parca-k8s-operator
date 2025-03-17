@@ -3,7 +3,8 @@
 # See LICENSE file for licensing details.
 
 import asyncio
-from subprocess import getoutput
+import shlex
+import subprocess
 
 import pytest
 import requests
@@ -44,10 +45,12 @@ async def test_setup(ops_test, parca_charm, parca_resources):
 
 
 def _get_ingress_ip(model_name):
-    result = getoutput(
-        f"sudo microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
-    )
-    return result.strip("'")
+    cmd = f"microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
+    try:
+        proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
+    except:
+        proc = subprocess.run(shlex.split("sudo " + cmd), text=True, capture_output=True)
+    return proc.stdout.strip("'")
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
