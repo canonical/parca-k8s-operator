@@ -8,11 +8,11 @@ import subprocess
 
 import pytest
 import requests
+from helpers import get_unit_ip
 from tenacity import retry
 from tenacity.stop import stop_after_delay
 from tenacity.wait import wait_exponential as wexp
 
-from helpers import get_unit_ip
 from nginx import Nginx
 
 TRAEFIK = "traefik"

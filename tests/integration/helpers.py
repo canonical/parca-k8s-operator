@@ -110,12 +110,11 @@ def query_label_values(
         model_name, app_name=PARCA
 ) -> List[str]:
     """Query the parca.query.v1alpha1.QueryService/Values service with grpcurl."""
-
     # at the moment passing a file cacert isn't supported by the grpcurl snap
     unit_ip = get_unit_ip(model_name, app_name, 0)
     url = f"{unit_ip}:{Nginx.parca_grpc_server_port}"
     service = "parca.query.v1alpha1.QueryService/Values"
-    query = f"-d '{{\"label_name\": \"juju_unit\"}}'"
+    query = "-d '{\"label_name\": \"juju_unit\"}'"
 
     cmd = f"grpcurl -plaintext {query} {url} {service}"
     logging.info(f"calling: {cmd!r}")

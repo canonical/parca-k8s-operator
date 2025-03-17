@@ -6,7 +6,8 @@ import asyncio
 
 import pytest
 from helpers import (
-    query_parca_server, query_label_values,
+    query_label_values,
+    query_parca_server,
 )
 from tenacity import retry
 from tenacity.stop import stop_after_attempt
