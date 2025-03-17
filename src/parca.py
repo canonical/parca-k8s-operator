@@ -140,7 +140,7 @@ class Parca:
                             enable_persistence=bool(self._enable_persistence or self._s3_config),
                             store_config=self._store_config,
                             tracing_endpoint=self._tracing_endpoint,
-                            tracing_tls=self._tls_config,
+                            tracing_tls=bool(self._tls_config),
                         ),
                         "startup": "enabled",
                         "environment": env,
