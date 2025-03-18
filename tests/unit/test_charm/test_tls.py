@@ -14,7 +14,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 )
 from scenario import Relation, Secret, State
 
-from charm import ParcaOperatorCharm
+from charm import CERTIFICATES_RELATION_NAME, ParcaOperatorCharm
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ def base_state(
 ):
     private_key_secret = Secret(
         {"private-key": private_key.raw},
-        label=f"{LIBID}-private-key-0",
+        label=f"{LIBID}-private-key-0-{CERTIFICATES_RELATION_NAME}",
         owner="unit",
     )
     return State(
