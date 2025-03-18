@@ -30,7 +30,9 @@ def patch_all(tmp_path):
         stack.enter_context(
             patch(
                 "charm.JujuTopology.from_charm",
-                MagicMock(return_value=MagicMock(as_dict=MagicMock(return_value={}))),
+                MagicMock(
+                    return_value=MagicMock(as_dict=MagicMock(return_value={}), identifier="")
+                ),
             )
         )
         yield
