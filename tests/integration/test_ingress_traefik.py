@@ -5,6 +5,7 @@
 import asyncio
 import shlex
 import subprocess
+from subprocess import CalledProcessError
 
 import pytest
 import requests
@@ -48,8 +49,11 @@ def _get_ingress_ip(model_name):
     cmd = f"microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
     try:
         proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
-    except:
-        proc = subprocess.run(shlex.split("sudo " + cmd), text=True, capture_output=True)
+    except CalledProcessError as e:
+        if e.returncode == 127:  # permission error
+            proc = subprocess.run(shlex.split("sudo " + cmd), text=True, capture_output=True)
+        else: raise
+
     return proc.stdout.strip("'")
 
 
