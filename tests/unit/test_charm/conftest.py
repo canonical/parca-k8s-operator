@@ -1,8 +1,9 @@
+import json
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ops.testing import Container, Context, PeerRelation
+from ops.testing import Container, Context, PeerRelation, Relation
 
 from charm import ParcaOperatorCharm
 
@@ -29,7 +30,9 @@ def patch_all(tmp_path):
         stack.enter_context(
             patch(
                 "charm.JujuTopology.from_charm",
-                MagicMock(return_value=MagicMock(as_dict=MagicMock(return_value={}))),
+                MagicMock(
+                    return_value=MagicMock(as_dict=MagicMock(return_value={}), identifier="")
+                ),
             )
         )
         yield
@@ -66,4 +69,16 @@ def nginx_prometheus_exporter_container():
     return Container(
         "nginx-prometheus-exporter",
         can_connect=True,
+    )
+
+
+@pytest.fixture
+def workload_tracing_relation():
+    remote_app_databag = {
+        "receivers": json.dumps(
+            [{"protocol": {"name": "otlp_grpc", "type": "grpc"}, "url": "192.0.2.0/24"}]
+        )
+    }
+    return Relation(
+        "workload-tracing", remote_app_name="backend", remote_app_data=remote_app_databag
     )

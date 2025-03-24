@@ -132,7 +132,8 @@ async def test_grafana_dashboard_relation(ops_test: OpsTest):
     )
 
 
-# FIXME: uncomment test once https://github.com/canonical/parca-k8s-operator/issues/403 is fixed
+# FIXME: We need to perform a profiles query on Parca to stimulate it to generate traces
+# https://github.com/canonical/parca-k8s-operator/issues/403
 # async def test_workload_tracing_relation(ops_test: OpsTest):
 #     await deploy_tempo_cluster(ops_test)
 #     await asyncio.gather(
