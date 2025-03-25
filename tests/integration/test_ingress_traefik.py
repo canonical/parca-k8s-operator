@@ -52,7 +52,8 @@ def _get_ingress_ip(model_name):
     except CalledProcessError as e:
         if e.returncode == 127:  # permission error
             proc = subprocess.run(shlex.split("sudo " + cmd), text=True, capture_output=True)
-        else: raise
+        else:
+            raise
 
     return proc.stdout.strip("'")
 
