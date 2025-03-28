@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 from helpers import (
-    query_label_values,
+    get_juju_app_label_values,
     query_parca_server,
 )
 from tenacity import retry
@@ -56,8 +56,8 @@ async def test_direct_url_200(ops_test):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_parca_is_scraping_itself(ops_test):
-    label_values = query_label_values(ops_test.model_name, PARCA)
-    assert "parca/0" in label_values
+    label_values = get_juju_app_label_values(ops_test.model_name, PARCA)
+    assert "parca" in label_values
 
 
 @pytest.mark.abort_on_fail
@@ -78,8 +78,8 @@ async def test_deploy_parca_tester(ops_test, parca_charm, parca_resources):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 async def test_parca_is_scraping_parca_tester(ops_test):
-    label_values = query_label_values(ops_test.model_name, PARCA)
-    assert "parca-tester/0" in label_values
+    label_values = get_juju_app_label_values(ops_test.model_name, PARCA)
+    assert "parca-tester" in label_values
 
 
 @pytest.mark.abort_on_fail

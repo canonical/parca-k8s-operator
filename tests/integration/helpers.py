@@ -106,14 +106,14 @@ def query_parca_server(
     return getstatusoutput(cmd)
 
 
-def query_label_values(
+def get_juju_app_label_values(
         model_name, app_name=PARCA
 ) -> List[str]:
     """Query the parca.query.v1alpha1.QueryService/Values service with grpcurl."""
     unit_ip = get_unit_ip(model_name, app_name, 0)
     url = f"{unit_ip}:{Nginx.parca_grpc_server_port}"
     service = "parca.query.v1alpha1.QueryService/Values"
-    query = "-d '{\"label_name\": \"juju_unit\"}'"
+    query = "-d '{\"label_name\": \"juju_application\"}'"
 
     # at the moment passing a file cacert isn't supported by the grpcurl snap: hence -insecure
     cmd = f"grpcurl -insecure {query} {url} {service}"
@@ -124,4 +124,4 @@ def query_label_values(
 
 
 if __name__ == '__main__':
-    print(query_label_values("test-tls-zy31"))
+    print(get_juju_app_label_values("test-tls-zy31"))
