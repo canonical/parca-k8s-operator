@@ -35,7 +35,7 @@ async def test_setup(ops_test, parca_charm, parca_resources):
         ),
         ops_test.model.deploy(
             SSC,
-            channel="edge",
+            channel="latest/edge",
             trust=True,
         ),
         ops_test.model.wait_for_idle(apps=apps, status="active", timeout=500),
