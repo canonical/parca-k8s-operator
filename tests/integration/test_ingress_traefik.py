@@ -54,7 +54,6 @@ def _get_ingress_ip(model_name):
             proc = subprocess.run(shlex.split("sudo " + cmd), text=True, capture_output=True)
         else:
             raise
-
     return proc.stdout.strip("'")
 
 
@@ -63,6 +62,7 @@ def _get_ingress_ip(model_name):
                                   Nginx.parca_grpc_server_port))
 async def test_ingressed_endpoints(ops_test, port):
     ingress_ip = _get_ingress_ip(ops_test.model_name)
+    assert ingress_ip
     url = f"http://{ingress_ip}:{port}"
     # traefik will correctly give 200s on both grpc and http endpoints
     assert requests.get(url).status_code == 200
