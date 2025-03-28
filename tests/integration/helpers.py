@@ -116,8 +116,12 @@ def query_label_values(
     query = "-d '{\"label_name\": \"juju_unit\"}'"
 
     # at the moment passing a file cacert isn't supported by the grpcurl snap: hence -insecure
-    cmd = f"grpcurl -insecure {query} {url}/{service}"
+    cmd = f"grpcurl -insecure {query} {url} {service}"
     logging.debug(f"calling: {cmd!r}")
     proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
     proc.check_returncode()
     return json.loads(proc.stdout).get("labelValues", [])
+
+
+if __name__ == '__main__':
+    print(query_label_values("test-tls-zy31"))
