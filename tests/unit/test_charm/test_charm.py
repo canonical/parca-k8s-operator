@@ -405,7 +405,7 @@ def test_self_profiling_no_endpoint_relation(context, base_state):
 
 def test_self_profiling_endpoint_relation(context, base_state):
     expected_scrape_jobs = [
-        {"static_configs": [{"targets": [f"{socket.getfqdn()}:{Nginx.parca_http_server_port}"]}]}
+        {"static_configs": [{"targets": [f"*:{Nginx.parca_http_server_port}"]}]}
     ]
     # GIVEN a self-profiling-endpoint relation
     relation = Relation("self-profiling-endpoint")

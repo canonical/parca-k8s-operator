@@ -3,6 +3,7 @@ from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
 import pytest
+from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from ops.testing import Container, Context, PeerRelation, Relation
 
 from charm import ParcaOperatorCharm
@@ -10,10 +11,7 @@ from charm import ParcaOperatorCharm
 
 @pytest.fixture(autouse=True)
 def patch_buffer_file_for_charm_tracing(tmp_path):
-    with patch(
-            "charms.tempo_coordinator_k8s.v0.charm_tracing.BUFFER_DEFAULT_CACHE_FILE_NAME",
-            str(tmp_path / "foo.json"),
-    ):
+    with charm_tracing_disabled():
         yield
 
 
