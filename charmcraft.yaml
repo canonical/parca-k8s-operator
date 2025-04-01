@@ -21,7 +21,11 @@ platforms:
 parts:
   charm:
     charm-binary-python-packages: [ cryptography, jsonschema, pydantic, pydantic-core, maturin ]
-    build-packages: [ git ]
+    build-packages:
+      - git # needed to resolve git+ dependencies
+      - libffi-dev  # Needed to build Python dependencies with Rust from source
+      - libssl-dev  # Needed to build Python dependencies with Rust from source
+      - pkg-config  # Needed to build Python dependencies with Rust from source
     charm-requirements: [requirements.txt]
     build-snaps: [astral-uv]
     override-build: |
