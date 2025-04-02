@@ -53,13 +53,10 @@ def _get_ingress_url(model_name: str):
     # use an action instead of running microk8s.kubectl commands as those behave differently in CI
     # this took me a week to figure out. If you ever refactor this do let me know.
     cmd = f"juju run -m {model_name} {TRAEFIK}/0 show-proxied-endpoints --format json"
-    print(f"running {cmd}")
     proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
     out = json.loads(proc.stdout.strip())
-    print(out)
     result = out[f"{TRAEFIK}/0"]["results"]["proxied-endpoints"]
     endpoints = json.loads(result)
-    print(endpoints)
     traefik_url = endpoints["traefik"]['url']
     return traefik_url
 
