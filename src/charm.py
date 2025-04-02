@@ -69,23 +69,6 @@ RELABEL_CONFIG = [
 ]
 
 
-def setup_reconciler(self, method):
-    # reconcile: on any event, execute the charm's unconditional logic
-    # this will NOT run the reconciler on action events
-    # this should run the reconciler exactly once on each hook event other than action events
-    # without this self.has_reconciled thing, reconcile() will run multiple times
-    # if you have deferred events: one per deferred event. So, don't defer.
-    self.has_reconciled = False
-    for event in filter(lambda e: issubclass(e.event_type, HookEvent),
-                        self.on.events().values()):
-        self.framework.observe(event, self._on_any_event)
-
-    def _on_any_event(self, _:ops.EventBase):
-        if not self.has_reconciled:
-            self.reconcile()
-            self.has_reconciled = True
-
-
 class Reconciler(ops.Object):
     """Helper class to listen to all hook events but only run the handler once."""
 
