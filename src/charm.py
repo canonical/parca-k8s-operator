@@ -5,6 +5,7 @@
 """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
 import logging
+import os
 import socket
 import typing
 from pathlib import Path
@@ -12,6 +13,9 @@ from typing import Dict, FrozenSet, List, Optional
 
 import ops
 import pydantic
+from cosl import JujuTopology
+from ops import HookEvent, StartEvent
+
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -30,8 +34,6 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     Mode,
     TLSCertificatesRequiresV4,
 )
-from cosl import JujuTopology
-
 from ingress_configuration import EntryPoint, Protocol, TraefikRouteEndpoint
 from models import S3Config, TLSConfig
 from nginx import (
@@ -65,6 +67,45 @@ RELABEL_CONFIG = [
         "regex": "(.*)",
     }
 ]
+
+
+def setup_reconciler(self, method):
+    # reconcile: on any event, execute the charm's unconditional logic
+    # this will NOT run the reconciler on action events
+    # this should run the reconciler exactly once on each hook event other than action events
+    # without this self.has_reconciled thing, reconcile() will run multiple times
+    # if you have deferred events: one per deferred event. So, don't defer.
+    self.has_reconciled = False
+    for event in filter(lambda e: issubclass(e.event_type, HookEvent),
+                        self.on.events().values()):
+        self.framework.observe(event, self._on_any_event)
+
+    def _on_any_event(self, _:ops.EventBase):
+        if not self.has_reconciled:
+            self.reconcile()
+            self.has_reconciled = True
+
+
+class Reconciler(ops.Object):
+    """Helper class to listen to all hook events but only run the handler once."""
+
+    def __init__(self, parent, callback):
+        super().__init__(parent, "reconciler")
+        # without this has_run check, deferred events will trigger the callback as well,
+        # resulting in multiple executions.
+        # normally holistic charms don't defer, but this will help non-holistic charms
+        # to adopt the reconciler without having to ditch all their defers first.
+        self._has_run = False
+
+        self.callback = callback
+        for event in filter(lambda e: issubclass(e.event_type, HookEvent),
+                            self.on.events().values()):
+            self.framework.observe(event, self._on_any_event)
+
+    def _on_any_event(self, _:ops.EventBase):
+        if not self._has_run:
+            self.callback()
+            self._has_run = True
 
 
 @trace_charm(
@@ -194,10 +235,9 @@ class ParcaOperatorCharm(ops.CharmBase):
             return
 
         self.framework.observe(self.on.list_endpoints_action, self._on_list_endpoints_action)
-        # unconditional logic
-        self.reconcile()
+        self._reconciler = Reconciler(self, callback=self.reconcile)
 
-    def is_scaled_up(self)->bool:
+    def is_scaled_up(self) -> bool:
         """Check whether we have peers."""
         peer_relation = self.model.get_relation("parca-peers")
         if not peer_relation:
@@ -417,20 +457,20 @@ class ParcaOperatorCharm(ops.CharmBase):
         }
 
         if http_external_host := self.ingress.http_external_host:
-            out["ingressed-http-url"]= f"{http_external_host}:{Nginx.parca_http_server_port}"
+            out["ingressed-http-url"] = f"{http_external_host}:{Nginx.parca_http_server_port}"
         if grpc_external_host := self.ingress.grpc_external_host:
-            out["ingressed-grpc-url"]= f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
+            out["ingressed-grpc-url"] = f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
         event.set_results(out)
 
 
 def _generic_scrape_target(
-    fqdn: str,
-    port: int,
-    tls_config_ca_file_key: str,
-    scheme="http",
-    labels: Optional[Dict[str, str]] = None,
-    job_name: Optional[str] = None,
-    relabel_configs: Optional[List[RelabelConfig]] = None,
+        fqdn: str,
+        port: int,
+        tls_config_ca_file_key: str,
+        scheme="http",
+        labels: Optional[Dict[str, str]] = None,
+        job_name: Optional[str] = None,
+        relabel_configs: Optional[List[RelabelConfig]] = None,
 ) -> List[ScrapeJobsConfig]:
     """Generate a list of scrape job configs, valid for parca or prometheus."""
     job: ScrapeJob = {"targets": [f"{fqdn}:{port}"]}

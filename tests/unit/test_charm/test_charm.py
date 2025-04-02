@@ -13,7 +13,7 @@ from ops.model import ActiveStatus, WaitingStatus
 from ops.testing import CharmEvents, Relation, State
 from scenario import BlockedStatus, PeerRelation
 
-from charm import RELABEL_CONFIG
+from charm import RELABEL_CONFIG, ParcaOperatorCharm
 from nginx import Nginx
 from parca import DEFAULT_CONFIG_PATH, Parca
 from tests.unit.test_charm.container_utils import (
@@ -284,13 +284,13 @@ def test_metrics_endpoint_relation(context, base_state):
 @pytest.mark.parametrize(
     "event",
     (
-        CharmEvents().update_status(),
-        CharmEvents().start(),
-        CharmEvents().install(),
-        CharmEvents().config_changed(),
-        CharmEvents().relation_changed,
-        CharmEvents().relation_joined,
-        CharmEvents().relation_departed,
+            CharmEvents().update_status(),
+            CharmEvents().start(),
+            CharmEvents().install(),
+            CharmEvents().config_changed(),
+            CharmEvents().relation_changed,
+            CharmEvents().relation_joined,
+            CharmEvents().relation_departed,
     ),
 )
 def test_parca_store_relation(event, context, base_state):
@@ -403,6 +403,18 @@ def test_self_profiling_no_endpoint_relation(context, base_state):
         assert scrape_config == expected_scrape_config
 
 
+def test_double_reconcile(context, parca_peers, parca_container, nginx_container, nginx_prometheus_exporter_container):
+    state = State(
+        containers={parca_container, nginx_container, nginx_prometheus_exporter_container},
+        relations={parca_peers},
+        deferred=[
+            context.on.start().deferred(handler=ParcaOperatorCharm._on_any_event)
+        ]
+    )
+
+    context.run(context.on.config_changed(), state)
+
+
 def test_self_profiling_endpoint_relation(context, base_state):
     expected_scrape_jobs = [
         {"static_configs": [{"targets": [f"{socket.getfqdn()}:{Nginx.parca_http_server_port}"]}]}
@@ -490,13 +502,14 @@ def test_list_endpoints_action(context, base_state, tls, ingress):
         )
     assert results == expected_results
 
+
 @pytest.mark.parametrize("event", (
-    CharmEvents.update_status(),
-    CharmEvents.install(),
-    CharmEvents.update_status(),
+        CharmEvents.update_status(),
+        CharmEvents.install(),
+        CharmEvents.update_status(),
 ))
 def test_parca_blocks_if_scaled(context, base_state, event):
-    relation= PeerRelation("parca-peers", peers_data={0:{}, 1:{}})
+    relation = PeerRelation("parca-peers", peers_data={0: {}, 1: {}})
     state_out = context.run(
         event,
         replace(base_state, leader=True, relations={relation}),
