@@ -327,7 +327,13 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def _self_profiling_scrape_jobs(self) -> List[ScrapeJobsConfig]:
         """The self-profiling scrape jobs that will become other parca's scrape configs."""
-        return self._parca_scrape_target()
+        # we use a wildcard hostname here so that ProfilingEndpointConsumer._labeled_static_job_config
+        # does not miscategorize this job as "unitless".
+        # wildcard means: scrape all units of this application on this port.
+        # If we omit it (and use self._fqdn) instead, it will create two jobs, one that will
+        # scrape the right endpoint but assign it the wrong labels, and the other one
+        # with the right labels but scraping a nonexisting endpoint.
+        return self._parca_scrape_target(fqdn="*")
 
     @property
     def _self_profiling_scrape_config(self) -> ScrapeJobsConfig:
@@ -366,7 +372,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _parca_scrape_target(self, **kwargs):
         return _generic_scrape_target(
-            fqdn=self._fqdn,
+            fqdn=kwargs.pop("fqdn", self._fqdn),
             port=Nginx.parca_http_server_port,
             scheme=self._internal_scheme,
             tls_config_ca_file_key="ca",

@@ -6,6 +6,7 @@ import asyncio
 
 import pytest
 from helpers import (
+    get_juju_app_label_values,
     query_parca_server,
 )
 from tenacity import retry
@@ -34,7 +35,7 @@ async def test_setup(ops_test, parca_charm, parca_resources):
         ),
         ops_test.model.deploy(
             SSC,
-            channel="edge",
+            channel="latest/edge",
             trust=True,
         ),
         ops_test.model.wait_for_idle(apps=apps, status="active", timeout=500),
@@ -54,12 +55,9 @@ async def test_direct_url_200(ops_test):
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
-async def test_self_profiling_scraping(ops_test):
-    exit_code, output = query_parca_server(
-        ops_test.model_name, PARCA, tls=True, url_path="/metrics"
-    )
-    assert exit_code == 0, f"Failed to query the parca server. {output}"
-    assert f'"{PARCA}"' in output
+async def test_parca_is_scraping_itself(ops_test):
+    label_values = get_juju_app_label_values(ops_test.model_name, PARCA)
+    assert "parca" in label_values
 
 
 @pytest.mark.abort_on_fail
@@ -78,42 +76,10 @@ async def test_deploy_parca_tester(ops_test, parca_charm, parca_resources):
     await ops_test.model.wait_for_idle(apps=[PARCA, PARCA_TESTER], status="active", timeout=500)
 
 
-async def test_profiling_scraping(ops_test):
-    exit_code, output = query_parca_server(
-        ops_test.model_name, PARCA_TESTER, tls=True, url_path="/metrics"
-    )
-    assert exit_code == 0, f"Failed to query the parca server. {output}"
-    assert PARCA_TESTER in output
-
-
-# FIXME: We need to perform a profiles query on Parca to stimulate it to generate traces
-# https://github.com/canonical/parca-k8s-operator/issues/403
-# async def test_workload_tracing(ops_test: OpsTest):
-#     await deploy_tempo_cluster(ops_test)
-#     await asyncio.gather(
-#         ops_test.model.integrate(f"{PARCA}:workload-tracing", "tempo"),
-#         ops_test.model.wait_for_idle(
-#             apps=[PARCA, "tempo", "tempo-worker"],
-#             status="active",
-#             raise_on_blocked=True,
-#             timeout=500,
-#         ),
-#     )
-
-#     # Stimulate parca to generate traces
-#     exit_code, output = query_parca_server(
-#         ops_test.model_name,
-#         "tempo",
-#         tls=True,
-#     )
-#     assert exit_code == 0, f"Failed to query the parca server. {output}"
-
-#     # Verify workload traces from parca are ingested into Tempo
-#     assert await get_traces(
-#         await get_unit_ip(ops_test.model_name, "tempo", 0),
-#         service_name=PARCA,
-#         tls=True,
-#     )
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
+async def test_parca_is_scraping_parca_tester(ops_test):
+    label_values = get_juju_app_label_values(ops_test.model_name, PARCA)
+    assert "parca-tester" in label_values
 
 
 @pytest.mark.abort_on_fail

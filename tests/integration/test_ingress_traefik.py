@@ -3,7 +3,9 @@
 # See LICENSE file for licensing details.
 
 import asyncio
-from subprocess import getoutput
+import json
+import shlex
+import subprocess
 
 import pytest
 import requests
@@ -43,19 +45,24 @@ async def test_setup(ops_test, parca_charm, parca_resources):
     await ops_test.model.wait_for_idle(apps=apps, status="active", timeout=1000)
 
 
-def _get_ingress_ip(model_name):
-    result = getoutput(
-        f"sudo microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
-    )
-    return result.strip("'")
+def _get_ingress_url(model_name: str):
+    # use an action instead of running microk8s.kubectl commands as those behave differently in CI
+    # this took me a week to figure out. If you ever refactor this do let me know.
+    cmd = f"juju run -m {model_name} {TRAEFIK}/0 show-proxied-endpoints --format json"
+    proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
+    out = json.loads(proc.stdout.strip())
+    result = out[f"{TRAEFIK}/0"]["results"]["proxied-endpoints"]
+    endpoints = json.loads(result)
+    traefik_url = endpoints["traefik"]['url']
+    return traefik_url
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 @pytest.mark.parametrize("port", (Nginx.parca_http_server_port,
                                   Nginx.parca_grpc_server_port))
 async def test_ingressed_endpoints(ops_test, port):
-    ingress_ip = _get_ingress_ip(ops_test.model_name)
-    url = f"http://{ingress_ip}:{port}"
+    ingress_url = _get_ingress_url(ops_test.model_name)
+    url = f"{ingress_url}:{port}"
     # traefik will correctly give 200s on both grpc and http endpoints
     assert requests.get(url).status_code == 200
 

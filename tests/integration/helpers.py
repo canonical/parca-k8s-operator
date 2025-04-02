@@ -1,7 +1,11 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
-
+import json
+import logging
+import shlex
+import subprocess
 from subprocess import getoutput, getstatusoutput
+from typing import List, Tuple
 
 from minio import Minio
 from pytest_operator.plugin import OpsTest
@@ -89,8 +93,8 @@ async def get_public_address(ops_test: OpsTest, app_name):
 
 def query_parca_server(
         model_name, exec_target_app_name, tls=False, ca_cert_path=CA_CERT_PATH, url_path=""
-):
-    """Run a query the parca server."""
+) -> Tuple[int, str]:
+    """Curl the parca server from a juju unit, and return the statuscode."""
     parca_address = get_unit_fqdn(model_name, PARCA, 0)
     url = f"{'https' if tls else 'http'}://{parca_address}:{Nginx.parca_http_server_port}{url_path}"
     # Parca's certificate only contains the fqdn address of parca as SANs.
@@ -100,3 +104,24 @@ def query_parca_server(
     cert_flags = f"--cacert {ca_cert_path}" if tls else ""
     cmd = f"""juju exec --model {model_name} --unit {exec_target_app_name}/0 "curl {cert_flags} {url}" """
     return getstatusoutput(cmd)
+
+
+def get_juju_app_label_values(
+        model_name, app_name=PARCA
+) -> List[str]:
+    """Query the parca.query.v1alpha1.QueryService/Values service with grpcurl."""
+    unit_ip = get_unit_ip(model_name, app_name, 0)
+    url = f"{unit_ip}:{Nginx.parca_grpc_server_port}"
+    service = "parca.query.v1alpha1.QueryService/Values"
+    query = "-d '{\"label_name\": \"juju_application\"}'"
+
+    # at the moment passing a file cacert isn't supported by the grpcurl snap: hence -insecure
+    cmd = f"grpcurl -insecure {query} {url} {service}"
+    logging.debug(f"calling: {cmd!r}")
+    proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
+    proc.check_returncode()
+    return json.loads(proc.stdout).get("labelValues", [])
+
+
+if __name__ == '__main__':
+    print(get_juju_app_label_values("test-tls-zy31"))
