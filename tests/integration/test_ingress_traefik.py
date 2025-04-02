@@ -4,15 +4,11 @@
 
 import asyncio
 import json
-import logging
 import shlex
 import subprocess
-from subprocess import CalledProcessError
 
 import pytest
 import requests
-from pytest_operator.plugin import OpsTest
-
 from helpers import get_unit_ip
 from tenacity import retry
 from tenacity.stop import stop_after_delay
