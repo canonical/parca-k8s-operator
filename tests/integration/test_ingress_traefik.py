@@ -3,6 +3,7 @@
 # See LICENSE file for licensing details.
 
 import asyncio
+import logging
 import shlex
 import subprocess
 from subprocess import CalledProcessError
@@ -47,14 +48,20 @@ async def test_setup(ops_test, parca_charm, parca_resources):
 
 def _get_ingress_ip(model_name):
     cmd = f"microk8s.kubectl -n {model_name} get svc/{TRAEFIK}-lb -o=jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
+    logging.info(f"fetching ingress IP with {cmd}")
     try:
         proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
     except CalledProcessError as e:
         if e.returncode == 127:  # permission error
+            logging.error("failed getting ingress IP... trying again with super cow powers")
             proc = subprocess.run(shlex.split("sudo " + cmd), text=True, capture_output=True)
         else:
+            logging.exception("failed getting ingress IP for unknown reason")
             raise
-    return proc.stdout.strip("'")
+    out = proc.stdout.strip("'").strip()
+    if not out:
+        raise RuntimeError("unable to obtain ingress IP")
+    return out
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)

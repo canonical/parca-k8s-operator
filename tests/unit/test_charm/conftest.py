@@ -10,7 +10,7 @@ from charm import ParcaOperatorCharm
 
 
 @pytest.fixture(autouse=True)
-def patch_buffer_file_for_charm_tracing(tmp_path):
+def shut_up_tracing():
     with charm_tracing_disabled():
         yield
 
