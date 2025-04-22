@@ -21,17 +21,19 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    # ---UNIT TESTS---
     "coverage[toml]",
+    "pytest",
+    "ops[testing]",
+    # ---INTEGRATION TESTS---
     "juju",
     "pydantic",
     "pytest-operator",
-    "pytest",
-    "ruff",
     "tenacity",
-    "sh",
-    "pyright",
-    "ops[testing]",
     "minio",
+    # ---LINTING---
+    "ruff",
+    "pyright",
 ]
 
 [tool.coverage.run]

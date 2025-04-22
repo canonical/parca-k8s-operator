@@ -21,36 +21,12 @@ platforms:
 parts:
   charm:
     charm-binary-python-packages: [ cryptography, jsonschema, pydantic, pydantic-core, maturin ]
-    build-packages:
-      - git # needed to resolve git+ dependencies
-      - libffi-dev  # Needed to build Python dependencies with Rust from source
-      - libssl-dev  # Needed to build Python dependencies with Rust from source
-      - pkg-config  # Needed to build Python dependencies with Rust from source
-    charm-requirements: [requirements.txt]
+    source: .
+    build-packages: [git]
     build-snaps: [astral-uv]
     override-build: |
-      # Workaround for https://github.com/canonical/charmcraft/issues/2068
-      # rustup used to install rustc and cargo, which are needed to build Python dependencies with Rust from source
-      if [[ "$CRAFT_PLATFORM" == ubuntu@20.04:* || "$CRAFT_PLATFORM" == ubuntu@22.04:* ]]
-      then
-        snap install rustup --classic
-      else
-        apt-get install rustup -y
-      fi
-
-      # If Ubuntu version < 24.04, rustup was installed from snap instead of from the Ubuntu
-      # archive—which means the rustup version could be updated at any time. Print rustup version
-      # to build log to make changes to the snap's rustup version easier to track
-      rustup --version
-
-      # include rustc and cargo to compile pydantic
-      # rpds-py (Python package) requires rustc >=1.76, which is not available in the
-      # Ubuntu 22.04 archive. Install rustc and cargo using rustup instead of the Ubuntu archive
-      rustup set profile minimal
-      rustup default 1.85.1  # renovate: charmcraft-rust-latest
-      
-      uv export --frozen --no-hashes --format=requirements-txt -o requirements.txt
       craftctl default
+      git describe --always > $CRAFT_PART_INSTALL/version
 
 assumes:
   - juju >= 3.1
@@ -89,16 +65,20 @@ storage:
 
 requires:
   catalogue:
+    optional: true
     interface: catalogue
     description: Display parca entry in the COS catalogue frontend.
   s3:
+    optional: true
     interface: s3
     description: S3 bucket to store the profiles in.
   profiling-endpoint:
+    optional: true
     interface: parca_scrape
     description: |
       Integration to configure parca to scrape a profiling endpoint from a related charm.
   ingress:
+    optional: true
     interface: traefik_route
     limit: 1
     description: |
@@ -106,48 +86,58 @@ requires:
       so that cross-model workloads can send their profiles to Parca through the ingress.
       Uses `traefik_route` to open the right ports on the Traefik host.
   external-parca-store-endpoint:
+    optional: true
     interface: parca_store
     description: |
       Push profiles from this parca server to a remote parca server.
   charm-tracing:
+    optional: true
     description: |
       Enables sending charm traces to a distributed tracing backend such as Tempo.
     limit: 1
     interface: tracing
   workload-tracing:
+    optional: true
     interface: tracing
     limit: 1
     description: |
       Enables sending workload traces to a distributed tracing backend such as Tempo.
   certificates:
+    optional: true
     interface: tls-certificates
     limit: 1
     description: |
       Certificate and key files for securing Parca's external
       communications through TLS.
   logging:
+    optional: true
     interface: loki_push_api
     description: |
         Enables sending workload logs to a loki-push-api compatible endpoint.
 
 provides:
   grafana-dashboard:
+    optional: true
     interface: grafana_dashboard
     description: |
       This integration provisions a grafana dashboard to monitor this charm.
   grafana-source:
+    optional: true
     interface: grafana_datasource
     description: |
       This integration configures this parca server as a datasource on a grafana instance.
   metrics-endpoint:
+    optional: true
     interface: prometheus_scrape
     description: |
       Endpoint to allow prometheus metrics to be scraped from this parca instance.
   self-profiling-endpoint:
+    optional: true
     interface: parca_scrape
     description: |
       Endpoint to allow this parca instance profiles to be scraped by a remote parca instance.
   parca-store-endpoint:
+    optional: true
     interface: parca_store
     description: |
       Endpoint at which profiles can be pushed by, for example, a remote parca server or parca-agent.
