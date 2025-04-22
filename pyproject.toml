@@ -5,13 +5,11 @@ version = "0.1.0"
 requires-python = ">=3.10"
 
 dependencies = [
+    "crossplane",
     "ops",
-    "lightkube",
-    "lightkube-models",
     "jsonschema",
     "pydantic <3",
     "cosl>=0.0.55",
-    "crossplane",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
     "opentelemetry-exporter-otlp-proto-http==1.21.0",

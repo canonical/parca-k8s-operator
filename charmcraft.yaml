@@ -20,8 +20,8 @@ platforms:
 
 parts:
   charm:
-    charm-binary-python-packages: [ cryptography, jsonschema, pydantic, pydantic-core, maturin ]
     source: .
+    plugin: uv
     build-packages: [git]
     build-snaps: [astral-uv]
     override-build: |
