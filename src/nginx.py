@@ -162,7 +162,7 @@ class Nginx:
             self._server_name,
             upstream_configs=self._nginx_upstreams(),
             server_ports_to_locations=self._server_ports_to_locations(),
-        ).get_config(upstreams_to_addresses=self._upstreams_to_addresses(), tls=self._are_certificates_on_disk)
+        ).get_config(upstreams_to_addresses=self._upstreams_to_addresses(), listen_tls=self._are_certificates_on_disk)
         should_restart: bool = self._has_config_changed(new_config)
         self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
         self._container.add_layer(self.layer_name, self.layer, combine=True)
@@ -196,12 +196,13 @@ class Nginx:
         ]
 
     def _server_ports_to_locations(self) -> Dict[int, List[NginxLocationConfig]]:
+        # We pass upstream_tls=False to proxy requests using plain HTTP since parca's upstream server doesn't support TLS
         return {
             self.parca_grpc_server_port: [
-                NginxLocationConfig(path="/", backend=self._address.name, is_grpc=True)
+                NginxLocationConfig(path="/", backend=self._address.name, is_grpc=True, upstream_tls=False)
             ],
             self.parca_http_server_port: [
-                NginxLocationConfig(path="/", backend=self._address.name)
+                NginxLocationConfig(path="/", backend=self._address.name, upstream_tls=False)
             ]
         }
     def _upstreams_to_addresses(self) -> Dict[str, Set[str]]:
