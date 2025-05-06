@@ -131,7 +131,7 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
         else (f"listen [::]:{grpc_port}" not in prepared_config)
     )
     assert f"upstream {address.name}" in prepared_config
-    assert f"set $backend http{'s' if tls else ''}://{address.name}" in prepared_config
+    assert f"set $backend http://{address.name}" in prepared_config
     assert "proxy_pass $backend" in prepared_config
 
 
