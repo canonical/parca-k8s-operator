@@ -31,7 +31,7 @@ dev = [
     "minio",
     # ---LINTING---
     "ruff",
-    "pyright<1.1.399", # 1.1.399 vendors typeshed that dropped Python 3.8 support
+    "pyright<1.1.401", # 1.1.399 vendors typeshed that dropped Python 3.8 support
 ]
 
 [tool.coverage.run]
