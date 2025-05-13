@@ -16,7 +16,6 @@ links:
 
 platforms:
   ubuntu@24.04:amd64:
-  ubuntu@22.04:amd64:
 
 parts:
   charm:
@@ -29,7 +28,7 @@ parts:
       git describe --always > $CRAFT_PART_INSTALL/version
 
 assumes:
-  - juju >= 3.1
+  - juju >= 3.6
 
 containers:
   parca:
