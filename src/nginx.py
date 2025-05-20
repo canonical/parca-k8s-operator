@@ -6,10 +6,9 @@
 import dataclasses
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
-import crossplane
-from cosl.coordinated_workers.nginx import is_ipv6_enabled
+from cosl.coordinated_workers.nginx import NginxConfig, NginxLocationConfig, NginxUpstream
 from ops import Container, pebble
 
 from models import TLSConfig
@@ -161,10 +160,9 @@ class Nginx:
     def _reconcile_nginx_config(self):
         new_config = NginxConfig(
             self._server_name,
-            tls=self._are_certificates_on_disk,
-            http_port=self.parca_http_server_port,
-            grpc_port=self.parca_grpc_server_port,
-        ).config(self._address)
+            upstream_configs=self._nginx_upstreams(),
+            server_ports_to_locations=self._server_ports_to_locations(),
+        ).get_config(upstreams_to_addresses=self._upstreams_to_addresses(), tls=self._are_certificates_on_disk)
         should_restart: bool = self._has_config_changed(new_config)
         self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
         self._container.add_layer(self.layer_name, self.layer, combine=True)
@@ -192,255 +190,21 @@ class Nginx:
             }
         )
 
-
-class NginxConfig:
-    """Nginx config builder."""
-
-    def __init__(
-        self,
-        server_name: str,
-        tls: bool,
-        http_port: int,
-        grpc_port: int,
-    ):
-        self._tls = tls
-        self._http_port = http_port
-        self._grpc_port = grpc_port
-        self.server_name = server_name
-        self.dns_IP_address = _get_dns_ip_address()
-        self.ipv6_enabled = is_ipv6_enabled()
-
-    def config(self, address: Address) -> str:
-        """Build and return the Nginx configuration."""
-        full_config = self._prepare_config(address)
-        return crossplane.build(full_config)
-
-    def _prepare_config(self, address: Address) -> List[dict]:
-        log_level = "error"
-        # build the complete configuration
-        full_config = [
-            {"directive": "worker_processes", "args": ["5"]},
-            {"directive": "error_log", "args": ["/dev/stderr", log_level]},
-            {"directive": "pid", "args": ["/tmp/nginx.pid"]},
-            {"directive": "worker_rlimit_nofile", "args": ["8192"]},
-            {
-                "directive": "events",
-                "args": [],
-                "block": [{"directive": "worker_connections", "args": ["4096"]}],
-            },
-            {
-                "directive": "http",
-                "args": [],
-                "block": [
-                    # upstreams (load balancing)
-                    self._upstream(address),
-                    # temp paths
-                    {"directive": "client_body_temp_path", "args": ["/tmp/client_temp"]},
-                    {"directive": "proxy_temp_path", "args": ["/tmp/proxy_temp_path"]},
-                    {"directive": "fastcgi_temp_path", "args": ["/tmp/fastcgi_temp"]},
-                    {"directive": "uwsgi_temp_path", "args": ["/tmp/uwsgi_temp"]},
-                    {"directive": "scgi_temp_path", "args": ["/tmp/scgi_temp"]},
-                    # logging
-                    {"directive": "default_type", "args": ["application/octet-stream"]},
-                    {
-                        "directive": "log_format",
-                        "args": [
-                            "main",
-                            '$remote_addr - $remote_user [$time_local]  $status "$request" $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"',
-                        ],
-                    },
-                    *self._log_verbose(verbose=False),
-                    # tempo-related
-                    {"directive": "sendfile", "args": ["on"]},
-                    {"directive": "tcp_nopush", "args": ["on"]},
-                    *self._resolver(),
-                    {
-                        "directive": "map",
-                        "args": ["$http_x_scope_orgid", "$ensured_x_scope_orgid"],
-                        "block": [
-                            {"directive": "default", "args": ["$http_x_scope_orgid"]},
-                            {"directive": "", "args": ["anonymous"]},
-                        ],
-                    },
-                    {"directive": "proxy_read_timeout", "args": ["300"]},
-                    # server block
-                    # internally, the parca server listens only to a single (7070 by default) port;
-                    # however, we can't generically configure nginx to do proxy_pass AND grpc_pass on the same
-                    # external port, so we configure two separate ones that have the same upstream and send
-                    # everything to the one parca server.
-                    self._build_server_config(self._grpc_port, address.name, self._tls, grpc=True),
-                    self._build_server_config(self._http_port, address.name, self._tls),
-                ],
-            },
-        ]
-        return full_config
-
-    @staticmethod
-    def _log_verbose(verbose: bool = True) -> List[Dict[str, Any]]:
-        if verbose:
-            return [{"directive": "access_log", "args": ["/dev/stderr", "main"]}]
+    def _nginx_upstreams(self) -> List[NginxUpstream]:
         return [
-            {
-                "directive": "map",
-                "args": ["$status", "$loggable"],
-                "block": [
-                    {"directive": "~^[23]", "args": ["0"]},
-                    {"directive": "default", "args": ["1"]},
-                ],
-            },
-            {"directive": "access_log", "args": ["/dev/stderr"]},
+            NginxUpstream(name=self._address.name, port=self._address.port,worker_role=self._address.name)
         ]
 
-    @staticmethod
-    def _upstream(address: Address) -> Dict[str, Any]:
+    def _server_ports_to_locations(self) -> Dict[int, List[NginxLocationConfig]]:
         return {
-            "directive": "upstream",
-            "args": [address.name],
-            "block": [
-                # TODO: uncomment the below directive when nginx version >= 1.27.3
-                # monitor changes of IP addresses and automatically modify the upstream config without the need of restarting nginx.
-                # this nginx plus feature has been part of opensource nginx in 1.27.3
-                # ref: https://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
-                # {
-                #     "directive": "zone",
-                #     "args": [f"{address.name}_zone", "64k"],
-                # },
-                {
-                    "directive": "server",
-                    "args": [
-                        f"127.0.0.1:{address.port}",
-                        # TODO: uncomment the below arg when nginx version >= 1.27.3
-                        #  "resolve"
-                    ],
-                }
+            self.parca_grpc_server_port: [
+                NginxLocationConfig(path="/", backend=self._address.name, is_grpc=True)
             ],
-        }
-
-    def _locations(self, upstream: str, grpc: bool) -> List[Dict[str, Any]]:
-        # our locations only use http/grpc (no -secure), because parca doesn't take TLS.
-        # nginx has to terminate TLS in both cases and forward all unencrypted to parca.
-        protocol = "grpc" if grpc else "http"
-        nginx_locations = [
-            {
-                "directive": "location",
-                "args": ["/"],
-                "block": [
-                    # upstream server is not running with TLS, so we proxy the request as http
-                    {"directive": "set", "args": ["$backend", f"{protocol}://{upstream}"]},
-                    {
-                        "directive": "grpc_pass" if grpc else "proxy_pass",
-                        "args": ["$backend"],
-                    },
-                    # if a server is down, no need to wait for a long time to pass on
-                    # the request to the next available one
-                    {
-                        "directive": "proxy_connect_timeout",
-                        "args": ["5s"],
-                    },
-                ],
-            },
-        ]
-        return nginx_locations
-
-    def _resolver(
-        self,
-        custom_resolver: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        # pass a custom resolver, such as kube-dns.kube-system.svc.cluster.local.
-        if custom_resolver:
-            return [{"directive": "resolver", "args": [custom_resolver]}]
-
-        # by default, fetch the DNS resolver address from /etc/resolv.conf
-        return [
-            {
-                "directive": "resolver",
-                "args": [self.dns_IP_address],
-            }
-        ]
-
-    @staticmethod
-    def _basic_auth(enabled: bool) -> List[Optional[Dict[str, Any]]]:
-        if enabled:
-            return [
-                {"directive": "auth_basic", "args": ['"Tempo"']},
-                {
-                    "directive": "auth_basic_user_file",
-                    "args": ["/etc/nginx/secrets/.htpasswd"],
-                },
+            self.parca_http_server_port: [
+                NginxLocationConfig(path="/", backend=self._address.name)
             ]
-        return []
-
-    def _listen(self, port: int, ssl: bool, grpc: bool) -> List[Dict[str, Any]]:
-        # listen both on ipv4 and ipv6 to be safe
-        directives = [
-            {"directive": "listen", "args": self._listen_args(port, False, ssl, grpc=grpc)},
-        ]
-        if self.ipv6_enabled:
-            directives.append(
-                {"directive": "listen", "args": self._listen_args(port, True, ssl, grpc=grpc)}
-            )
-        return directives
-
-    @staticmethod
-    def _listen_args(port: int, ipv6: bool, ssl: bool, grpc: bool) -> List[str]:
-        args = []
-        if ipv6:
-            args.append(f"[::]:{port}")
-        else:
-            args.append(f"{port}")
-        if ssl:
-            args.append("ssl")
-        if grpc:
-            args.append("http2")
-        return args
-
-    def _build_server_config(
-        self, port: int, upstream: str, tls: bool = False, grpc: bool = False
-    ) -> Dict[str, Any]:
-        auth_enabled = False
-
-        if tls:
-            return {
-                "directive": "server",
-                "args": [],
-                "block": [
-                    *self._listen(port, ssl=True, grpc=grpc),
-                    *self._basic_auth(auth_enabled),
-                    {
-                        "directive": "proxy_set_header",
-                        "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
-                    },
-                    # FIXME: use a suitable SERVER_NAME
-                    {"directive": "server_name", "args": [self.server_name]},
-                    {"directive": "ssl_certificate", "args": [CERT_PATH]},
-                    {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
-                    {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
-                    {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # codespell:ignore
-                    *self._locations(upstream, grpc=grpc),
-                ],
-            }
-
-        return {
-            "directive": "server",
-            "args": [],
-            "block": [
-                *self._listen(port, ssl=False, grpc=grpc),
-                *self._basic_auth(auth_enabled),
-                {
-                    "directive": "proxy_set_header",
-                    "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
-                },
-                {"directive": "server_name", "args": [self.server_name]},
-                *self._locations(upstream, grpc=grpc),
-            ],
         }
-
-
-def _get_dns_ip_address():
-    """Obtain DNS ip address from /etc/resolv.conf."""
-    resolv = Path(RESOLV_CONF_PATH).read_text()
-    for line in resolv.splitlines():
-        if line.startswith("nameserver"):
-            # assume there's only one
-            return line.split()[1].strip()
-    raise RuntimeError("cannot find nameserver in /etc/resolv.conf")
+    def _upstreams_to_addresses(self) -> Dict[str, Set[str]]:
+        return {
+            self._address.name: {"127.0.0.1"}
+        }
