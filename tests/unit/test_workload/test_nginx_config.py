@@ -2,11 +2,11 @@ import logging
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List
 from unittest.mock import MagicMock, patch
 
 import ops
 import pytest
+from cosl.coordinated_workers.nginx import NginxConfig
 from ops import testing
 
 from nginx import (
@@ -15,8 +15,6 @@ from nginx import (
     KEY_PATH,
     Address,
     Nginx,
-    NginxConfig,
-    _get_dns_ip_address,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,26 +89,6 @@ def test_certs_deleted(certificate_mounts: dict, nginx_context: testing.Context)
         assert not nginx._are_certificates_on_disk
 
 
-@pytest.mark.parametrize(
-    "address",
-    (Address("foo", 123), Address("bar", 42)),
-)
-def test_nginx_config_is_list_before_crossplane(address):
-    nginx = NginxConfig("localhost", False, http_port=42, grpc_port=43)
-    prepared_config = nginx._prepare_config(address)
-    assert isinstance(prepared_config, List)
-
-
-@pytest.mark.parametrize(
-    "address",
-    (Address("foo", 123), Address("bar", 42)),
-)
-def test_nginx_config_is_parsed_by_crossplane(address):
-    nginx = NginxConfig("localhost", False, http_port=42, grpc_port=43)
-    prepared_config = nginx.config(address)
-    assert isinstance(prepared_config, str)
-
-
 @pytest.mark.parametrize("ipv6", (True, False))
 @pytest.mark.parametrize(
     "address",
@@ -125,9 +103,19 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
 ):
     with mock_ipv6(ipv6):
         with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
-            nginx = NginxConfig(hostname, False, http_port=http_port, grpc_port=grpc_port)
+            nginx = Nginx(testing.Container(
+                    "nginx",
+                    can_connect=True,
+                    mounts=certificate_mounts,
+                ), hostname, address, None)
+            # override class attributes
+            nginx.parca_grpc_server_port = grpc_port
+            nginx.parca_http_server_port = http_port
 
-    prepared_config = nginx.config(address)
+            nginx_config = NginxConfig(hostname, nginx._nginx_upstreams(), nginx._server_ports_to_locations())
+
+    prepared_config = nginx_config.get_config(nginx._upstreams_to_addresses(), tls)
+
     assert f"resolver {sample_dns_ip};" in prepared_config
     assert f"listen {http_port}" in prepared_config
     assert (
@@ -142,16 +130,14 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
         if ipv6
         else (f"listen [::]:{grpc_port}" not in prepared_config)
     )
-
-    sanitised_name = address.name.replace("_", "-")
-    assert f"upstream {sanitised_name}" in prepared_config
-    assert f"set $backend http{'s' if tls else ''}://{sanitised_name}"
+    assert f"upstream {address.name}" in prepared_config
+    assert f"set $backend http://{address.name}" in prepared_config
     assert "proxy_pass $backend" in prepared_config
 
 
 @contextmanager
 def mock_ipv6(enable: bool):
-    with patch("nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
+    with patch("cosl.coordinated_workers.nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
         yield
 
 
@@ -159,24 +145,6 @@ def mock_ipv6(enable: bool):
 def mock_resolv_conf(contents: str):
     with tempfile.NamedTemporaryFile() as tf:
         Path(tf.name).write_text(contents)
-        with patch("nginx.RESOLV_CONF_PATH", tf.name):
+        with patch("cosl.coordinated_workers.nginx.RESOLV_CONF_PATH", tf.name):
             yield
 
-
-@pytest.mark.parametrize(
-    "mock_contents, expected_dns_ip",
-    (
-        (f"foo bar\nnameserver {sample_dns_ip}", sample_dns_ip),
-        (f"nameserver {sample_dns_ip}\n foo bar baz", sample_dns_ip),
-        (f"foo bar\nfoo bar\nnameserver {sample_dns_ip}\nnameserver 198.18.0.1", sample_dns_ip),
-    ),
-)
-def test_dns_ip_addr_getter(mock_contents, expected_dns_ip):
-    with mock_resolv_conf(mock_contents):
-        assert _get_dns_ip_address() == expected_dns_ip
-
-
-def test_dns_ip_addr_fail():
-    with pytest.raises(RuntimeError):
-        with mock_resolv_conf("foo bar"):
-            _get_dns_ip_address()
