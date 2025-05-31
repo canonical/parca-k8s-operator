@@ -29,6 +29,7 @@ from typing import FrozenSet, List, MutableMapping, Optional, Tuple, Union
 
 import pydantic
 from cryptography import x509
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtensionOID, NameOID
@@ -51,7 +52,7 @@ LIBAPI = 4
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 16
+LIBPATCH = 18
 
 PYDEPS = [
     "cryptography>=43.0.0",
@@ -737,6 +738,49 @@ def generate_private_key(
     return PrivateKey.from_string(key_bytes.decode())
 
 
+def calculate_relative_datetime(target_time: datetime, fraction: float) -> datetime:
+    """Calculate a datetime that is a given percentage from now to a target time.
+
+    Args:
+        target_time (datetime): The future datetime to interpolate towards.
+        fraction (float): Fraction of the interval from now to target_time (0.0-1.0).
+            1.0 means return target_time,
+            0.9 means return the time after 90% of the interval has passed,
+            and 0.0 means return now.
+    """
+    if fraction <= 0.0 or fraction > 1.0:
+        raise ValueError("Invalid fraction. Must be between 0.0 and 1.0")
+    now = datetime.now(timezone.utc)
+    time_until_target = target_time - now
+    return now + time_until_target * fraction
+
+
+def chain_has_valid_order(chain: List[str]) -> bool:
+    """Check if the chain has a valid order.
+
+    Validates that each certificate in the chain is properly signed by the next certificate.
+    The chain should be ordered from leaf to root, where each certificate is signed by
+    the next one in the chain.
+
+    Args:
+        chain (List[str]): List of certificates in PEM format, ordered from leaf to root
+
+    Returns:
+        bool: True if the chain has a valid order, False otherwise.
+    """
+    if len(chain) < 2:
+        return True
+
+    try:
+        for i in range(len(chain) - 1):
+            cert = x509.load_pem_x509_certificate(chain[i].encode())
+            issuer = x509.load_pem_x509_certificate(chain[i + 1].encode())
+            cert.verify_directly_issued_by(issuer)
+        return True
+    except (ValueError, TypeError, InvalidSignature):
+        return False
+
+
 def generate_csr(  # noqa: C901
     private_key: PrivateKey,
     common_name: str,
@@ -1128,6 +1172,7 @@ class TLSCertificatesRequiresV4(Object):
         mode: Mode = Mode.UNIT,
         refresh_events: List[BoundEvent] = [],
         private_key: Optional[PrivateKey] = None,
+        renewal_relative_time: float = 0.9,
     ):
         """Create a new instance of the TLSCertificatesRequiresV4 class.
 
@@ -1154,6 +1199,11 @@ class TLSCertificatesRequiresV4(Object):
                 Using this parameter is discouraged,
                 having to pass around private keys manually can be a security concern.
                 Allowing the library to generate and manage the key is the more secure approach.
+            renewal_relative_time (float): The time to renew the certificate relative to its
+                expiry.
+                Default is 0.9, meaning 90% of the validity period.
+                The minimum value is 0.5, meaning 50% of the validity period.
+                If an invalid value is provided, an exception will be raised.
         """
         super().__init__(charm, relationship_name)
         if not JujuVersion.from_environ().has_secrets:
@@ -1169,7 +1219,12 @@ class TLSCertificatesRequiresV4(Object):
         self.mode = mode
         if private_key and not private_key.is_valid():
             raise TLSCertificatesError("Invalid private key")
+        if renewal_relative_time <= 0.5 or renewal_relative_time > 1.0:
+            raise TLSCertificatesError(
+                "Invalid renewal relative time. Must be between 0.0 and 1.0"
+            )
         self._private_key = private_key
+        self.renewal_relative_time = renewal_relative_time
         self.framework.observe(charm.on[relationship_name].relation_created, self._configure)
         self.framework.observe(charm.on[relationship_name].relation_changed, self._configure)
         self.framework.observe(charm.on.secret_expired, self._on_secret_expired)
@@ -1602,7 +1657,10 @@ class TLSCertificatesRequiresV4(Object):
                                 "csr": str(provider_certificate.certificate_signing_request),
                             },
                             label=secret_label,
-                            expire=provider_certificate.certificate.expiry_time,
+                            expire=calculate_relative_datetime(
+                                target_time=provider_certificate.certificate.expiry_time,
+                                fraction=self.renewal_relative_time,
+                            ),
                         )
                     self.on.certificate_available.emit(
                         certificate_signing_request=provider_certificate.certificate_signing_request,
@@ -1754,11 +1812,21 @@ class TLSCertificatesProvidesV4(Object):
         relation: Relation,
         provider_certificate: ProviderCertificate,
     ) -> None:
+        chain = [str(certificate) for certificate in provider_certificate.chain]
+        if chain[0] != str(provider_certificate.certificate):
+            logger.warning(
+                "The order of the chain from the TLS Certificates Provider is incorrect. "
+                "The leaf certificate should be the first element of the chain."
+            )
+        elif not chain_has_valid_order(chain):
+            logger.warning(
+                "The order of the chain from the TLS Certificates Provider is partially incorrect."
+            )
         new_certificate = _Certificate(
             certificate=str(provider_certificate.certificate),
             certificate_signing_request=str(provider_certificate.certificate_signing_request),
             ca=str(provider_certificate.ca),
-            chain=[str(certificate) for certificate in provider_certificate.chain],
+            chain=chain,
         )
         provider_certificates = self._load_provider_certificates(relation)
         if new_certificate in provider_certificates:
