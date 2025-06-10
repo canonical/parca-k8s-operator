@@ -13,7 +13,7 @@ dependencies = [
     "cosl>=0.1.0",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
-    "opentelemetry-exporter-otlp-proto-http==1.34.0",
+    "opentelemetry-exporter-otlp-proto-http==1.34.1",
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
 ]
