@@ -20,16 +20,20 @@ from jubilant import Juju
 from tenacity import retry, stop_after_delay
 from tenacity import wait_exponential as wexp
 
-from tests.integration.helpers import INTEGRATION_TESTERS_CHANNEL, get_unit_ip, get_unit_ip_address
+from tests.integration.helpers import (
+    INTEGRATION_TESTERS_CHANNEL,
+    PARCA,
+    get_unit_ip,
+    get_unit_ip_address,
+)
 
-PARCA = "parca"
 LOKI = "loki"
 PROMETHEUS="prometheus"
 CATALOGUE="catalogue"
 GRAFANA = "graf"
 
 @pytest.mark.setup
-async def test_setup(juju:Juju, parca_charm, parca_resources):
+def test_setup(juju:Juju, parca_charm, parca_resources):
     """Deploy parca alongside loki."""
     juju.deploy(
         parca_charm,
