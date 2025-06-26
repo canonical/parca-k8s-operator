@@ -5,16 +5,12 @@
 
 import jubilant
 import pytest
-from helpers import (
-    get_juju_app_label_values,
-    query_parca_server,
-)
+from helpers import PARCA, get_juju_app_label_values, query_parca_server
 from jubilant import Juju
 from tenacity import retry
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential as wexp
 
-PARCA = "parca"
 PARCA_TESTER = "parca-tester"
 SSC = "self-signed-certificates"
 # Path where SSC saves the CA certificate
