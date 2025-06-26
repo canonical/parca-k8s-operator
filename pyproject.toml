@@ -5,10 +5,11 @@ version = "0.1.0"
 requires-python = ">=3.10"
 
 dependencies = [
+    "ops[tracing]",
     "pydantic <3",
     "coordinated_workers",
     # ---PYDEPS---
-    # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
+    # ops[tracing]
     "opentelemetry-exporter-otlp-proto-http==1.34.0",
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",

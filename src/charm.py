@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, FrozenSet, List, Optional
 
 import ops
+import ops_tracing
 import pydantic
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
@@ -23,7 +24,6 @@ from charms.parca_k8s.v0.parca_store import (
     ParcaStoreEndpointRequirer,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
-from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.tls_certificates_interface.v4.tls_certificates import (
     CertificateRequestAttributes,
@@ -67,22 +67,6 @@ RELABEL_CONFIG = [
 ]
 
 
-@trace_charm(
-    tracing_endpoint="_charm_tracing_endpoint",
-    server_cert="_server_cert",
-    extra_types=[
-        Parca,
-        ProfilingEndpointConsumer,
-        MetricsEndpointProvider,
-        ProfilingEndpointProvider,
-        GrafanaDashboardProvider,
-        LogForwarder,
-        ParcaStoreEndpointProvider,
-        ParcaStoreEndpointRequirer,
-        GrafanaSourceProvider,
-        TLSCertificatesRequiresV4,
-    ],
-)
 class ParcaOperatorCharm(ops.CharmBase):
     """Charmed Operator to deploy Parca - a continuous profiling tool."""
 
@@ -152,9 +136,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             # no need to use refresh_events logic as we refresh on reconcile.
         )
 
-        self._charm_tracing_endpoint, self._server_cert = charm_tracing_config(
-            self.charm_tracing, CA_CERT_PATH
-        )
         self.workload_tracing = TracingEndpointRequirer(
             self,
             relation_name="workload-tracing",
@@ -211,6 +192,11 @@ class ParcaOperatorCharm(ops.CharmBase):
         This will ensure all workloads are up and running if the preconditions are met.
         """
         self.unit.set_ports(Nginx.parca_http_server_port, Nginx.parca_grpc_server_port)
+        if self.charm_tracing.is_ready():
+            ops_tracing.set_destination(
+                url=self.charm_tracing.get_endpoint("otlp_http") + "/v1/traces",
+                ca=self._tls_config.certificate if self._tls_ready else None
+            )
 
         self.nginx.reconcile()
         self.nginx_exporter.reconcile()
