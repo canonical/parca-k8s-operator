@@ -192,10 +192,10 @@ class ParcaOperatorCharm(ops.CharmBase):
         This will ensure all workloads are up and running if the preconditions are met.
         """
         self.unit.set_ports(Nginx.parca_http_server_port, Nginx.parca_grpc_server_port)
-        if self.charm_tracing.is_ready():
+        if self.charm_tracing.is_ready() and (endpoint:= self.charm_tracing.get_endpoint("otlp_http")):
             ops_tracing.set_destination(
-                url=self.charm_tracing.get_endpoint("otlp_http") + "/v1/traces",
-                ca=self._tls_config.certificate if self._tls_ready else None
+                url=endpoint + "/v1/traces",
+                ca=self._tls_config.certificate.ca.raw if self._tls_config else None
             )
 
         self.nginx.reconcile()
