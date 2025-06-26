@@ -132,5 +132,3 @@ def get_juju_app_label_values(
     return json.loads(proc.stdout).get("labelValues", [])
 
 
-if __name__ == '__main__':
-    print(get_juju_app_label_values("test-tls-zy31"))

@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from cosl.coordinated_workers.nginx import NginxConfig, NginxLocationConfig, NginxUpstream
+from coordinated_workers.nginx import NginxConfig, NginxLocationConfig, NginxUpstream
 from ops import Container, pebble
 
 from models import TLSConfig

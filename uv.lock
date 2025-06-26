@@ -12,6 +12,21 @@ wheels = [
 ]
 
 [[package]]
+name = "anyio"
+version = "4.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "idna" },
+    { name = "sniffio" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/95/7d/4c1bd541d4dffa1b52bd83fb8527089e097a106fc90b467a7313b105f840/anyio-4.9.0.tar.gz", hash = "sha256:673c0c244e15788651a4ff38710fea9675823028a6f08a5eda409e0c9840a028", size = 190949, upload-time = "2025-03-17T00:02:54.77Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/ee/48ca1a7c89ffec8b6a0c5d02b89c305671d5ffd8d3c94acf8b8c408575bb/anyio-4.9.0-py3-none-any.whl", hash = "sha256:9f76d541cad6e36af7beb62e978876f3b41e3e04f2c1fbf0884604c0a9c4d93c", size = 100916, upload-time = "2025-03-17T00:02:52.713Z" },
+]
+
+[[package]]
 name = "argon2-cffi"
 version = "25.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -181,6 +196,23 @@ wheels = [
 ]
 
 [[package]]
+name = "coordinated-workers"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cosl" },
+    { name = "crossplane" },
+    { name = "cryptography" },
+    { name = "lightkube" },
+    { name = "ops", extra = ["tracing"] },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b5/32/c7db227bfff6589f6218338c408a73f6cda9c08dc25503371e83d61cf74a/coordinated_workers-2.0.0.tar.gz", hash = "sha256:6ca4d1673cbef755765b31c28d8d924be47611e0f2d0571f028668b91013648b", size = 136322, upload-time = "2025-06-24T10:05:57.025Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/25/e6cf7aa861b6f1d5e609d62eccb9fb93ff90f4d29fce5c7a4d198abf1980/coordinated_workers-2.0.0-py3-none-any.whl", hash = "sha256:df16b958923967c0b7322375352c6ebb435aca150b0b0f35ed3a9a41ef76e380", size = 45270, upload-time = "2025-06-24T10:05:55.511Z" },
+]
+
+[[package]]
 name = "cosl"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -266,6 +298,15 @@ toml = [
 ]
 
 [[package]]
+name = "crossplane"
+version = "0.5.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/dd/56/6d38195b422d5c2871cf2e1d85870eaeb7ae759d96392729a03f1a48434d/crossplane-0.5.8.tar.gz", hash = "sha256:b193bd8b963a041d5414ea18dcbb1c55b5424fee3d73bfa1809124605b322101", size = 40346, upload-time = "2022-09-22T09:51:50.873Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d6/ff/adf98ea07e9ac704dd60d81782c5810e3c51313d741f957a900727d3d4ee/crossplane-0.5.8-py2.py3-none-any.whl", hash = "sha256:ede8e83c9e3a58dfc37c69f5ee065d4b3adc44ae42749ced496962a0e7f545b7", size = 31399, upload-time = "2022-09-22T09:51:48.339Z" },
+]
+
+[[package]]
 name = "cryptography"
 version = "45.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -337,6 +378,43 @@ wheels = [
 ]
 
 [[package]]
+name = "h11"
+version = "0.16.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
+]
+
+[[package]]
+name = "httpcore"
+version = "1.0.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "h11" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/06/94/82699a10bca87a5556c9c59b5963f2d039dbd239f25bc2a63907a05a14cb/httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8", size = 85484, upload-time = "2025-04-24T22:06:22.219Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55", size = 78784, upload-time = "2025-04-24T22:06:20.566Z" },
+]
+
+[[package]]
+name = "httpx"
+version = "0.28.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "certifi" },
+    { name = "httpcore" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
+]
+
+[[package]]
 name = "idna"
 version = "3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -376,6 +454,29 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e3/2a/6f01a32b2821cfbdb4c4a1506a845ead11fbb3099568c40be0f40791254f/jubilant-1.2.0.tar.gz", hash = "sha256:966c2aef620ecaac84655fed2d179cfe4407ada08cf028c57a88116cec9fcc16", size = 24490, upload-time = "2025-06-12T01:22:38.953Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b8/f8/9facac17df370d13eb701ff5bb5c132716f2034181aa51bfac103154c08d/jubilant-1.2.0-py3-none-any.whl", hash = "sha256:a43833e7c4d88ea6709a179d9ea5856a233beca9788479f533acdb1c1ab2a707", size = 23700, upload-time = "2025-06-12T01:22:37.409Z" },
+]
+
+[[package]]
+name = "lightkube"
+version = "0.17.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "lightkube-models" },
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fa/73/87edb7298f5312f746ef7797976b3d0399ea20a61d2fbcad341eb45648a8/lightkube-0.17.2.tar.gz", hash = "sha256:7b2ed3ce4be75e3a9f602e07bfb1692bbea34a207bfe930e44bc54c3a8ac55ed", size = 46430, upload-time = "2025-05-18T10:56:53.496Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/a4/f050bda05d706e8ea6e4430fed462fb3eb7c89b0ecbaa469a54ed7f191ab/lightkube-0.17.2-py3-none-any.whl", hash = "sha256:df36b228c8ed66c6c5aaeb0cc0c65f908e8aba731c65490a139442c5b55e0334", size = 40031, upload-time = "2025-05-18T10:56:55.505Z" },
+]
+
+[[package]]
+name = "lightkube-models"
+version = "1.33.1.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/d0/e9fef6407c9663bd294e69faada7bd8aa966894b8e945181bec214cf7316/lightkube-models-1.33.1.8.tar.gz", hash = "sha256:5106c49138bea2eb0ab884fb6edf368f21744b6678f0766a682b4424a6b41cd0", size = 226968, upload-time = "2025-05-18T10:41:06.094Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ff/ce/e0bc7e43f41ea434ba8e59aaecc111a87033201c149b466afce571eb627f/lightkube_models-1.33.1.8-py3-none-any.whl", hash = "sha256:cb6343388eb6f03c968ca4f23678743223cdf8f841f9c07f8bd603718e771f83", size = 287479, upload-time = "2025-05-18T10:41:03.558Z" },
 ]
 
 [[package]]
@@ -504,6 +605,9 @@ wheels = [
 testing = [
     { name = "ops-scenario" },
 ]
+tracing = [
+    { name = "ops-tracing" },
+]
 
 [[package]]
 name = "ops-scenario"
@@ -516,6 +620,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1b/65/13f60a4f0ba54f6731733ece46e98276fef62c48b62f80c1a9501f46f28f/ops_scenario-7.22.0.tar.gz", hash = "sha256:15921e6849773b81df90ad4d78f573e0af5f5b9ddbfc82603c991c29648d8070", size = 142308, upload-time = "2025-05-29T04:18:49.194Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b2/9c/1abc3c03a27eccb2580df035a78e0115c1dc29f6f379c9465990f69d0913/ops_scenario-7.22.0-py3-none-any.whl", hash = "sha256:a42d3acf831fc46f213286268e31d14c2ffc5ea72452c49955de76895f62437c", size = 72506, upload-time = "2025-05-29T04:18:46.657Z" },
+]
+
+[[package]]
+name = "ops-tracing"
+version = "2.22.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-sdk" },
+    { name = "ops" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/6b/00dbf4ef4d477817dd129c45497c1fee330e2465735318595eae3d8d6ade/ops_tracing-2.22.0.tar.gz", hash = "sha256:238ede5e9268f81deefce9275d2c846bd2726f1bf17f2f74bdf07432d147f2cd", size = 28191, upload-time = "2025-05-29T04:18:44.884Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/5b/b0f11278f19bfd8250a52d837cf38a29d78e1200610becdf70a9cc20ab5a/ops_tracing-2.22.0-py3-none-any.whl", hash = "sha256:f47bf9fd35e47bab2499de7428bc2433534e6331ff6ec1ab533f31a48b1341f4", size = 31245, upload-time = "2025-05-29T04:18:43.168Z" },
 ]
 
 [[package]]
@@ -532,10 +650,9 @@ name = "parca-k8s-operator"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "cosl" },
+    { name = "coordinated-workers" },
     { name = "cryptography" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "ops" },
     { name = "pydantic" },
 ]
 
@@ -556,13 +673,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cosl", specifier = ">=0.1.0" },
+    { name = "coordinated-workers" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'" },
     { name = "cryptography" },
     { name = "jubilant", marker = "extra == 'dev'" },
     { name = "minio", marker = "extra == 'dev'" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = "==1.34.0" },
-    { name = "ops" },
     { name = "ops", extras = ["testing"], marker = "extra == 'dev'" },
     { name = "pydantic", specifier = "<3" },
     { name = "pydantic", marker = "extra == 'dev'" },
@@ -879,6 +995,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6a/ef/b960ab4818f90ff59e571d03c3f992828d4683561095e80f9ef31f3d58b7/ruff-0.12.0-py3-none-win32.whl", hash = "sha256:7162a4c816f8d1555eb195c46ae0bd819834d2a3f18f98cc63819a7b46f474fb", size = 10525289, upload-time = "2025-06-17T15:19:19.688Z" },
     { url = "https://files.pythonhosted.org/packages/34/93/8b16034d493ef958a500f17cda3496c63a537ce9d5a6479feec9558f1695/ruff-0.12.0-py3-none-win_amd64.whl", hash = "sha256:d00b7a157b8fb6d3827b49d3324da34a1e3f93492c1f97b08e222ad7e9b291e0", size = 11598311, upload-time = "2025-06-17T15:19:21.785Z" },
     { url = "https://files.pythonhosted.org/packages/d0/33/4d3e79e4a84533d6cd526bfb42c020a23256ae5e4265d858bd1287831f7d/ruff-0.12.0-py3-none-win_arm64.whl", hash = "sha256:8cd24580405ad8c1cc64d61725bca091d6b6da7eb3d36f72cc605467069d7e8b", size = 10724946, upload-time = "2025-06-17T15:19:23.952Z" },
+]
+
+[[package]]
+name = "sniffio"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/87/a6771e1546d97e7e041b6ae58d80074f81b7d5121207425c964ddf5cfdbd/sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc", size = 20372, upload-time = "2024-02-25T23:20:04.057Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2", size = 10235, upload-time = "2024-02-25T23:20:01.196Z" },
 ]
 
 [[package]]

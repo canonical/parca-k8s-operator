@@ -5,9 +5,8 @@ version = "0.1.0"
 requires-python = ">=3.10"
 
 dependencies = [
-    "ops",
     "pydantic <3",
-    "cosl>=0.1.0",
+    "coordinated_workers",
     # ---PYDEPS---
     # lib/charms/tempo_coordinator_k8s/v0/charm_tracing.py
     "opentelemetry-exporter-otlp-proto-http==1.34.0",
