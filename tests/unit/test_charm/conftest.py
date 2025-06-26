@@ -3,16 +3,9 @@ from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
 import pytest
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from ops.testing import Container, Context, PeerRelation, Relation
 
 from charm import ParcaOperatorCharm
-
-
-@pytest.fixture(autouse=True)
-def shut_up_tracing():
-    with charm_tracing_disabled():
-        yield
 
 
 @pytest.fixture(autouse=True)

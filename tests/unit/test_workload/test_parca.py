@@ -1,10 +1,9 @@
 # Copyright 2025 Canonical
 # See LICENSE file for licensing details.
-
+from io import StringIO
 from unittest.mock import MagicMock
 
 import pytest
-from six import StringIO
 
 from parca import DEFAULT_CONFIG_PATH, Parca
 
