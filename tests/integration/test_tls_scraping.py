@@ -2,9 +2,11 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import asyncio
+import o
 
 import pytest
+from jubilant import Juju
+import jubilant
 from helpers import (
     get_juju_app_label_values,
     query_parca_server,
@@ -20,85 +22,82 @@ SSC = "self-signed-certificates"
 SSC_CA_CERT_PATH = "/tmp/ca-cert.pem"
 
 
-@pytest.mark.abort_on_fail
 @pytest.mark.setup
-async def test_setup(ops_test, parca_charm, parca_resources):
+def test_setup(juju:Juju, parca_charm, parca_resources):
     """Test that Parca can be related with Self Signed Certificates for TLS."""
-    apps = [PARCA, SSC]
+    juju.deploy(
+        parca_charm,
+        PARCA,
+        resources=parca_resources,
+        trust=True,
+    )
+    juju.deploy(
+        SSC,
+        channel="latest/edge",
+        trust=True,
+    )
+    juju.integrate(f"{PARCA}:certificates", SSC)
 
-    await asyncio.gather(
-        ops_test.model.deploy(
-            parca_charm,
-            resources=parca_resources,
-            application_name=PARCA,
-            trust=True,
-        ),
-        ops_test.model.deploy(
-            SSC,
-            channel="latest/edge",
-            trust=True,
-        ),
-        ops_test.model.wait_for_idle(apps=apps, status="active", timeout=500),
+    # Wait for the two apps to quiesce
+    juju.wait(
+        lambda status: jubilant.all_active(status, PARCA, SSC), timeout=1000
     )
 
-    # Create the relation
-    await ops_test.model.integrate(f"{PARCA}:certificates", SSC)
-    # Wait for the two apps to quiesce
-    await ops_test.model.wait_for_idle(apps=apps, status="active", timeout=500)
 
-
-async def test_direct_url_200(ops_test):
+def test_direct_url_200(juju:Juju):
     exit_code, output = query_parca_server(
-        ops_test.model_name, SSC, tls=True, ca_cert_path=SSC_CA_CERT_PATH
+        juju.model, SSC, tls=True, ca_cert_path=SSC_CA_CERT_PATH
     )
     assert exit_code == 0, f"Failed to query the parca server. {output}"
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
-async def test_parca_is_scraping_itself(ops_test):
-    label_values = get_juju_app_label_values(ops_test.model_name, PARCA)
+def test_parca_is_scraping_itself(juju:Juju):
+    label_values = get_juju_app_label_values(juju.model, PARCA)
     assert "parca" in label_values
 
 
-@pytest.mark.abort_on_fail
-async def test_deploy_parca_tester(ops_test, parca_charm, parca_resources):
+def test_deploy_parca_tester(juju:Juju, parca_charm, parca_resources):
     # Deploy and integrate tester charm
-    await ops_test.model.deploy(
+    juju.deploy(
         parca_charm,
+        PARCA_TESTER,
         resources=parca_resources,
-        application_name=PARCA_TESTER,
         trust=True,
     )
-    await asyncio.gather(
-        ops_test.model.integrate(PARCA, f"{PARCA_TESTER}:self-profiling-endpoint"),
-        ops_test.model.integrate(f"{PARCA_TESTER}:certificates", SSC),
-    )
-    await ops_test.model.wait_for_idle(apps=[PARCA, PARCA_TESTER], status="active", timeout=500)
 
+    juju.integrate(PARCA, f"{PARCA_TESTER}:self-profiling-endpoint"),
+    juju.integrate(f"{PARCA_TESTER}:certificates", SSC),
+
+    juju.wait(
+        lambda status: jubilant.all_active(status, PARCA, PARCA_TESTER), timeout=1000
+    )
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
-async def test_parca_is_scraping_parca_tester(ops_test):
-    label_values = get_juju_app_label_values(ops_test.model_name, PARCA)
+def test_parca_is_scraping_parca_tester(juju:Juju):
+    label_values = get_juju_app_label_values(juju.model, PARCA)
     assert "parca-tester" in label_values
 
 
 @pytest.mark.abort_on_fail
 @pytest.mark.teardown
-async def test_remove_tls(ops_test):
+def test_remove_tls(juju:Juju):
     # FIXME: should we be disintegrating the tester-ssc relation too?
-    await ops_test.juju("remove-relation", PARCA + ":certificates", SSC + ":certificates")
+    juju.remove_relation(PARCA + ":certificates", SSC + ":certificates")
     # we need to wait for a while until parca's nginx loses the TLS connection
-    await ops_test.model.wait_for_idle(apps=[PARCA], status="active", timeout=500)
+    juju.wait(
+        lambda status: jubilant.all_active(status, PARCA), timeout=1000
+    )
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
-async def test_direct_url_400(ops_test):
+def test_direct_url_400(juju:Juju):
     exit_code, _ = query_parca_server(
-        ops_test.model_name, SSC, tls=True, ca_cert_path=SSC_CA_CERT_PATH
+        juju.model, SSC, tls=True, ca_cert_path=SSC_CA_CERT_PATH
     )
     assert exit_code != 0
 
 
 @pytest.mark.teardown
-async def test_remove_parca(ops_test):
-    await ops_test.model.remove_application(PARCA)
+def test_remove_parca(juju:Juju):
+    juju.remove_application(PARCA)

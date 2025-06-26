@@ -14,7 +14,7 @@ from minio import Minio
 from nginx import CA_CERT_PATH, Nginx
 
 PARCA = "parca"
-
+INTEGRATION_TESTERS_CHANNEL = "2/edge"
 TESTING_MINIO_ACCESS_KEY = "accesskey"
 TESTING_MINIO_SECRET_KEY = "secretkey"
 MINIO = "minio"
@@ -51,7 +51,7 @@ def _deploy_and_configure_minio(juju: Juju):
         timeout=2000,
     )
 
-def deploy_s3(juju, bucket_name: str, s3_integrator_app: str):
+def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
     """Deploy minio, the s3 integrator, and provision a bucket."""
     _deploy_and_configure_minio(juju)
 
