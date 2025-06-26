@@ -7,8 +7,9 @@ import subprocess
 from subprocess import getoutput, getstatusoutput
 from typing import List, Tuple
 
+import jubilant
+from jubilant import Juju
 from minio import Minio
-from pytest_operator.plugin import OpsTest
 
 from nginx import CA_CERT_PATH, Nginx
 
@@ -19,6 +20,13 @@ TESTING_MINIO_SECRET_KEY = "secretkey"
 MINIO = "minio"
 S3_INTEGRATOR = "s3-integrator"
 BUCKET_NAME = "parca"
+ACCESS_KEY = "accesskey"
+SECRET_KEY = "secretkey"
+S3_CREDENTIALS = {
+    "access-key": ACCESS_KEY,
+    "secret-key": SECRET_KEY,
+}
+logger= logging.getLogger("helpers")
 
 
 def get_unit_ip(model_name, app_name, unit_id):
@@ -32,64 +40,65 @@ def get_unit_fqdn(model_name, app_name, unit_id):
     """Return a juju unit's K8s cluster FQDN."""
     return f"{app_name}-{unit_id}.{app_name}-endpoints.{model_name}.svc.cluster.local"
 
+def _deploy_and_configure_minio(juju: Juju):
+    if not juju.status().apps.get(MINIO):
+        juju.deploy(MINIO, channel="edge", trust=True, config=S3_CREDENTIALS)
+    juju.wait(
+        lambda status: status.apps[MINIO].is_active,
+        error=jubilant.any_error,
+        delay=5,
+        successes=3,
+        timeout=2000,
+    )
 
-async def deploy_s3(ops_test: OpsTest, app="parca"):
-    await ops_test.model.deploy(S3_INTEGRATOR, channel="edge")
+def deploy_s3(juju, bucket_name: str, s3_integrator_app: str):
+    """Deploy minio, the s3 integrator, and provision a bucket."""
+    _deploy_and_configure_minio(juju)
 
-    await ops_test.model.integrate(app + ":s3", S3_INTEGRATOR + ":s3-credentials")
+    logger.info(f"deploying {s3_integrator_app=}")
+    juju.deploy(
+        "s3-integrator", s3_integrator_app, channel="2/edge", base="ubuntu@24.04"
+    )
 
-    await deploy_and_configure_minio(ops_test)
-    async with ops_test.fast_forward():
-        await ops_test.model.wait_for_idle(
-            apps=[app, S3_INTEGRATOR],
-            status="active",
-            timeout=2000,
-            idle_period=30,
-        )
-
-
-async def deploy_and_configure_minio(ops_test: OpsTest):
-    config = {
-        "access-key": TESTING_MINIO_ACCESS_KEY,
-        "secret-key": TESTING_MINIO_SECRET_KEY,
-    }
-    await ops_test.model.deploy(MINIO, channel="edge", trust=True, config=config)
-    await ops_test.model.wait_for_idle(apps=[MINIO], status="active", timeout=2000)
-    minio_addr = get_unit_ip(ops_test.model.name, MINIO, 0)
-
+    logger.info(f"provisioning {bucket_name=} on {s3_integrator_app=}")
+    minio_addr = get_unit_ip_address(juju, MINIO, 0)
     mc_client = Minio(
         f"{minio_addr}:9000",
-        access_key="accesskey",
-        secret_key="secretkey",
+        **{key.replace("-", "_"): value for key, value in S3_CREDENTIALS.items()},
         secure=False,
     )
-
     # create tempo bucket
-    found = mc_client.bucket_exists(BUCKET_NAME)
+    found = mc_client.bucket_exists(bucket_name)
     if not found:
-        mc_client.make_bucket(BUCKET_NAME)
+        mc_client.make_bucket(bucket_name)
+
+    logger.info("configuring s3 integrator...")
+    secret_uri = juju.cli(
+        "add-secret",
+        f"{s3_integrator_app}-creds",
+        *(f"{key}={val}" for key, val in S3_CREDENTIALS.items()),
+    )
+    juju.cli("grant-secret", f"{s3_integrator_app}-creds", s3_integrator_app)
 
     # configure s3-integrator
-    s3_integrator_app = ops_test.model.applications[S3_INTEGRATOR]
-    s3_integrator_leader = s3_integrator_app.units[0]
-
-    await s3_integrator_app.set_config(
+    juju.config(
+        s3_integrator_app,
         {
-            "endpoint": f"minio-0.minio-endpoints.{ops_test.model.name}.svc.cluster.local:9000",
-            "bucket": BUCKET_NAME,
-        }
+            "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
+            "bucket": bucket_name,
+            "credentials": secret_uri.strip(),
+        },
     )
 
-    action = await s3_integrator_leader.run_action("sync-s3-credentials", **config)
-    action_result = await action.wait()
-    assert action_result.status == "completed"
+
+def get_app_ip_address(juju: Juju, app_name):
+    """Return a juju application's IP address."""
+    return juju.status().apps[app_name].address
 
 
-async def get_public_address(ops_test: OpsTest, app_name):
-    """Return a juju application's public address."""
-    status = await ops_test.model.get_status()  # noqa: F821
-    return status["applications"][app_name]["public-address"]
-
+def get_unit_ip_address(juju: Juju, app_name: str, unit_no: int):
+    """Return a juju unit's IP address."""
+    return juju.status().apps[app_name].units[f"{app_name}/{unit_no}"].address
 
 def query_parca_server(
         model_name, exec_target_app_name, tls=False, ca_cert_path=CA_CERT_PATH, url_path=""
@@ -117,7 +126,7 @@ def get_juju_app_label_values(
 
     # at the moment passing a file cacert isn't supported by the grpcurl snap: hence -insecure
     cmd = f"grpcurl -insecure {query} {url} {service}"
-    logging.debug(f"calling: {cmd!r}")
+    logger.debug(f"calling: {cmd!r}")
     proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
     proc.check_returncode()
     return json.loads(proc.stdout).get("labelValues", [])

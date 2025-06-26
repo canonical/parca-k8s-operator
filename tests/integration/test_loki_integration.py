@@ -7,7 +7,6 @@ import json
 from subprocess import getoutput
 
 import pytest
-from pytest_operator.plugin import OpsTest
 from tenacity import retry
 from tenacity.stop import stop_after_delay
 from tenacity.wait import wait_exponential as wexp

@@ -5,10 +5,7 @@ version = "0.1.0"
 requires-python = ">=3.10"
 
 dependencies = [
-    # FIXME: remove crossplane once https://github.com/canonical/cos-lib/issues/144 is fixed
-    "crossplane",
     "ops",
-    "jsonschema",
     "pydantic <3",
     "cosl>=0.1.0",
     # ---PYDEPS---
@@ -25,11 +22,12 @@ dev = [
     "pytest",
     "ops[testing]",
     # ---INTEGRATION TESTS---
-    "juju",
     "pydantic",
-    "pytest-operator",
+    "jubilant",
+    "pytest-jubilant",
     "tenacity",
     "minio",
+    "requests",
     # ---LINTING---
     "ruff",
     "pyright",
