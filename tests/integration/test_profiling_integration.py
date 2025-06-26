@@ -17,7 +17,7 @@ from helpers import PARCA, get_app_ip_address
 from jubilant import Juju
 from pytest import mark
 from tenacity import retry
-from tenacity.stop import stop_after_attempt, stop_after_delay
+from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential as wexp
 
 from nginx import Nginx
@@ -53,17 +53,21 @@ def test_deploy(juju: Juju, parca_charm, parca_resources):
     )
 
 
-@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
-def test_smoke(juju: Juju):
+# @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
+def test_smoke_parca_nginx_routes(juju: Juju):
+    """Verify that the various parca nginx routes are working."""
     address = get_app_ip_address(juju, PARCA)
     response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/")
     assert response.status_code == 200
     response = requests.get(f"http://{address}:{Nginx.parca_http_server_port}/metrics")
     assert response.status_code == 200
 
-    with pytest.raises(requests.exceptions.ConnectionError):
+    # test the grpc server.
+    # curl gives: (1) Received HTTP/0.9 when not allowed
+    with pytest.raises(requests.exceptions.ConnectionError) as e:
         # not a 404, but still nothing we can check without using grpcurl or smth
         requests.get(f"http://{address}:{Nginx.parca_grpc_server_port}/")
+    assert "ProtocolError('Connection aborted.', BadStatusLine" in str(e)
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)

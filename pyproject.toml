@@ -10,8 +10,6 @@ dependencies = [
     # parca is not a coordinated-worker, but that's where the nginx config builder we need lives
     "coordinated_workers",
     # ---PYDEPS---
-    # ops[tracing]
-    "opentelemetry-exporter-otlp-proto-http==1.34.0",
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
 ]

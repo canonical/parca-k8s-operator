@@ -32,6 +32,15 @@ PROMETHEUS="prometheus"
 CATALOGUE="catalogue"
 GRAFANA = "graf"
 
+
+@pytest.fixture(scope="module")
+def grafana_admin_creds(juju)->str:
+    # NB this fixture can only be accessed after GRAFANA has been deployed.
+    # obtain admin credentials via juju action, formatted as "username:password" (for basicauth)
+    result = juju.run(GRAFANA+"/0", "get-admin-password")
+    return f"admin:{result.results['admin-password']}"
+
+
 @pytest.mark.setup
 def test_setup(juju:Juju, parca_charm, parca_resources):
     """Deploy parca alongside loki."""
@@ -83,6 +92,7 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
     )
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 def test_metrics_integration(juju:Juju):
     prom_ip = get_unit_ip_address(juju, PROMETHEUS, 0)
     res = requests.get(f"http://{prom_ip}:9090/api/v1/label/juju_application/values")
@@ -113,13 +123,6 @@ def test_logging_integration(juju:Juju):
     loki_ip = get_unit_ip(juju.model, LOKI, 0)
     charm_labels = requests.get(f"http://{loki_ip}:3100/loki/api/v1/label/charm/values").json()['data']
     assert "parca-k8s" in charm_labels
-
-
-@pytest.fixture(scope="module")
-def grafana_admin_creds(juju)->str:
-    # obtain admin credentials via juju action, formatted as "username:password" (for basicauth)
-    result = juju.run(GRAFANA+"/0", "get-admin-password")
-    return f"admin:{result.results['admin-password']}"
 
 
 def test_grafana_source_integration(juju: Juju, grafana_admin_creds):
