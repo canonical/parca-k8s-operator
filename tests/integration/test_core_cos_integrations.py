@@ -20,7 +20,7 @@ from jubilant import Juju
 from tenacity import retry, stop_after_delay
 from tenacity import wait_exponential as wexp
 
-from tests.integration.helpers import get_unit_ip, INTEGRATION_TESTERS_CHANNEL, get_unit_ip_address
+from tests.integration.helpers import INTEGRATION_TESTERS_CHANNEL, get_unit_ip, get_unit_ip_address
 
 PARCA = "parca"
 LOKI = "loki"

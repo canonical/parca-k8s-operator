@@ -2,15 +2,14 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import o
 
-import pytest
-from jubilant import Juju
 import jubilant
+import pytest
 from helpers import (
     get_juju_app_label_values,
     query_parca_server,
 )
+from jubilant import Juju
 from tenacity import retry
 from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential as wexp
