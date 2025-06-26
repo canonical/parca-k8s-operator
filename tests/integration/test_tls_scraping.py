@@ -82,7 +82,6 @@ def test_parca_is_scraping_parca_tester(juju:Juju):
 @pytest.mark.abort_on_fail
 @pytest.mark.teardown
 def test_remove_tls(juju:Juju):
-    # FIXME: should we be disintegrating the tester-ssc relation too?
     juju.remove_relation(PARCA + ":certificates", SSC + ":certificates")
     # we need to wait for a while until parca's nginx loses the TLS connection
     juju.wait(
