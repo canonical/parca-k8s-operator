@@ -5,7 +5,7 @@
 
 import jubilant
 import pytest
-from helpers import PARCA, get_juju_app_label_values, query_parca_server
+from helpers import PARCA, get_parca_ingested_label_values, query_parca_server
 from jubilant import Juju
 from tenacity import retry
 from tenacity.stop import stop_after_attempt
@@ -48,7 +48,7 @@ def test_direct_url_200(juju:Juju):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 def test_parca_is_scraping_itself(juju:Juju):
-    label_values = get_juju_app_label_values(juju.model, PARCA)
+    label_values = get_parca_ingested_label_values(juju.model, label="juju_application")
     assert "parca" in label_values
 
 
@@ -70,7 +70,7 @@ def test_deploy_parca_tester(juju:Juju, parca_charm, parca_resources):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 def test_parca_is_scraping_parca_tester(juju:Juju):
-    label_values = get_juju_app_label_values(juju.model, PARCA)
+    label_values = get_parca_ingested_label_values(juju.model, label="juju_application")
     assert "parca-tester" in label_values
 
 

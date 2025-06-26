@@ -13,7 +13,7 @@
 import jubilant
 import pytest
 import requests
-from helpers import PARCA, get_app_ip_address
+from helpers import PARCA, get_app_ip_address, get_parca_ingested_label_values
 from jubilant import Juju
 from pytest import mark
 from tenacity import retry
@@ -71,17 +71,28 @@ def test_smoke_parca_nginx_routes(juju: Juju):
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
-def test_zinc_profiles_ingested(juju: Juju):
-    parca_ip = get_app_ip_address(juju, PARCA)
+def test_zinc_metrics_in_parca_tester(juju: Juju):
+    parca_ip = get_app_ip_address(juju, PARCA_TESTER)
     response = requests.get(f"http://{parca_ip}:{Nginx.parca_http_server_port}/metrics")
-    assert "zinc" in response.text
+    assert 'scrape_job="zinc"' in response.text
+
+
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
+def test_parca_scraping(juju: Juju):
+    # Zinc isn't related to parca, but to parca-tester.
+    # Still, parca has zinc profiles. Magic!
+
+    ingested_labels = get_parca_ingested_label_values(juju.model)
+    assert ZINC in ingested_labels
+    assert PARCA in ingested_labels
+    assert PARCA_TESTER in ingested_labels
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 def test_self_profiles_ingested(juju: Juju):
     parca_ip = get_app_ip_address(juju, PARCA)
     response = requests.get(f"http://{parca_ip}:{Nginx.parca_http_server_port}/metrics")
-    assert f'"{PARCA}"' in response.text
+    assert f'scrape_job="{PARCA}"' in response.text
 
 
 
