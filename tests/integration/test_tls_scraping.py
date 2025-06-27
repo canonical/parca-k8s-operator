@@ -74,7 +74,6 @@ def test_parca_is_scraping_parca_tester(juju:Juju):
     assert "parca-tester" in label_values
 
 
-@pytest.mark.abort_on_fail
 @pytest.mark.teardown
 def test_remove_tls(juju:Juju):
     juju.remove_relation(PARCA + ":certificates", SSC + ":certificates")

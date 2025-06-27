@@ -102,7 +102,7 @@ def test_metrics_integration(juju:Juju):
 def test_catalog_integration(juju:Juju):
     # no better way to test catalogue, because javascript
     unit = f"{CATALOGUE}/0"
-    out = subprocess.run(f"juju show-unit {unit} --endpoint catalogue", text=True, capture_output=True).stdout
+    out = juju.cli("show-unit", unit, "--endpoint", "catalogue", "--format", "json")
     # expect something like:
     # catalogue-k8s/0:
     #   [...]
