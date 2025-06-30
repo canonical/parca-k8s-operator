@@ -44,7 +44,10 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
-def check_object_in_minio(minio_url, obj_name: str):
+def check_object_in_minio(minio_url, model_name:str, obj_name: str):
+    # rely on the fact that parca will force-flush its in-memory buffer when restarted
+    check_call(shlex.split(f"juju ssh -m {model_name} --container parca parca/0 pebble restart parca"))
+
     m = minio.Minio(
         endpoint=minio_url, access_key="accesskey", secret_key="secretkey", secure=False
     )
@@ -63,10 +66,8 @@ def check_object_in_minio(minio_url, obj_name: str):
 
 def test_s3_usage(juju:Juju):
     """Verify that parca is using s3."""
-    # rely on the fact that parca will force-flush its in-memory buffer when restarted
-    check_call(shlex.split(f"juju ssh -m {juju.model} --container parca parca/0 pebble restart parca"))
     minio_url = f"{get_unit_ip(juju.model, MINIO, 0)}:9000"
-    check_object_in_minio(minio_url, "blocks/")
+    check_object_in_minio(minio_url, juju.model, "blocks/")
 
 
 @pytest.mark.teardown
