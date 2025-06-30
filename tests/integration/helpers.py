@@ -116,7 +116,7 @@ def query_parca_server(
 
 
 def get_parca_ingested_label_values(
-        model_name, app_name=PARCA, label:str = "juju_application"
+        model_name, app_name=PARCA, label:str = "juju_application", tls:bool=False
 ) -> List[str]:
     """Query the parca.query.v1alpha1.QueryService/Values service with grpcurl."""
     unit_ip = get_unit_ip(model_name, app_name, 0)
@@ -126,7 +126,8 @@ def get_parca_ingested_label_values(
 
     # at the moment passing a file cacert isn't supported by the grpcurl snap: hence -plaintext
     # if TLS is active, switch this to -insecure
-    cmd = f"grpcurl -plaintext {query} {url} {service}"
+    insecure_flag = "-insecure" if tls else "-plaintext"
+    cmd = f"grpcurl {insecure_flag} {query} {url} {service}"
     logger.debug(f"calling: {cmd!r}")
     proc = subprocess.run(shlex.split(cmd), text=True, capture_output=True)
     proc.check_returncode()

@@ -98,6 +98,7 @@ def test_metrics_integration(juju:Juju):
     assert PARCA in res.json()['data']
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 def test_catalog_integration(juju:Juju):
     # no better way to test catalogue, because javascript
     unit = f"{CATALOGUE}/0"
@@ -124,6 +125,7 @@ def test_logging_integration(juju:Juju):
     assert "parca-k8s" in charm_labels
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 def test_grafana_source_integration(juju: Juju, grafana_admin_creds):
     """Verify that the parca datasource is registered in grafana."""
     graf_ip = get_unit_ip_address(juju, GRAFANA, 0)
@@ -131,6 +133,7 @@ def test_grafana_source_integration(juju: Juju, grafana_admin_creds):
     assert "parca" in {ds['type']for ds in res.json()}
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 def test_grafana_dashboard_integration(juju: Juju, grafana_admin_creds):
     graf_ip = get_unit_ip_address(juju, GRAFANA, 0)
     # NB: this API is valid for grafana 9.5;

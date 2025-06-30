@@ -49,7 +49,7 @@ def test_direct_url_200(juju:Juju):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 def test_parca_is_scraping_itself(juju:Juju):
-    label_values = get_parca_ingested_label_values(juju.model, label="juju_application")
+    label_values = get_parca_ingested_label_values(juju.model, label="juju_application", tls=True)
     assert "parca" in label_values
 
 
@@ -72,7 +72,7 @@ def test_deploy_parca_tester(juju:Juju, parca_charm, parca_resources):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 def test_parca_is_scraping_parca_tester(juju:Juju):
-    label_values = get_parca_ingested_label_values(juju.model, label="juju_application")
+    label_values = get_parca_ingested_label_values(juju.model, label="juju_application", tls=True)
     assert "parca-tester" in label_values
 
 
