@@ -146,7 +146,7 @@ def test_grafana_dashboard_integration(juju: Juju, grafana_admin_creds):
 
 
 @pytest.mark.teardown
-async def test_teardown(juju:Juju):
+def test_teardown(juju:Juju):
     juju.remove_relation(PARCA, LOKI)
     juju.remove_relation(PARCA, GRAFANA)
     juju.remove_relation(PARCA, PROMETHEUS)

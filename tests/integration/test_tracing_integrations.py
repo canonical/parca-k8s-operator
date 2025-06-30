@@ -140,7 +140,8 @@ def test_verify_charm_tracing(juju: Juju):
     juju.cli("model-config", "update-status-hook-interval=5m")
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(10))
+# @retry(stop=stop_after_attempt(3), wait=wait_fixed(10))
+@pytest.mark.skip(reason="getting the UI isn't enough, we need to open a browser and click around.")
 def test_verify_workload_tracing(juju: Juju):
     # we need to 'get' the UI for parca to generate a trace
     parca_ip = get_app_ip_address(juju, PARCA)
