@@ -12,7 +12,7 @@ from tenacity.stop import stop_after_attempt
 from tenacity.wait import wait_exponential as wexp
 
 PARCA_TESTER = "parca-tester"
-SSC = "self-signed-certificates"
+SSC = "ssc"
 # Path where SSC saves the CA certificate
 SSC_CA_CERT_PATH = "/tmp/ca-cert.pem"
 
@@ -27,6 +27,7 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
         trust=True,
     )
     juju.deploy(
+        "self-signed-certificates",
         SSC,
         channel="latest/edge",
         trust=True,
@@ -52,6 +53,7 @@ def test_parca_is_scraping_itself(juju:Juju):
     assert "parca" in label_values
 
 
+@pytest.mark.setup
 def test_deploy_parca_tester(juju:Juju, parca_charm, parca_resources):
     # Deploy and integrate tester charm
     juju.deploy(
