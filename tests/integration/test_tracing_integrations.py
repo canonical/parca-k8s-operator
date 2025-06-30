@@ -86,7 +86,13 @@ def deploy_monolithic_tempo_cluster(
 
 
 @pytest.mark.setup
-def test_deploy_tempo_stack_monolithic(juju: Juju):
+def test_deploy_tempo_stack_monolithic(juju: Juju, parca_charm, parca_resources):
+    juju.deploy(
+        parca_charm,
+        PARCA,
+        resources=parca_resources,
+        trust=True,
+    )
     # deploy a tempo stack in monolithic mode
     deploy_monolithic_tempo_cluster(
         juju,
