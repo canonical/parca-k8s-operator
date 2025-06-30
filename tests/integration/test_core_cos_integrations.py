@@ -11,7 +11,6 @@ Tests integrations with:
 - grafana
 """
 import json
-import subprocess
 
 import jubilant
 import pytest
