@@ -40,6 +40,7 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
     )
 
 
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
 def test_direct_url_200(juju:Juju):
     exit_code, output = query_parca_server(
         juju.model, SSC, tls=True, ca_cert_path=SSC_CA_CERT_PATH
