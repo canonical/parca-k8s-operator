@@ -148,7 +148,8 @@ def test_grafana_dashboard_integration(juju: Juju, grafana_admin_creds):
 @pytest.mark.teardown
 def test_teardown(juju:Juju):
     juju.remove_relation(PARCA, LOKI)
-    juju.remove_relation(PARCA, GRAFANA)
+    juju.remove_relation(PARCA+":grafana-dashboard", GRAFANA)
+    juju.remove_relation(PARCA+":grafana-source", GRAFANA)
     juju.remove_relation(PARCA, PROMETHEUS)
     juju.remove_relation(PARCA, CATALOGUE)
 
