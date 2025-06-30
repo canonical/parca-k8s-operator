@@ -52,6 +52,11 @@ def test_deploy(juju: Juju, parca_charm, parca_resources):
         lambda status: jubilant.all_active(status, PARCA, ZINC, PARCA_TESTER), timeout=1000
     )
 
+@pytest.fixture(scope="module")
+def parca_tester_ip(juju):
+    # NB only use this after test_deploy has run, or there'll be no parca-tester.
+    return get_app_ip_address(juju, PARCA_TESTER)
+
 
 # @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 def test_smoke_parca_nginx_routes(juju: Juju):
@@ -71,10 +76,9 @@ def test_smoke_parca_nginx_routes(juju: Juju):
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
-def test_zinc_metrics_in_parca_tester(juju: Juju):
-    parca_ip = get_app_ip_address(juju, PARCA_TESTER)
-    response = requests.get(f"http://{parca_ip}:{Nginx.parca_http_server_port}/metrics")
-    assert 'scrape_job="zinc"' in response.text
+def test_zinc_metrics_in_parca_tester(parca_tester_ip):
+    response = requests.get(f"http://{parca_tester_ip}:{Nginx.parca_http_server_port}/metrics")
+    assert ZINC in response.text
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
@@ -89,9 +93,8 @@ def test_parca_scraping(juju: Juju):
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
-def test_self_profiles_ingested(juju: Juju):
-    parca_ip = get_app_ip_address(juju, PARCA)
-    response = requests.get(f"http://{parca_ip}:{Nginx.parca_http_server_port}/metrics")
+def test_self_profiles_ingested(parca_tester_ip):
+    response = requests.get(f"http://{parca_tester_ip}:{Nginx.parca_http_server_port}/metrics")
     assert f'scrape_job="{PARCA}"' in response.text
 
 
