@@ -19,6 +19,7 @@ TESTING_MINIO_ACCESS_KEY = "accesskey"
 TESTING_MINIO_SECRET_KEY = "secretkey"
 MINIO = "minio"
 S3_INTEGRATOR = "s3-integrator"
+S3_INTEGRATOR_CHANNEL = "2/edge"
 BUCKET_NAME = "parca"
 ACCESS_KEY = "accesskey"
 SECRET_KEY = "secretkey"
@@ -57,7 +58,7 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
 
     logger.info(f"deploying {s3_integrator_app=}")
     juju.deploy(
-        "s3-integrator", s3_integrator_app, channel="2/edge", base="ubuntu@24.04"
+        "s3-integrator", s3_integrator_app, channel=S3_INTEGRATOR_CHANNEL
     )
 
     logger.info(f"provisioning {bucket_name=} on {s3_integrator_app=}")

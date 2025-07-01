@@ -9,6 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from tests.integration.helpers import (
     ACCESS_KEY,
+    INTEGRATION_TESTERS_CHANNEL,
     PARCA,
     S3_CREDENTIALS,
     SECRET_KEY,
@@ -28,7 +29,7 @@ def deploy_monolithic_tempo_cluster(
     s3_app_name: str,
     coordinator_app_name,
     bucket_name: str,
-        channel:str="2/edge"
+    channel:str=INTEGRATION_TESTERS_CHANNEL
 ):
     """Deploy a tempo-monolithic cluster."""
     # worker and coordinator

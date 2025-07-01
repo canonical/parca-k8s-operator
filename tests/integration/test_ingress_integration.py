@@ -25,7 +25,7 @@ PARCA = "parca"
 def test_setup(juju:Juju, parca_charm, parca_resources):
     """Test that Parca can be related with Traefik for ingress."""
     juju.deploy(
-        parca_charm,PARCA, resources=parca_resources, base="ubuntu@24.04"
+        parca_charm,PARCA, resources=parca_resources
     )
     juju.deploy(
         "traefik-k8s",
