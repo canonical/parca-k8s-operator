@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from cosl.coordinated_workers.nginx import NginxConfig, NginxLocationConfig, NginxUpstream
+from coordinated_workers.nginx import NginxConfig, NginxLocationConfig, NginxUpstream
 from ops import Container, pebble
 
 from models import TLSConfig
@@ -158,11 +158,16 @@ class Nginx:
             self._delete_certificates()
 
     def _reconcile_nginx_config(self):
-        new_config = NginxConfig(
+        configbuilder = NginxConfig(
             self._server_name,
             upstream_configs=self._nginx_upstreams(),
             server_ports_to_locations=self._server_ports_to_locations(),
-        ).get_config(upstreams_to_addresses=self._upstreams_to_addresses(), listen_tls=self._are_certificates_on_disk)
+        )
+        new_config = configbuilder.get_config(
+            upstreams_to_addresses=self._upstreams_to_addresses(),
+                     listen_tls=self._are_certificates_on_disk
+        )
+
         should_restart: bool = self._has_config_changed(new_config)
         self._container.push(self.config_path, new_config, make_dirs=True)  # type: ignore
         self._container.add_layer(self.layer_name, self.layer, combine=True)
