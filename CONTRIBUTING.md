@@ -79,7 +79,7 @@ charmcraft pack
 
 ### Container image
 
-We are using [this rock](https://github.com/canonical/parca-rock).
+We are using [this rock](https://github.com/canonical/parca-rock): `ghcr.io/canonical/parca:dev`.
 
 ### Deploy
 
@@ -89,7 +89,7 @@ juju add-model parca-dev
 # Enable DEBUG logging
 juju model-config logging-config="<root>=INFO;unit=DEBUG"
 juju deploy ./parca-k8s_ubuntu@24.04-amd64.charm  \
-  --resource parca-image=ghcr.io/parca-dev/parca:v0.22.0 \
+  --resource parca-image=ghcr.io/canonical/parca:dev \
   --resource nginx-image=ubuntu/nginx:1.24-24.04_beta \
   --resource nginx-prometheus-exporter-image=nginx/nginx-prometheus-exporter:1.1.0  \
   parca
