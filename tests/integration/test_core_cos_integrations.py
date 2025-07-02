@@ -100,22 +100,22 @@ def test_metrics_integration(juju:Juju):
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
 def test_catalogue_integration(juju: Juju):
-    # GIVEN a pyroscope cluster integrated with catalogue
+    # GIVEN a parca cluster integrated with catalogue
     catalogue_unit = f"{CATALOGUE}/0"
     # get Pyroscope's catalogue item URL
     out = juju.cli(
         "show-unit", catalogue_unit, "--endpoint", "catalogue", "--format", "json"
     )
-    pyroscope_app_databag = json.loads(out)[catalogue_unit]["relation-info"][0][
+    parca_app_databag = json.loads(out)[catalogue_unit]["relation-info"][0][
         "application-data"
     ]
-    url = pyroscope_app_databag["url"]
-    # WHEN we query the Pyroscope catalogue item URL
+    url = parca_app_databag["url"]
+    # WHEN we query the parca catalogue item URL
     # query the url from inside the container in case the url is a K8s fqdn
     response = juju.ssh(f"{PARCA}/0", f"curl {url}")
     # THEN we receive a 200 OK response (0 exit status)
-    # AND we confirm the response is from the Pyroscope UI (via the page title)
-    assert "<title>Grafana Pyroscope</title>" in response
+    # AND we confirm the response is from the Parca UI (via the page title)
+    assert "<title>Parca</title>" in response
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 15), reraise=True)
