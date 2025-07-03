@@ -187,7 +187,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     # RECONCILERS
     def reconcile(self):
-        """Unconditional logic to run regardless of the event we're processing.
+        """Unconditional logic to run regardless of the event we are processing.
 
         This will ensure all workloads are up and running if the preconditions are met.
         """

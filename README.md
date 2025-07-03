@@ -18,10 +18,11 @@ $ juju deploy parca-k8s --trust --channel edge
 Once the deployment is complete, grab the address of the Parca application:
 
 ```bash
-$ juju show-unit parca-k8s/0 --format=json | jq -r '.["parca-k8s/0"]["public-address"]'
+# assuming juju 3.6:
+$ juju show-unit parca-k8s/0 --format=json | jq -r '.["parca-k8s/0"]["address"]'
 ```
 
-Now visit: `http://<parca-address>:7070/` to see the Parca dashboard.
+Now visit: `http://<parca-address>:7994/` to see the Parca dashboard.
 
 ## Configuration
 
