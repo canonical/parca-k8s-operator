@@ -183,7 +183,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         peer_relation = self.model.get_relation("parca-peers")
         if not peer_relation:
             return False
-        return len(peer_relation.units) > 1
+        return len(peer_relation.units) > 0
 
     # RECONCILERS
     def reconcile(self):

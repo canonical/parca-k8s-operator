@@ -496,7 +496,7 @@ def test_list_endpoints_action(context, base_state, tls, ingress):
     CharmEvents.update_status(),
 ))
 def test_parca_blocks_if_scaled(context, base_state, event):
-    relation= PeerRelation("parca-peers", peers_data={0:{}, 1:{}})
+    relation= PeerRelation("parca-peers", peers_data={1:{}}, local_unit_data={})
     state_out = context.run(
         event,
         replace(base_state, leader=True, relations={relation}),
