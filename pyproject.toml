@@ -19,6 +19,7 @@ dev = [
     # ---UNIT TESTS---
     "coverage[toml]",
     "pytest",
+    "pytest-bdd",
     "ops[testing]",
     # ---INTEGRATION TESTS---
     "pydantic",
@@ -43,8 +44,8 @@ minversion = "6.0"
 log_cli_level = "INFO"
 addopts = "--tb=native --verbose --capture=no --log-cli-level=INFO"
 markers = [
-    "setup: marks certain integration tests as setup tests (deselect with '-m \"not setup\"')",
-    "teardown: marks certain integration tests as teardown tests",
+    # TODO: this should be eventually managed by a pytest plugin
+    "verifies: marks tests as verifying specific features",
 ]
 
 

@@ -25,7 +25,6 @@ from nginx import Nginx
 ZINC = "zinc-k8s"
 PARCA_TESTER = "parca-tester"
 
-
 @mark.setup
 def test_deploy(juju: Juju, parca_charm, parca_resources):
     juju.deploy(

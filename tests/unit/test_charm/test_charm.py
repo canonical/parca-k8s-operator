@@ -454,6 +454,7 @@ def test_parca_workload_tracing_relation(context, base_state):
 
 @pytest.mark.parametrize("tls", (True, False))
 @pytest.mark.parametrize("ingress", (True, False))
+@pytest.mark.verifies(feature="list_endpoints")
 def test_list_endpoints_action(context, base_state, tls, ingress):
     # GIVEN (conditionally) TLS and ingress relations
     base_state = replace(base_state, leader=True)

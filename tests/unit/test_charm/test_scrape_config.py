@@ -14,6 +14,7 @@ from ops import testing
 @pytest.mark.parametrize("remote_unit_id",
                          (1, 12),
                          )
+@pytest.mark.verifies(feature="profiling")
 def test_scrape_config(context, hostname, port, remote_app_name, remote_unit_id):
     state = testing.State(
         leader=True,

@@ -26,3 +26,12 @@ def parca_charm():
 @fixture(scope="module")
 def parca_resources():
     return get_resources("./")
+
+
+@fixture(scope="session")
+def no_setup(request):
+    return request.config.getoption("--no-setup")
+
+@fixture(scope="session")
+def no_teardown(request):
+    return request.config.getoption("--no-teardown")
