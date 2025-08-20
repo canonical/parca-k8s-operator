@@ -52,7 +52,7 @@ LIBAPI = 4
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 19
+LIBPATCH = 21
 
 PYDEPS = [
     "cryptography>=43.0.0",
@@ -1232,7 +1232,7 @@ class TLSCertificatesRequiresV4(Object):
         for event in refresh_events:
             self.framework.observe(event, self._configure)
 
-    def _configure(self, _: EventBase):
+    def _configure(self, _: Optional[EventBase] = None):
         """Handle TLS Certificates Relation Data.
 
         This method is called during any TLS relation event.
@@ -1285,6 +1285,14 @@ class TLSCertificatesRequiresV4(Object):
         csr = CertificateSigningRequest.from_string(csr_str)
         self._renew_certificate_request(csr)
         event.secret.remove_all_revisions()
+
+    def sync(self) -> None:
+        """Sync TLS Certificates Relation Data.
+
+        This method allows the requirer to sync the TLS certificates relation data
+        without waiting for the refresh events to be triggered.
+        """
+        self._configure()
 
     def renew_certificate(self, certificate: ProviderCertificate) -> None:
         """Request the renewal of the provided certificate."""
@@ -1796,7 +1804,7 @@ class TLSCertificatesProvidesV4(Object):
         self, relation: Relation, unit_or_app: Union[Application, Unit]
     ) -> List[RequirerCertificateRequest]:
         try:
-            requirer_relation_data = _RequirerData.load(relation.data[unit_or_app])
+            requirer_relation_data = _RequirerData.load(relation.data.get(unit_or_app, {}))
         except DataValidationError:
             logger.debug("Invalid requirer relation data for %s", unit_or_app.name)
             return []
