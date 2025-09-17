@@ -8,7 +8,7 @@ dependencies = [
     "ops[tracing]",
     "pydantic <3",
     # parca is not a coordinated-worker, but that's where the nginx config builder we need lives
-    "coordinated_workers",
+    "coordinated-workers@git+https://github.com/canonical/cos-coordinated-workers@TAP-750",
     # ---PYDEPS---
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
