@@ -13,6 +13,7 @@ from typing import Dict, FrozenSet, List, Optional
 import ops
 import ops_tracing
 import pydantic
+from charmlibs.interfaces.slo import SLOProvider
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -24,7 +25,6 @@ from charms.parca_k8s.v0.parca_store import (
     ParcaStoreEndpointRequirer,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
-from charmlibs.interfaces.slo import SLOProvider
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
 from charms.tls_certificates_interface.v4.tls_certificates import (
     CertificateRequestAttributes,
@@ -434,7 +434,7 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _provide_slos(self):
         """Provide SLO specifications to Sloth via the SLO relation."""
         slo_config = self.config.get("slos", "")
-        if not slo_config:
+        if not slo_config or not isinstance(slo_config, str):
             return
 
         try:
