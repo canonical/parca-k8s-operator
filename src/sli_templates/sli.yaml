@@ -1,0 +1,64 @@
+version: "prometheus/v1"
+service: "parca"
+labels:
+  repo: "canonical/parca-k8s-operator"
+slos:
+  # Profile ingestion availability - Track failed profile writes
+  - name: "profile-ingestion-availability"
+    objective: <OBJECTIVE>
+    description: "Track the availability of profile ingestion (excluding error responses)"
+    sli:
+      events:
+        error_query: sum(rate(grpc_server_handled_total{grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss",grpc_method="WriteRaw",grpc_service="parca.profilestore.v1alpha1.ProfileStoreService"}[{{.window}}]))
+        total_query: sum(rate(grpc_server_handled_total{grpc_method="WriteRaw",grpc_service="parca.profilestore.v1alpha1.ProfileStoreService"}[{{.window}}]))
+    alerting:
+      name: ParcaProfileIngestion
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true
+  
+  # Profile ingestion latency - Track slow profile writes
+  - name: "profile-ingestion-latency"
+    objective: <OBJECTIVE>
+    description: "Track the proportion of profile ingestion requests that complete within acceptable latency (fill in threshold)"
+    sli:
+      events:
+        error_query: sum(rate(grpc_server_handling_seconds_count{grpc_method="WriteRaw",grpc_service="parca.profilestore.v1alpha1.ProfileStoreService"}[{{.window}}])) - sum(rate(grpc_server_handling_seconds_bucket{le="<MAX_ACCEPTABLE_WRITE_LATENCY>",grpc_method="WriteRaw",grpc_service="parca.profilestore.v1alpha1.ProfileStoreService"}[{{.window}}]))
+        total_query: sum(rate(grpc_server_handling_seconds_count{grpc_method="WriteRaw",grpc_service="parca.profilestore.v1alpha1.ProfileStoreService"}[{{.window}}]))
+    alerting:
+      name: ParcaProfileIngestionLatency
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true
+  
+  # Query availability - Track failed queries
+  - name: "query-availability"
+    objective: <OBJECTIVE>
+    description: "Track the availability of profile queries (excluding error responses)"
+    sli:
+      events:
+        error_query: sum(rate(grpc_server_handled_total{grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss",grpc_method=~"Query|QueryRange",grpc_service="parca.query.v1alpha1.QueryService"}[{{.window}}]))
+        total_query: sum(rate(grpc_server_handled_total{grpc_method=~"Query|QueryRange",grpc_service="parca.query.v1alpha1.QueryService"}[{{.window}}]))
+    alerting:
+      name: ParcaQueryAvailability
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true
+  
+  # Query latency - Track slow queries
+  - name: "query-latency"
+    objective: <OBJECTIVE>
+    description: "Track the proportion of profile queries that complete within acceptable latency (fill in threshold)"
+    sli:
+      events:
+        error_query: sum(rate(grpc_server_handling_seconds_count{grpc_method=~"Query|QueryRange",grpc_service="parca.query.v1alpha1.QueryService"}[{{.window}}])) - sum(rate(grpc_server_handling_seconds_bucket{le="<MAX_ACCEPTABLE_QUERY_LATENCY>",grpc_method=~"Query|QueryRange",grpc_service="parca.query.v1alpha1.QueryService"}[{{.window}}]))
+        total_query: sum(rate(grpc_server_handling_seconds_count{grpc_method=~"Query|QueryRange",grpc_service="parca.query.v1alpha1.QueryService"}[{{.window}}]))
+    alerting:
+      name: ParcaQueryLatency
+      page_alert:
+        disable: true
+      ticket_alert:
+        disable: true

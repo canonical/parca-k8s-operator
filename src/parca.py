@@ -29,7 +29,7 @@ DEFAULT_PROFILE_PATH = "/var/lib/parca"
 S3_TLS_CA_CERT_PATH = "/etc/parca/s3_ca.crt"
 
 ScrapeJob = Dict[str, Union[List[str], Dict[str, str]]]
-RelabelConfig = Dict[str, Union[list[str], str]]
+RelabelConfig = Dict[str, Union["list[str]", str]]
 
 
 class ScrapeJobsConfig(TypedDict, total=False):

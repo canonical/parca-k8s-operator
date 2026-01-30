@@ -502,3 +502,68 @@ def test_parca_blocks_if_scaled(context, base_state, event):
         replace(base_state, leader=True, relations={relation}),
     )
     assert isinstance(state_out.unit_status, BlockedStatus)
+
+
+def test_slo_provider_is_initialized(context, base_state):
+    """Test that SLO provider is properly initialized."""
+    # GIVEN we add an slos relation
+    slo_relation = Relation("slos")
+    state_with_slo = replace(base_state, relations=set(base_state.relations).union({slo_relation}))
+
+    # WHEN we process an event
+    state_out = context.run(context.on.start(), state_with_slo)
+
+    # THEN the charm should be healthy and the relation should be established
+    assert_healthy(state_out)
+    # Verify the slos relation is in the output state
+    slo_rel = state_out.get_relation(slo_relation.id)
+    assert slo_rel is not None
+
+
+def test_get_slo_template_action_success(context, base_state):
+    """Test get-slo-template action returns template content."""
+    # WHEN we run the get-slo-template action
+    context.run(context.on.action("get-slo-template"), base_state)
+
+    # THEN we should get action results with a template
+    results = context.action_results
+    assert "template" in results
+
+    # AND the template should contain expected SLO definitions
+    template_content = results["template"]
+    assert "version: \"prometheus/v1\"" in template_content
+    assert "service: \"parca\"" in template_content
+    assert "profile-ingestion-availability" in template_content
+    assert "profile-ingestion-latency" in template_content
+    assert "query-availability" in template_content
+    assert "query-latency" in template_content
+    assert "<OBJECTIVE>" in template_content
+
+
+def test_get_slo_template_action_with_missing_file(context, base_state, monkeypatch):
+    """Test get-slo-template action handles missing file gracefully."""
+
+    # GIVEN the SLI template file doesn't exist
+    def mock_open(*args, **kwargs):
+        raise FileNotFoundError("Template not found")
+
+    monkeypatch.setattr("builtins.open", mock_open)
+
+    # WHEN we run the get-slo-template action
+    with pytest.raises(Exception):
+        # Action failure raises an exception in scenario
+        context.run(context.on.action("get-slo-template"), base_state)
+
+
+def test_slo_integration_relation(context, base_state):
+    """Test SLO integration relation can be added."""
+    # GIVEN we add an slos relation
+    slo_relation = Relation("slos")
+    state_with_slo = replace(base_state, relations=set(base_state.relations).union({slo_relation}))
+
+    # WHEN we process an event
+    state_out = context.run(context.on.start(), state_with_slo)
+
+    # THEN the charm should be healthy
+    assert_healthy(state_out)
+

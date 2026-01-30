@@ -9,6 +9,7 @@ dependencies = [
     "pydantic <3",
     # parca is not a coordinated-worker, but that's where the nginx config builder we need lives
     "coordinated_workers",
+    "charmlibs-interfaces-slo @ git+https://github.com/canonical/charmlibs.git@feat/slo#subdirectory=interfaces/slo",
     # ---PYDEPS---
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
@@ -73,3 +74,8 @@ per-file-ignores = { "tests/*" = ["D100", "D101", "D102", "D103", "D104"] }
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+[tool.pyright]
+extraPaths = ["src", "lib"]
+pythonVersion = "3.8"
+pythonPlatform = "All"

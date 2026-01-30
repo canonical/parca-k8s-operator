@@ -24,6 +24,7 @@ from charms.parca_k8s.v0.parca_store import (
     ParcaStoreEndpointRequirer,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charmlibs.interfaces.slo import SLOProvider
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
 from charms.tls_certificates_interface.v4.tls_certificates import (
     CertificateRequestAttributes,
@@ -136,6 +137,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             # no need to use refresh_events logic as we refresh on reconcile.
         )
 
+        self.slo_provider = SLOProvider(self, relation_name="slos")
+
         self.workload_tracing = TracingEndpointRequirer(
             self,
             relation_name="workload-tracing",
@@ -175,6 +178,7 @@ class ParcaOperatorCharm(ops.CharmBase):
             return
 
         self.framework.observe(self.on.list_endpoints_action, self._on_list_endpoints_action)
+        self.framework.observe(self.on.get_slo_template_action, self._on_get_slo_template_action)
         # unconditional logic
         self.reconcile()
 
@@ -216,6 +220,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_source_provider.update_source(source_url=self.http_server_url)
         self.parca_store_endpoint.set_remote_store_connection_data()
         self.ingress.reconcile()
+        self._provide_slos()
 
     def _reconcile_tls_config(self) -> None:
         """Update the TLS certificates for the charm container."""
@@ -413,6 +418,31 @@ class ParcaOperatorCharm(ops.CharmBase):
         if grpc_external_host := self.ingress.grpc_external_host:
             out["ingressed-grpc-url"]= f"{grpc_external_host}:{Nginx.parca_grpc_server_port}"
         event.set_results(out)
+
+    def _on_get_slo_template_action(self, event: ops.ActionEvent):
+        """Handle the get-slo-template action."""
+        sli_template_path = Path(__file__).parent / "sli_templates" / "sli.yaml"
+        try:
+            with open(sli_template_path, "r") as f:
+                template = f.read()
+            event.set_results({"template": template})
+        except FileNotFoundError:
+            event.fail(f"SLI template file not found at {sli_template_path}")
+        except Exception as e:
+            event.fail(f"Failed to read SLI template: {str(e)}")
+
+    def _provide_slos(self):
+        """Provide SLO specifications to Sloth via the SLO relation."""
+        slo_config = self.config.get("slos", "")
+        if not slo_config:
+            return
+
+        try:
+            self.slo_provider.provide_slos(slo_config)
+            logger.info("Successfully provided SLO specifications to Sloth")
+        except Exception as e:
+            logger.error(f"Failed to provide SLOs: {e}")
+
 
 
 def _generic_scrape_target(

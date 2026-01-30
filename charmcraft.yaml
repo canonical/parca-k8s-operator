@@ -51,7 +51,7 @@ resources:
   nginx-image:
     type: oci-image
     description: OCI image for nginx
-    upstream-source: ubuntu/nginx:1.24-24.04_beta
+    upstream-source: ghcr.io/canonical/nginx@sha256:6415a2c5f25f1d313c87315a681bdc84be80f3c79c304c6744737f9b34207993 # 1.27.5 rock
   nginx-prometheus-exporter-image:
     type: oci-image
     description: OCI image for nginx-prometheus-exporter
@@ -140,6 +140,12 @@ provides:
     interface: parca_store
     description: |
       Endpoint at which profiles can be pushed by, for example, a remote parca server or parca-agent.
+  slos:
+    optional: true
+    interface: slo
+    description: |
+      Provides SLO (Service Level Objective) specifications to Sloth for generating 
+      Prometheus recording and alerting rules.
 
 peers:
   parca-peers:
@@ -150,6 +156,20 @@ actions:
     description: | 
       Return the ingestion endpoints that the parca server is listening on for grpc and http profiling data.
       Will list both direct and ingressed hosts.
+  get-slo-template:
+    description: |
+      Returns a template SLO specification for Parca with placeholders for customization.
+      The template includes example SLOs for profile ingestion availability, query availability,
+      and query latency.
+      
+      Usage:
+        # Extract template to file:
+        juju run parca-k8s/0 get-slo-template --format=json | jq -r '.template' > parca-slo.yaml
+        
+        # Edit parca-slo.yaml to fill in <OBJECTIVE> placeholders
+        
+        # Apply the configuration:
+        juju config parca-k8s slos="$(cat parca-slo.yaml)"
 
 config:
   options:
@@ -166,3 +186,10 @@ config:
         Does nothing if enable-persistence is True.
       type: int
       default: 4096
+
+    slos:
+      description: |
+        YAML-formatted SLO definitions for Parca. If not set, no SLOs are defined.
+        Use the 'get-slo-template' action to get a template with placeholders.
+      type: string
+      default: ""
