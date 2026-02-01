@@ -31,6 +31,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     TLSCertificatesRequiresV4,
 )
 from cosl import JujuTopology
+from cosl.reconciler import all_events, observe_events
 
 from ingress_configuration import EntryPoint, Protocol, TraefikRouteEndpoint
 from models import S3Config, TLSConfig
@@ -176,7 +177,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         self.framework.observe(self.on.list_endpoints_action, self._on_list_endpoints_action)
         # unconditional logic
-        self.reconcile()
+        observe_events(self, all_events, self.reconcile)
 
     def is_scaled_up(self)->bool:
         """Check whether we have peers."""
