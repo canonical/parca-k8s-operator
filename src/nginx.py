@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from coordinated_workers.nginx import NginxConfig, NginxLocationConfig, NginxUpstream
+from charmlibs.nginx_k8s import NginxConfig, NginxLocationConfig, NginxUpstream
 from ops import Container, pebble
 
 from models import TLSConfig
@@ -197,7 +197,7 @@ class Nginx:
 
     def _nginx_upstreams(self) -> List[NginxUpstream]:
         return [
-            NginxUpstream(name=self._address.name, port=self._address.port,worker_role=self._address.name)
+            NginxUpstream(name=self._address.name, port=self._address.port, address_lookup_key=self._address.name)
         ]
 
     def _server_ports_to_locations(self) -> Dict[int, List[NginxLocationConfig]]:

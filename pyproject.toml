@@ -7,8 +7,10 @@ requires-python = ">=3.10"
 dependencies = [
     "ops[tracing]",
     "pydantic <3",
-    # parca is not a coordinated-worker, but that's where the nginx config builder we need lives
-    "coordinated_workers",
+    "charmlibs-nginx-k8s",
+    "cosl",
+    "lightkube",
+    "lightkube-models",
     # ---PYDEPS---
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
