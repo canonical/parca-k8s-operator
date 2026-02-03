@@ -9,7 +9,6 @@ from typing import List, Tuple
 
 import jubilant
 from jubilant import Juju
-from minio import Minio
 
 from nginx import CA_CERT_PATH, Nginx
 
@@ -23,10 +22,6 @@ S3_INTEGRATOR_CHANNEL = "2/edge"
 BUCKET_NAME = "parca"
 ACCESS_KEY = "accesskey"
 SECRET_KEY = "secretkey"
-S3_CREDENTIALS = {
-    "access-key": ACCESS_KEY,
-    "secret-key": SECRET_KEY,
-}
 logger= logging.getLogger("helpers")
 
 
@@ -43,7 +38,15 @@ def get_unit_fqdn(model_name, app_name, unit_id):
 
 def _deploy_and_configure_minio(juju: Juju):
     if not juju.status().apps.get(MINIO):
-        juju.deploy(MINIO, channel="edge", trust=True, config=S3_CREDENTIALS)
+        juju.deploy(
+            MINIO,
+            channel="edge",
+            trust=True,
+            config={
+                "access-key": ACCESS_KEY,
+                "secret-key": SECRET_KEY,
+            }
+        )
     juju.wait(
         lambda status: status.apps[MINIO].is_active,
         error=jubilant.any_error,
@@ -53,7 +56,11 @@ def _deploy_and_configure_minio(juju: Juju):
     )
 
 def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
-    """Deploy minio, the s3 integrator, and provision a bucket."""
+    """Deploy minio and s3-integrator using track 2 approach.
+
+    Track 2 of s3-integrator uses Juju secrets (secret URI in 'credentials' config).
+    Unlike track 1, it auto-creates buckets so manual provisioning is not needed.
+    """
     _deploy_and_configure_minio(juju)
 
     logger.info(f"deploying {s3_integrator_app=}")
@@ -61,33 +68,27 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
         "s3-integrator", s3_integrator_app, channel=S3_INTEGRATOR_CHANNEL
     )
 
-    logger.info(f"provisioning {bucket_name=} on {s3_integrator_app=}")
-    minio_addr = get_unit_ip_address(juju, MINIO, 0)
-    mc_client = Minio(
-        f"{minio_addr}:9000",
-        **{key.replace("-", "_"): value for key, value in S3_CREDENTIALS.items()},
-        secure=False,
-    )
-    # create tempo bucket
-    found = mc_client.bucket_exists(bucket_name)
-    if not found:
-        mc_client.make_bucket(bucket_name)
+    logger.info("configuring s3 integrator with track 2 approach...")
 
-    logger.info("configuring s3 integrator...")
+    # Track 2: Create and grant Juju secret with credentials
     secret_uri = juju.cli(
         "add-secret",
         f"{s3_integrator_app}-creds",
-        *(f"{key}={val}" for key, val in S3_CREDENTIALS.items()),
-    )
-    juju.cli("grant-secret", f"{s3_integrator_app}-creds", s3_integrator_app)
+        f"access-key={ACCESS_KEY}",
+        f"secret-key={SECRET_KEY}",
+    ).strip()
 
-    # configure s3-integrator
+    logger.info(f"Created secret: {secret_uri}")
+    juju.cli("grant-secret", secret_uri, s3_integrator_app)
+
+    # Configure s3-integrator with endpoint, bucket, AND credentials secret URI
+    # Track 2 DOES use 'credentials' config but expects a Juju secret URI
     juju.config(
         s3_integrator_app,
         {
             "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
             "bucket": bucket_name,
-            "credentials": secret_uri.strip(),
+            "credentials": secret_uri,
         },
     )
 
