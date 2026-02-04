@@ -9,6 +9,7 @@ from typing import List, Tuple
 
 import jubilant
 from jubilant import Juju
+from minio import Minio
 
 from nginx import CA_CERT_PATH, Nginx
 
@@ -56,10 +57,10 @@ def _deploy_and_configure_minio(juju: Juju):
     )
 
 def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
-    """Deploy minio and s3-integrator using track 2 approach.
+    """Deploy minio and s3-integrator.
 
-    Track 2 of s3-integrator uses Juju secrets (secret URI in 'credentials' config).
-    Unlike track 1, it auto-creates buckets so manual provisioning is not needed.
+    Since Parca uses S3 lib LIBAPI=0, s3-integrator does not auto-create buckets.
+    We must manually create the bucket before configuring s3-integrator.
     """
     _deploy_and_configure_minio(juju)
 
@@ -68,9 +69,25 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
         "s3-integrator", s3_integrator_app, channel=S3_INTEGRATOR_CHANNEL
     )
 
-    logger.info("configuring s3 integrator with track 2 approach...")
+    logger.info(f"provisioning {bucket_name=} on minio...")
+    # Get MinIO IP address and create bucket manually
+    # This is required because Parca uses S3 lib LIBAPI=0, which causes
+    # s3-integrator to discard the bucket parameter and not auto-create it
+    minio_addr = get_unit_ip_address(juju, MINIO, 0)
+    mc_client = Minio(
+        f"{minio_addr}:9000",
+        access_key=ACCESS_KEY,
+        secret_key=SECRET_KEY,
+        secure=False,
+    )
+    # Create bucket if it doesn't exist
+    if not mc_client.bucket_exists(bucket_name):
+        mc_client.make_bucket(bucket_name)
+        logger.info(f"Created bucket {bucket_name}")
 
-    # Track 2: Create and grant Juju secret with credentials
+    logger.info("configuring s3 integrator...")
+
+    # Create and grant Juju secret with credentials
     secret_uri = juju.cli(
         "add-secret",
         f"{s3_integrator_app}-creds",
@@ -81,12 +98,11 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
     logger.info(f"Created secret: {secret_uri}")
     juju.cli("grant-secret", secret_uri, s3_integrator_app)
 
-    # Configure s3-integrator with endpoint, bucket, AND credentials secret URI
-    # Track 2 DOES use 'credentials' config but expects a Juju secret URI
+    # Configure s3-integrator with endpoint, bucket, and credentials secret URI
     juju.config(
         s3_integrator_app,
         {
-            "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
+            "endpoint": f"http://minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
             "bucket": bucket_name,
             "credentials": secret_uri,
         },

@@ -247,10 +247,17 @@ class ParcaConfig:
         self._s3_config = s3_config
 
     def _parca_s3_config(self, s3_config: "S3Config"):
+        # Strip protocol scheme (http:// or https://) from endpoint as Parca expects just hostname:port
+        endpoint = s3_config.endpoint
+        if endpoint.startswith("http://"):
+            endpoint = endpoint[7:]  # Remove 'http://'
+        elif endpoint.startswith("https://"):
+            endpoint = endpoint[8:]  # Remove 'https://'
+        
         bucket_config = {
             "bucket": s3_config.bucket,
             "region": s3_config.region,
-            "endpoint": s3_config.endpoint,
+            "endpoint": endpoint,
             "secret_key": s3_config.secret_key,
             "access_key": s3_config.access_key,
             "insecure": not s3_config.ca_cert,

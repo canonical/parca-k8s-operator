@@ -2,6 +2,7 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import logging
 import shlex
 from subprocess import check_call
 
@@ -17,6 +18,7 @@ from tests.integration.helpers import BUCKET_NAME, MINIO, S3_INTEGRATOR, deploy_
 
 PARCA = "parca"
 PARCA_TESTER = "parca-tester"
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.setup
@@ -82,18 +84,29 @@ def test_s3_usage(juju:Juju):
     """Verify that parca is using s3.
 
     This test:
-    1. Restarts parca once to trigger flush of in-memory buffer
-    2. Waits for parca to be ready
-    3. Retries checking MinIO for objects (without restarting parca)
+    1. First checks if parca has already written data to S3 naturally
+    2. If no data found, restarts parca once to trigger flush of in-memory buffer
+    3. Waits for parca to be ready after restart
+    4. Retries checking MinIO for objects
     """
-    # Step 1: Restart parca ONCE to trigger flush
+    minio_url = f"{get_unit_ip(juju.model, MINIO, 0)}:9000"
+    
+    # Step 1: First check if data is already in S3 (parca may write naturally)
+    try:
+        logger.info("Checking if parca has already written data to S3...")
+        verify_objects_in_minio(minio_url, "blocks/")
+        logger.info("Data found in S3 without restart!")
+        return  # Test passed, no restart needed
+    except AssertionError:
+        logger.info("No data in S3 yet, will restart parca to trigger flush...")
+
+    # Step 2: Restart parca to trigger flush
     restart_parca_to_flush(juju.model)
 
-    # Step 2: Wait for parca to be ready after restart
+    # Step 3: Wait for parca to be ready after restart
     wait_for_parca_ready(juju.model)
 
-    # Step 3: Retry checking MinIO (separate from restart)
-    minio_url = f"{get_unit_ip(juju.model, MINIO, 0)}:9000"
+    # Step 4: Retry checking MinIO for objects
     verify_objects_in_minio(minio_url, "blocks/")
 
 
