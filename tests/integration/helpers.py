@@ -95,7 +95,6 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
         f"secret-key={SECRET_KEY}",
     ).strip()
 
-    logger.info(f"Created secret: {secret_uri}")
     juju.cli("grant-secret", secret_uri, s3_integrator_app)
 
     # Configure s3-integrator with endpoint, bucket, and credentials secret URI
