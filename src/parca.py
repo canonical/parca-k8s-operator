@@ -253,7 +253,7 @@ class ParcaConfig:
             endpoint = endpoint[7:]  # Remove 'http://'
         elif endpoint.startswith("https://"):
             endpoint = endpoint[8:]  # Remove 'https://'
-        
+
         bucket_config = {
             "bucket": s3_config.bucket,
             "region": s3_config.region,

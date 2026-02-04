@@ -90,7 +90,7 @@ def test_s3_usage(juju:Juju):
     4. Retries checking MinIO for objects
     """
     minio_url = f"{get_unit_ip(juju.model, MINIO, 0)}:9000"
-    
+
     # Step 1: First check if data is already in S3 (parca may write naturally)
     try:
         logger.info("Checking if parca has already written data to S3...")
