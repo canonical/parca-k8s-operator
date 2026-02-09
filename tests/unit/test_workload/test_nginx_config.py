@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import ops
 import pytest
-from coordinated_workers.nginx import NginxConfig
+from charmlibs.nginx_k8s import NginxConfig
 from ops import testing
 
 from nginx import (
@@ -137,7 +137,7 @@ def test_nginx_config_contains_upstreams_and_proxy_pass(
 
 @contextmanager
 def mock_ipv6(enable: bool):
-    with patch("coordinated_workers.nginx.is_ipv6_enabled", MagicMock(return_value=enable)):
+    with patch("charmlibs.nginx_k8s._config._is_ipv6_enabled", MagicMock(return_value=enable)):
         yield
 
 
@@ -145,6 +145,6 @@ def mock_ipv6(enable: bool):
 def mock_resolv_conf(contents: str):
     with tempfile.NamedTemporaryFile() as tf:
         Path(tf.name).write_text(contents)
-        with patch("coordinated_workers.nginx.RESOLV_CONF_PATH", tf.name):
+        with patch("charmlibs.nginx_k8s._config.RESOLV_CONF_PATH", tf.name):
             yield
 

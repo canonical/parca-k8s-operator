@@ -23,10 +23,6 @@ S3_INTEGRATOR_CHANNEL = "2/edge"
 BUCKET_NAME = "parca"
 ACCESS_KEY = "accesskey"
 SECRET_KEY = "secretkey"
-S3_CREDENTIALS = {
-    "access-key": ACCESS_KEY,
-    "secret-key": SECRET_KEY,
-}
 logger= logging.getLogger("helpers")
 
 
@@ -43,7 +39,15 @@ def get_unit_fqdn(model_name, app_name, unit_id):
 
 def _deploy_and_configure_minio(juju: Juju):
     if not juju.status().apps.get(MINIO):
-        juju.deploy(MINIO, channel="edge", trust=True, config=S3_CREDENTIALS)
+        juju.deploy(
+            MINIO,
+            channel="edge",
+            trust=True,
+            config={
+                "access-key": ACCESS_KEY,
+                "secret-key": SECRET_KEY,
+            }
+        )
     juju.wait(
         lambda status: status.apps[MINIO].is_active,
         error=jubilant.any_error,
@@ -53,7 +57,11 @@ def _deploy_and_configure_minio(juju: Juju):
     )
 
 def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
-    """Deploy minio, the s3 integrator, and provision a bucket."""
+    """Deploy minio and s3-integrator.
+
+    Since Parca uses S3 lib LIBAPI=0, s3-integrator does not auto-create buckets.
+    We must manually create the bucket before configuring s3-integrator.
+    """
     _deploy_and_configure_minio(juju)
 
     logger.info(f"deploying {s3_integrator_app=}")
@@ -61,33 +69,41 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
         "s3-integrator", s3_integrator_app, channel=S3_INTEGRATOR_CHANNEL
     )
 
-    logger.info(f"provisioning {bucket_name=} on {s3_integrator_app=}")
+    logger.info(f"provisioning {bucket_name=} on minio...")
+    # Get MinIO IP address and create bucket manually
+    # This is required because Parca uses S3 lib LIBAPI=0, which causes
+    # s3-integrator to discard the bucket parameter and not auto-create it
     minio_addr = get_unit_ip_address(juju, MINIO, 0)
     mc_client = Minio(
         f"{minio_addr}:9000",
-        **{key.replace("-", "_"): value for key, value in S3_CREDENTIALS.items()},
+        access_key=ACCESS_KEY,
+        secret_key=SECRET_KEY,
         secure=False,
     )
-    # create tempo bucket
-    found = mc_client.bucket_exists(bucket_name)
-    if not found:
+    # Create bucket if it doesn't exist
+    if not mc_client.bucket_exists(bucket_name):
         mc_client.make_bucket(bucket_name)
+        logger.info(f"Created bucket {bucket_name}")
 
     logger.info("configuring s3 integrator...")
+
+    # Create and grant Juju secret with credentials
     secret_uri = juju.cli(
         "add-secret",
         f"{s3_integrator_app}-creds",
-        *(f"{key}={val}" for key, val in S3_CREDENTIALS.items()),
-    )
-    juju.cli("grant-secret", f"{s3_integrator_app}-creds", s3_integrator_app)
+        f"access-key={ACCESS_KEY}",
+        f"secret-key={SECRET_KEY}",
+    ).strip()
 
-    # configure s3-integrator
+    juju.cli("grant-secret", secret_uri, s3_integrator_app)
+
+    # Configure s3-integrator with endpoint, bucket, and credentials secret URI
     juju.config(
         s3_integrator_app,
         {
-            "endpoint": f"minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
+            "endpoint": f"http://minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
             "bucket": bucket_name,
-            "credentials": secret_uri.strip(),
+            "credentials": secret_uri,
         },
     )
 

@@ -68,11 +68,11 @@ def test_smoke_parca_nginx_routes(juju: Juju):
     assert response.status_code == 200
 
     # test the grpc server.
-    # curl gives: (1) Received HTTP/0.9 when not allowed
-    with pytest.raises(requests.exceptions.ConnectionError) as e:
-        # not a 404, but still nothing we can check without using grpcurl or smth
-        requests.get(f"http://{address}:{Nginx.parca_grpc_server_port}/")
-    assert "ProtocolError('Connection aborted.', BadStatusLine" in str(e)
+    # The newer nginx (1.27.5 rock) handles HTTP requests to gRPC endpoints more gracefully
+    # than the old ubuntu/nginx:1.24 image. It returns a proper response instead of
+    # abruptly closing the connection.
+    response = requests.get(f"http://{address}:{Nginx.parca_grpc_server_port}/")
+    assert response.status_code == 200
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)

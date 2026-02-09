@@ -11,7 +11,6 @@ from tests.integration.helpers import (
     ACCESS_KEY,
     INTEGRATION_TESTERS_CHANNEL,
     PARCA,
-    S3_CREDENTIALS,
     SECRET_KEY,
     get_app_ip_address,
     get_unit_ip_address,
@@ -55,7 +54,10 @@ def deploy_monolithic_tempo_cluster(
     juju.integrate(coordinator_app_name + ":s3", s3_app_name + ":s3-credentials")
 
     # s3 backend
-    juju.deploy("minio", MINIO, channel="edge", trust=True, config=S3_CREDENTIALS)
+    juju.deploy("minio", MINIO, channel="edge", trust=True, config={
+        "access-key": ACCESS_KEY,
+        "secret-key": SECRET_KEY,
+    })
 
     # wait for minio to be ready, because we need to create the bucket manually
     juju.wait(
@@ -76,7 +78,10 @@ def deploy_monolithic_tempo_cluster(
         mc_client.make_bucket(bucket_name)
 
     # sync credentials
-    task = juju.run(s3_app_name + "/0", "sync-s3-credentials", params=S3_CREDENTIALS)
+    task = juju.run(s3_app_name + "/0", "sync-s3-credentials", params={
+        "access-key": ACCESS_KEY,
+        "secret-key": SECRET_KEY,
+    })
     assert task.status == "completed"
 
     # wait for all active
