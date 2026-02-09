@@ -9,8 +9,6 @@ dependencies = [
     "pydantic <3",
     "charmlibs-nginx-k8s",
     "cosl",
-    "lightkube",
-    "lightkube-models",
     # ---PYDEPS---
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
