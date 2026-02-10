@@ -59,7 +59,7 @@ def _deploy_and_configure_minio(juju: Juju):
 def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
     """Deploy minio and s3-integrator.
 
-    Since Parca uses S3 lib LIBAPI=0, s3-integrator does not auto-create buckets.
+    The S3 lib LIBAPI=0 does not support automatic bucket creation.
     We must manually create the bucket before configuring s3-integrator.
     """
     _deploy_and_configure_minio(juju)
@@ -71,8 +71,7 @@ def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
 
     logger.info(f"provisioning {bucket_name=} on minio...")
     # Get MinIO IP address and create bucket manually
-    # This is required because Parca uses S3 lib LIBAPI=0, which causes
-    # s3-integrator to discard the bucket parameter and not auto-create it
+    # This is required because S3 lib LIBAPI=0 does not support automatic bucket creation
     minio_addr = get_unit_ip_address(juju, MINIO, 0)
     mc_client = Minio(
         f"{minio_addr}:9000",
