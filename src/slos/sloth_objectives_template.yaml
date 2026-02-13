@@ -9,100 +9,118 @@ slos:
     events:
       error_query: grpc_client_handled_total{job="parca/parca-agent",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
       total_query: grpc_client_handled_total{job="parca/parca-agent"}
-- name: parca-grpc-debuginfo-exists-errors
-  objective: ERROR_OBJECTIVE
-  description: SLO for parca-grpc-debuginfo-exists-errors
-  sli:
-    events:
-      error_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists"}
-- name: parca-grpc-debuginfo-upload-errors
-  objective: ERROR_OBJECTIVE
-  description: SLO for parca-grpc-debuginfo-upload-errors
-  sli:
-    events:
-      error_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Upload",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Upload"}
-- name: parca-grpc-profilestore-errors
-  objective: ERROR_OBJECTIVE
-  description: SLO for parca-grpc-profilestore-errors
-  sli:
-    events:
-      error_query: grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}
-- name: parca-grpc-profiletypes-errors
-  objective: ERROR_OBJECTIVE
-  description: SLO for parca-grpc-profiletypes-errors
-  sli:
-    events:
-      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}
-- name: parca-grpc-query-errors
-  objective: ERROR_OBJECTIVE
-  description: SLO for parca-grpc-query-errors
-  sli:
-    events:
-      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}
-- name: parca-grpc-querylabels-errors
-  objective: ERROR_OBJECTIVE
-  description: SLO for parca-grpc-querylabels-errors
-  sli:
-    events:
-      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}
-- name: parca-grpc-queryrange-errors
-  objective: ERROR_OBJECTIVE
-  description: SLO for parca-grpc-queryrange-errors
-  sli:
-    events:
-      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}
-- name: parca-agent-grpc-client-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-agent-grpc-client-latency
-  sli: {}
-- name: parca-grpc-debuginfo-exists-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-grpc-debuginfo-exists-latency
-  sli: {}
-- name: parca-grpc-debuginfo-upload-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-grpc-debuginfo-upload-latency
-  sli: {}
-- name: parca-grpc-profilestore-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-grpc-profilestore-latency
-  sli:
-    events:
-      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}_bucket[{.window}]))by(le))
-        > 1)
-      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}_count[{.window}]))
-- name: parca-grpc-profiletypes-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-grpc-profiletypes-latency
-  sli: {}
-- name: parca-grpc-query-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-grpc-query-latency
-  sli:
-    events:
-      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}_bucket[{.window}]))by(le))
-        > 1)
-      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}_count[{.window}]))
-- name: parca-grpc-querylabels-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-grpc-querylabels-latency
-  sli:
-    events:
-      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}_bucket[{.window}]))by(le))
-        > 300m)
-      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}_count[{.window}]))
-- name: parca-grpc-queryrange-latency
-  objective: LATENCY_OBJECTIVE
-  description: SLO for parca-grpc-queryrange-latency
-  sli:
-    events:
-      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}_bucket[{.window}]))by(le))
-        > 3)
-      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}_count[{.window}]))
+  alerting:
+    name: ParcaAgentGrpcClientErrorsHigh
+    labels: []
+    page_alert:
+      labels:
+        disable: true
+    ticket_alert:
+      labels:
+        disable: true
+
+# FIXME: re-enable them when things are working
+-
+#- name: parca-grpc-debuginfo-exists-errors
+#  objective: ERROR_OBJECTIVE
+#  description: SLO for parca-grpc-debuginfo-exists-errors
+#  sli:
+#    events:
+#      error_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
+#      total_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists"}
+#- name: parca-grpc-debuginfo-upload-errors
+#  objective: ERROR_OBJECTIVE
+#  description: SLO for parca-grpc-debuginfo-upload-errors
+#  sli:
+#    events:
+#      error_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Upload",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
+#      total_query: grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Upload"}
+#- name: parca-grpc-profilestore-errors
+#  objective: ERROR_OBJECTIVE
+#  description: SLO for parca-grpc-profilestore-errors
+#  sli:
+#    events:
+#      error_query: grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
+#      total_query: grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}
+#- name: parca-grpc-profiletypes-errors
+#  objective: ERROR_OBJECTIVE
+#  description: SLO for parca-grpc-profiletypes-errors
+#  sli:
+#    events:
+#      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
+#      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}
+#- name: parca-grpc-query-errors
+#  objective: ERROR_OBJECTIVE
+#  description: SLO for parca-grpc-query-errors
+#  sli:
+#    events:
+#      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
+#      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}
+#- name: parca-grpc-querylabels-errors
+#  objective: ERROR_OBJECTIVE
+#  description: SLO for parca-grpc-querylabels-errors
+#  sli:
+#    events:
+#      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
+#      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}
+#- name: parca-grpc-queryrange-errors
+#  objective: ERROR_OBJECTIVE
+#  description: SLO for parca-grpc-queryrange-errors
+#  sli:
+#    events:
+#      error_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
+#      total_query: grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}
+#- name: parca-agent-grpc-client-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-agent-grpc-client-latency
+#  sli:
+#    events:
+#      error_query: grpc_server_handling_seconds_bucket{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists",le="0.1"}
+#      total_query: grpc_server_handling_seconds_count{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists"}
+#- name: parca-grpc-debuginfo-exists-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-grpc-debuginfo-exists-latency
+#  sli:
+#    events:
+#      error_query: grpc_server_handling_seconds_bucket{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists",le="0.1"}
+#      total_query: grpc_server_handling_seconds_count{grpc_service="parca.debuginfo.v1alpha1.DebugInfoService",grpc_method="Exists"}
+#- name: parca-grpc-debuginfo-upload-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-grpc-debuginfo-upload-latency
+#  sli: {}
+#- name: parca-grpc-profilestore-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-grpc-profilestore-latency
+#  sli:
+#    events:
+#      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}_bucket[{.window}]))by(le))
+#        > 1)
+#      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}_count[{.window}]))
+#- name: parca-grpc-profiletypes-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-grpc-profiletypes-latency
+#  sli: {}
+#- name: parca-grpc-query-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-grpc-query-latency
+#  sli:
+#    events:
+#      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}_bucket[{.window}]))by(le))
+#        > 1)
+#      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}_count[{.window}]))
+#- name: parca-grpc-querylabels-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-grpc-querylabels-latency
+#  sli:
+#    events:
+#      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}_bucket[{.window}]))by(le))
+#        > 300m)
+#      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}_count[{.window}]))
+#- name: parca-grpc-queryrange-latency
+#  objective: LATENCY_OBJECTIVE
+#  description: SLO for parca-grpc-queryrange-latency
+#  sli:
+#    events:
+#      error_query: (histogram_quantile(0.99, sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}_bucket[{.window}]))by(le))
+#        > 3)
+#      total_query: sum(rate(grpc_server_handling_seconds{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}_count[{.window}]))
