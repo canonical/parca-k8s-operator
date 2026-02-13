@@ -13,6 +13,7 @@ from typing import Dict, FrozenSet, List, Optional
 import ops
 import ops_tracing
 import pydantic
+from charmlibs.interfaces.sloth import SlothProvider
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -45,8 +46,10 @@ logger = logging.getLogger(__name__)
 
 # where we store the certificate in the charm container
 CA_CERT_PATH = "/usr/local/share/ca-certificates/ca.cert"
+SLO_TEMPLATE_PATH = Path(__file__).parent / "slos/sloth_objectives_template.yaml"
 
 CERTIFICATES_RELATION_NAME = "certificates"
+SLOS_RELATION_NAME = "slos"
 PARCA_CONTAINER = "parca"
 NGINX_CONTAINER = "nginx"
 
@@ -142,6 +145,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             protocols=["otlp_grpc"],
         )
 
+        self.sloth = SlothProvider(self, SLOS_RELATION_NAME)
+
         # WORKLOADS
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
         self.nginx = Nginx(
@@ -216,6 +221,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_source_provider.update_source(source_url=self.http_server_url)
         self.parca_store_endpoint.set_remote_store_connection_data()
         self.ingress.reconcile()
+        self._reconcile_slos()
 
     def _reconcile_tls_config(self) -> None:
         """Update the TLS certificates for the charm container."""
@@ -226,6 +232,38 @@ class ParcaOperatorCharm(ops.CharmBase):
             cacert_path.write_text(tls_config.certificate.ca.raw)
         else:
             cacert_path.unlink(missing_ok=True)
+
+
+    def _get_slo_spec(self) -> str:
+        """Return the SLO specification in Sloth format based on the configured preset."""
+        if slos := self.config["slos"]:
+            logger.debug("Using user-provided raw Sloth spec from config")
+            return typing.cast(str, slos)
+
+        # float values
+        error_objective = self.config["slo-errors-target"]
+        latency_objective = self.config["slo-latency-target"]
+
+        slo_template = SLO_TEMPLATE_PATH.read_text()
+        slo_spec = slo_template.replace(
+            "ERROR_OBJECTIVE", str(error_objective)
+        ).replace(
+            "LATENCY_OBJECTIVE", str(latency_objective)
+        )
+        return slo_spec
+
+    def _reconcile_slos(self):
+        """Send SLO specifications to Sloth via the slos relation."""
+        if not self.model.get_relation(SLOS_RELATION_NAME):
+            # No slos relation, nothing to do
+            return
+
+        spec = self._get_slo_spec()
+        if spec:
+            self.sloth.provide_slos(spec)
+            logger.debug("Sent SLO specifications to Sloth")
+        else:
+            logger.debug("No SLO spec to send")
 
     # INGRESS/ROUTING PROPERTIES
     @property
