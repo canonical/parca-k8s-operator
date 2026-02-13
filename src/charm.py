@@ -236,6 +236,10 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _get_slo_spec(self) -> str:
         """Return the SLO specification in Sloth format based on the configured preset."""
+        if slos := self.config["slos"]:
+            logger.debug("Using user-provided raw Sloth spec from config")
+            return slos
+
         # float values
         error_objective = self.config["slo-errors-target"]
         latency_objective = self.config["slo-latency-target"]

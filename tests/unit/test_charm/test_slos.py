@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 import pytest
+import yaml
 from ops.testing import Relation, State
 
 
@@ -56,7 +57,6 @@ def test_slos_relation_sends_spec(context, base_state, objectives):
     assert "slos" in rel_out.local_app_data
 
     # Verify it's valid YAML containing a list of SLO specs
-    import yaml
     slo_list = yaml.safe_load(rel_out.local_app_data["slos"])
     assert isinstance(slo_list, list)
     assert len(slo_list) > 0
@@ -76,7 +76,6 @@ def test_slos_relation_config_changed(context, base_state, objectives):
     error_obj, latency_obj = objectives
     relation = Relation(endpoint="slos", remote_app_name="sloth")
 
-    # First set critical preset
     state_out = context.run(
         context.on.config_changed(),
         replace(base_state, leader=True, relations={relation}, config={"slo-errors-target": error_obj,
@@ -86,7 +85,6 @@ def test_slos_relation_config_changed(context, base_state, objectives):
     rel_out = state_out.get_relation(relation.id)
     assert "slos" in rel_out.local_app_data
 
-    import yaml
     slo_list = yaml.safe_load(rel_out.local_app_data["slos"])
     assert isinstance(slo_list, list)
 
@@ -97,3 +95,32 @@ def test_slos_relation_config_changed(context, base_state, objectives):
         elif "latency" in slo["name"]:
             assert slo["objective"] == latency_obj
 
+
+def test_slos_config_precedence(context, base_state):
+    """Test that the "spec" config option takes precedence over manual targets."""
+    relation = Relation(endpoint="slos", remote_app_name="sloth")
+    test_value = """version: prometheus/v1
+service: parca
+slos:
+- name: random garbage
+  objective: ERROR_OBJECTIVE
+  description: random garbage
+  sli:
+    events:
+      error_query: grpc_client_handled_total{job="random garbage"}
+      total_query: grpc_client_handled_total{job="random garbage"}
+"""
+
+    state_out = context.run(
+        context.on.config_changed(),
+        replace(base_state, leader=True, relations={relation}, config={
+            "slo-errors-target": 50.,
+            "slo-latency-target": 50.,
+            "slos": test_value
+        }),
+    )
+
+    rel_out = state_out.get_relation(relation.id)
+    assert "slos" in rel_out.local_app_data
+
+    assert "random garbage" in rel_out.local_app_data["slos"]

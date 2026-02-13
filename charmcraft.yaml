@@ -201,3 +201,14 @@ config:
         - parca-grpc-queryrange-latency
       type: float
       default: 99.0
+
+    slos:
+      description: |
+        Provide the SLOs (Service Level Objective) to use. 
+        Will take precedence over `slo-errors-target` and `slo-latency-target` if provided. 
+        Must be a YAML string in Sloth format <INSERT LINK>.
+      type: string
+      default: ""
+
+
+
