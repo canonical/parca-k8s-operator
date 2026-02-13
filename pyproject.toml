@@ -12,6 +12,7 @@ dependencies = [
     # ---PYDEPS---
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
+    "charmlibs-interfaces-sloth>=0.1.0",
 ]
 
 [project.optional-dependencies]

@@ -113,6 +113,11 @@ requires:
     interface: loki_push_api
     description: |
         Enables sending workload logs to a loki-push-api compatible endpoint.
+  slos:
+    optional: true
+    interface: slo
+    description: |
+      Sends SLOs (Service Level Objectives) specifications to a Sloth charm.
 
 provides:
   grafana-dashboard:
@@ -166,3 +171,33 @@ config:
         Does nothing if enable-persistence is True.
       type: int
       default: 4096
+
+    slo-errors-target:
+      description: |
+        Select the SLO (Service Level Objective) to use for error SLIs.
+        Will be applied for:
+        - parca-agent-grpc-client-errors
+        - parca-grpc-debuginfo-exists-errors
+        - parca-grpc-debuginfo-upload-errors
+        - parca-grpc-profilestore-errors
+        - parca-grpc-profiletypes-errors
+        - parca-grpc-query-errors
+        - parca-grpc-querylabels-errors
+        - parca-grpc-queryrange-errors
+      type: float
+      default: 99.0
+
+    slo-latency-target:
+      description: |
+        Select the SLO (Service Level Objective) to use for latency SLIs.
+        Will be applied for:
+        - parca-agent-grpc-client-latency
+        - parca-grpc-debuginfo-exists-latency
+        - parca-grpc-debuginfo-upload-latency
+        - parca-grpc-profilestore-latency
+        - parca-grpc-profiletypes-latency
+        - parca-grpc-query-latency
+        - parca-grpc-querylabels-latency
+        - parca-grpc-queryrange-latency
+      type: float
+      default: 99.0
