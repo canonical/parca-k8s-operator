@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 # where we store the certificate in the charm container
 CA_CERT_PATH = "/usr/local/share/ca-certificates/ca.cert"
-SLO_TEMPLATE_PATH = Path(__file__).parent / f"slos/sloth_objectives_template.yaml"
+SLO_TEMPLATE_PATH = Path(__file__).parent / "slos/sloth_objectives_template.yaml"
 
 CERTIFICATES_RELATION_NAME = "certificates"
 SLOS_RELATION_NAME = "slos"
@@ -236,7 +236,6 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     def _get_slo_spec(self) -> str:
         """Return the SLO specification in Sloth format based on the configured preset."""
-
         # float values
         error_objective = self.config["slo-errors-target"]
         latency_objective = self.config["slo-latency-target"]
