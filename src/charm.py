@@ -238,7 +238,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         """Return the SLO specification in Sloth format based on the configured preset."""
         if slos := self.config["slos"]:
             logger.debug("Using user-provided raw Sloth spec from config")
-            return slos
+            return typing.cast(str, slos)
 
         # float values
         error_objective = self.config["slo-errors-target"]
