@@ -1,3 +1,4 @@
+# based upon: https://github.com/parca-dev/parca/tree/main/deploy/pyrra
 version: prometheus/v1
 service: parca
 slos:
