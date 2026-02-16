@@ -2,15 +2,32 @@
 version: prometheus/v1
 service: parca
 slos:
-- name: parca-agent-grpc-client-errors
+- name: parca-grpc-query-errors
   objective: ERROR_OBJECTIVE
-  description: SLO for parca-agent-grpc-client-errors
+  description: SLO for parca-grpc-query-errors
   sli:
     events:
-      error_query: sum(rate(grpc_client_handled_total{job="parca/parca-agent",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}]))
-      total_query: sum(rate(grpc_client_handled_total{job="parca/parca-agent"}[{{.window}}]))
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}[{{.window}}])) or vector(1)
   alerting:
-    name: ParcaAgentGrpcClientErrorsHigh
+    name: ParcaGrpcQueryErrorsHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-profilestore-errors
+  objective: ERROR_OBJECTIVE
+  description: SLO for parca-grpc-profilestore-errors
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcProfilestoreErrorsHigh
     labels:
       severity: warning
     page_alert:
