@@ -7,20 +7,20 @@ slos:
   description: SLO for parca-agent-grpc-client-errors
   sli:
     events:
-      error_query: grpc_client_handled_total{job="parca/parca-agent",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}
-      total_query: grpc_client_handled_total{job="parca/parca-agent"}
+      error_query: sum(rate(grpc_client_handled_total{job="parca/parca-agent",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}]))
+      total_query: sum(rate(grpc_client_handled_total{job="parca/parca-agent"}[{{.window}}]))
   alerting:
     name: ParcaAgentGrpcClientErrorsHigh
-    labels: []
+    labels:
+      severity: warning
     page_alert:
       labels:
-        disable: true
+        disable: "true"
     ticket_alert:
       labels:
-        disable: true
+        disable: "true"
 
 # FIXME: re-enable them when things are working
--
 #- name: parca-grpc-debuginfo-exists-errors
 #  objective: ERROR_OBJECTIVE
 #  description: SLO for parca-grpc-debuginfo-exists-errors
