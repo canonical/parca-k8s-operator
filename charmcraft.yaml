@@ -140,6 +140,11 @@ provides:
     interface: parca_store
     description: |
       Endpoint at which profiles can be pushed by, for example, a remote parca server or parca-agent.
+  slos:
+    optional: true
+    interface: sloth
+    description: |
+      Sends SLOs (Service Level Objectives) specifications to a Sloth charm.
 
 peers:
   parca-peers:
@@ -166,3 +171,40 @@ config:
         Does nothing if enable-persistence is True.
       type: int
       default: 4096
+
+    slo-errors-target:
+      description: |
+        Select the SLO (Service Level Objective) to use for error SLIs.
+        Will be applied for:
+        - parca-grpc-query-errors
+        - parca-grpc-profilestore-errors
+        - parca-grpc-debuginfo-upload-errors
+        - parca-grpc-profiletypes-errors
+        - parca-grpc-querylabels-errors
+        - parca-grpc-queryrange-errors
+      type: float
+      default: 99.0
+
+    slo-latency-target:
+      description: |
+        Select the SLO (Service Level Objective) to use for latency SLIs.
+        Will be applied for:
+        - parca-grpc-query-latency
+        - parca-grpc-queryrange-latency
+        - parca-grpc-querylabels-latency
+        - parca-grpc-profiletypes-latency
+        - parca-grpc-profilestore-latency
+        - parca-grpc-debuginfo-upload-latency
+      type: float
+      default: 99.0
+
+    slos:
+      description: |
+        Provide the SLOs (Service Level Objective) to use. 
+        Will take precedence over `slo-errors-target` and `slo-latency-target` if provided. 
+        Must be a YAML string in Sloth format: https://sloth.dev/examples/default/getting-started/.
+      type: string
+      default: ""
+
+
+

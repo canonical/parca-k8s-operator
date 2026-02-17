@@ -1,0 +1,212 @@
+# based upon: https://github.com/parca-dev/parca/tree/main/deploy/pyrra
+version: prometheus/v1
+service: parca
+slos:
+- name: parca-grpc-query-errors
+  objective: ERROR_OBJECTIVE
+  description: SLO for parca-grpc-query-errors
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcQueryErrorsHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-profilestore-errors
+  objective: ERROR_OBJECTIVE
+  description: SLO for parca-grpc-profilestore-errors
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcProfilestoreErrorsHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+
+- name: parca-grpc-debuginfo-upload-errors
+  objective: ERROR_OBJECTIVE
+  description: SLO for parca-grpc-debuginfo-upload-errors
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcDebuginfoUploadErrorsHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-profiletypes-errors
+  objective: ERROR_OBJECTIVE
+  description: SLO for parca-grpc-profiletypes-errors
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcProfiletypesErrorsHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-querylabels-errors
+  objective: ERROR_OBJECTIVE
+  description: SLO for parca-grpc-querylabels-errors
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcQuerylabelsErrorsHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-queryrange-errors
+  objective: ERROR_OBJECTIVE
+  description: SLO for parca-grpc-queryrange-errors
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcQueryrangeErrorsHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+
+
+# Latency SLOs - tracking request latency
+- name: parca-grpc-query-latency
+  objective: LATENCY_OBJECTIVE
+  description: SLO for parca-grpc-query-latency (95% of requests < 1s)
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query",le="1"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcQueryLatencyHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-queryrange-latency
+  objective: LATENCY_OBJECTIVE
+  description: SLO for parca-grpc-queryrange-latency (95% of requests < 3s)
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange",le="3"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcQueryrangeLatencyHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-querylabels-latency
+  objective: LATENCY_OBJECTIVE
+  description: SLO for parca-grpc-querylabels-latency (95% of requests < 300ms)
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values",le="0.3"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcQuerylabelsLatencyHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-profiletypes-latency
+  objective: LATENCY_OBJECTIVE
+  description: SLO for parca-grpc-profiletypes-latency (95% of requests < 1s)
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes",le="1"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcProfiletypesLatencyHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-profilestore-latency
+  objective: LATENCY_OBJECTIVE
+  description: SLO for parca-grpc-profilestore-latency (95% of requests < 1s)
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw",le="1"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcProfilestoreLatencyHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
+- name: parca-grpc-debuginfo-upload-latency
+  objective: LATENCY_OBJECTIVE
+  description: SLO for parca-grpc-debuginfo-upload-latency (95% of requests < 5s)
+  sli:
+    events:
+      error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload",le="5"}[{{.window}}])) or vector(0)
+      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload"}[{{.window}}])) or vector(1)
+  alerting:
+    name: ParcaGrpcDebuginfoUploadLatencyHigh
+    labels:
+      severity: warning
+    page_alert:
+      labels:
+        disable: "true"
+    ticket_alert:
+      labels:
+        disable: "true"
