@@ -176,12 +176,10 @@ config:
       description: |
         Select the SLO (Service Level Objective) to use for error SLIs.
         Will be applied for:
-        - parca-agent-grpc-client-errors
-        - parca-grpc-debuginfo-exists-errors
-        - parca-grpc-debuginfo-upload-errors
-        - parca-grpc-profilestore-errors
-        - parca-grpc-profiletypes-errors
         - parca-grpc-query-errors
+        - parca-grpc-profilestore-errors
+        - parca-grpc-debuginfo-upload-errors
+        - parca-grpc-profiletypes-errors
         - parca-grpc-querylabels-errors
         - parca-grpc-queryrange-errors
       type: float
@@ -191,14 +189,12 @@ config:
       description: |
         Select the SLO (Service Level Objective) to use for latency SLIs.
         Will be applied for:
-        - parca-agent-grpc-client-latency
-        - parca-grpc-debuginfo-exists-latency
-        - parca-grpc-debuginfo-upload-latency
-        - parca-grpc-profilestore-latency
-        - parca-grpc-profiletypes-latency
         - parca-grpc-query-latency
-        - parca-grpc-querylabels-latency
         - parca-grpc-queryrange-latency
+        - parca-grpc-querylabels-latency
+        - parca-grpc-profiletypes-latency
+        - parca-grpc-profilestore-latency
+        - parca-grpc-debuginfo-upload-latency
       type: float
       default: 99.0
 
@@ -206,7 +202,7 @@ config:
       description: |
         Provide the SLOs (Service Level Objective) to use. 
         Will take precedence over `slo-errors-target` and `slo-latency-target` if provided. 
-        Must be a YAML string in Sloth format <INSERT LINK>.
+        Must be a YAML string in Sloth format: https://sloth.dev/examples/default/getting-started/.
       type: string
       default: ""
 
