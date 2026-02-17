@@ -36,7 +36,7 @@ def test_get_slo_spec(context, base_state, objective):
         assert spec_dict["version"] == "prometheus/v1"
         assert spec_dict["service"] == "parca"
         assert "slos" in spec_dict
-        assert len(spec_dict["slos"]) == 16  # 16 SLOs total
+        assert len(spec_dict["slos"]) == 12  # 12 SLOs total (6 error + 6 latency)
 
 
 @pytest.mark.parametrize("objectives", [(99., 97.), (1., 23.)])
