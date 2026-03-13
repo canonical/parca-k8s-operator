@@ -8,7 +8,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcQueryErrorsHigh
     labels:
@@ -25,7 +25,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handled_total{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcProfilestoreErrorsHigh
     labels:
@@ -43,7 +43,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handled_total{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcDebuginfoUploadErrorsHigh
     labels:
@@ -60,7 +60,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcProfiletypesErrorsHigh
     labels:
@@ -77,7 +77,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcQuerylabelsErrorsHigh
     labels:
@@ -94,7 +94,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange",grpc_code=~"Aborted|Unavailable|Internal|Unknown|Unimplemented|DataLoss"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handled_total{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcQueryrangeErrorsHigh
     labels:
@@ -114,7 +114,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query",le="1"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="Query"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcQueryLatencyHigh
     labels:
@@ -131,7 +131,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange",le="3"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="QueryRange"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcQueryrangeLatencyHigh
     labels:
@@ -148,7 +148,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values",le="0.3"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method=~"Labels|Values"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcQuerylabelsLatencyHigh
     labels:
@@ -165,7 +165,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes",le="1"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.query.v1alpha1.QueryService",grpc_method="ProfileTypes"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcProfiletypesLatencyHigh
     labels:
@@ -182,7 +182,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw",le="1"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.profilestore.v1alpha1.ProfileStoreService",grpc_method="WriteRaw"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcProfilestoreLatencyHigh
     labels:
@@ -199,7 +199,7 @@ slos:
   sli:
     events:
       error_query: sum(rate(grpc_server_handling_seconds_bucket{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload",le="5"}[{{.window}}])) or vector(0)
-      total_query: sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload"}[{{.window}}])) or vector(1)
+      total_query: clamp_min(sum(rate(grpc_server_handling_seconds_count{grpc_service="parca.debuginfo.v1alpha1.DebuginfoService",grpc_method="Upload"}[{{.window}}])) or vector(0), 1)
   alerting:
     name: ParcaGrpcDebuginfoUploadLatencyHigh
     labels:
