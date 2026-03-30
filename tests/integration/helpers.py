@@ -2,12 +2,14 @@
 # See LICENSE file for licensing details.
 import json
 import logging
+import pathlib
 import shlex
 import subprocess
 from subprocess import getoutput, getstatusoutput
 from typing import List, Tuple
 
 import jubilant
+import yaml
 from jubilant import Juju
 from minio import Minio
 
@@ -150,3 +152,37 @@ def get_parca_ingested_label_values(
     return json.loads(proc.stdout).get("labelValues", [])
 
 
+def pack(root: pathlib.Path | str = "./", platform: str | None = None) -> pathlib.Path:
+    """Pack a local charm and return it."""
+    cmd = ["charmcraft", "pack", "--project-dir", root]
+    if platform:
+        cmd.extend(["--platform", platform])
+    proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    # stderr looks like:
+    # > charmcraft pack
+    # Packed tempo-coordinator-k8s_ubuntu@24.04-amd64.charm
+    # Packed tempo-coordinator-k8s_ubuntu@22.04-amd64.charm
+    packed_charms = [
+        line.split()[1]
+        for line in proc.stderr.strip().splitlines()
+        if line.startswith("Packed")
+    ]
+    if not packed_charms:
+        raise ValueError(
+            "Unable to get packed charm(s)!"
+            f" ({cmd!r} completed with {proc.returncode=}, {proc.stdout=}, {proc.stderr=})"
+        )
+    if len(packed_charms) > 1:
+        raise ValueError(
+            "This charm supports multiple platforms. "
+            "Pass a `platform` argument to control which charm you're getting instead."
+        )
+    return pathlib.Path(packed_charms[0]).resolve()
+
+
+def get_resources(path: pathlib.Path | str = pathlib.Path("charmcraft.yaml")) -> dict[str, str]:
+    meta = yaml.safe_load(pathlib.Path(path).read_text())
+    return {
+        resource: data["upstream-source"]
+        for resource, data in meta["resources"].items()
+    }

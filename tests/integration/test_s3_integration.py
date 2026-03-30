@@ -21,7 +21,7 @@ PARCA_TESTER = "parca-tester"
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju:Juju, parca_charm, parca_resources):
     """Deploy parca with s3 and a tester charm (another parca!) to scrape."""
     juju.deploy(
@@ -110,7 +110,7 @@ def test_s3_usage(juju:Juju):
     verify_objects_in_minio(minio_url, "blocks/")
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_teardown(juju:Juju):
     juju.remove_relation(PARCA, S3_INTEGRATOR)
 
