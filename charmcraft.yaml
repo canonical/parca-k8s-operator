@@ -3,8 +3,33 @@
 name: parca-k8s
 summary: Parca continuous profiling tool.
 description: |
-  Continuous profiling for analysis of CPU and memory usage, down to the line number and throughout
-  time. Saving infrastructure cost, improving performance, and increasing reliability.
+  Parca K8s is a Juju charm that deploys and manages Parca, an open-source continuous
+  profiling backend, on Kubernetes. It is an optional complement to the Canonical
+  Observability Stack (COS):
+  https://documentation.ubuntu.com/observability
+
+  Parca collects and stores CPU and memory profiles from instrumented applications,
+  enabling analysis down to the line number and across time. This helps identify
+  performance bottlenecks, reduce infrastructure costs, and improve reliability.
+
+  Key features:
+
+  - Scrapes profiling endpoints from related charms via the parca_scrape interface,
+    including external targets exposed by the parca-scrape-target charm.
+  - Flexible storage: in-memory (default, configurable limit) or persistent disk
+    storage backed by a local volume or an S3-compatible object store.
+  - Ingress support via Traefik, allowing cross-model workloads to push profiles
+    through the ingress endpoint.
+  - Profile forwarding: can push profiles to a remote Parca server via the
+    parca_store interface, or receive profiles from other Parca instances.
+  - Grafana integration: registers as a profiling datasource and ships built-in
+    Grafana dashboards for self-monitoring.
+  - Prometheus metrics endpoint for monitoring the Parca server itself.
+  - SLO support via Sloth for error rate and latency service level objectives.
+  - TLS support for securing external communications.
+  - Distributed tracing for both charm and workload traces via Tempo.
+  - Log forwarding to Loki for Parca application logs.
+  - Catalogue integration for service discovery.
 
 type: "charm"
 
