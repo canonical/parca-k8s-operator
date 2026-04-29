@@ -91,7 +91,7 @@ def deploy_monolithic_tempo_cluster(
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_tempo_stack_monolithic(juju: Juju, parca_charm, parca_resources):
     juju.deploy(
         parca_charm,

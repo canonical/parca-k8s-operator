@@ -40,7 +40,7 @@ def grafana_admin_creds(juju)->str:
     return f"admin:{result.results['admin-password']}"
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju:Juju, parca_charm, parca_resources):
     """Deploy parca alongside loki."""
     juju.deploy(
@@ -146,7 +146,7 @@ def test_grafana_dashboard_integration(juju: Juju, grafana_admin_creds):
     assert "charm: parca-k8s" in {dash['term'] for dash in res.json()}
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_teardown(juju:Juju):
     juju.remove_relation(PARCA, LOKI)
     juju.remove_relation(PARCA+":grafana-dashboard", GRAFANA)

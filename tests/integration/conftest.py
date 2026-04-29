@@ -5,8 +5,8 @@ import logging
 import os
 from pathlib import Path
 
+from helpers import get_resources, pack
 from pytest import fixture
-from pytest_jubilant import get_resources, pack
 
 logger= logging.getLogger("conftest")
 
@@ -25,4 +25,4 @@ def parca_charm():
 
 @fixture(scope="module")
 def parca_resources():
-    return get_resources("./")
+    return get_resources()

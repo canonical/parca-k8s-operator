@@ -24,10 +24,11 @@ dev = [
     # ---INTEGRATION TESTS---
     "pydantic",
     "jubilant",
-    "pytest-jubilant",
+    "pytest-jubilant>=2,<3",
     "tenacity",
     "minio",
     "requests",
+    "PyYAML",
     # ---LINTING---
     "ruff",
     "pyright",
