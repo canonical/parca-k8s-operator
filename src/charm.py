@@ -21,7 +21,9 @@ from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.istio_beacon_k8s.v0.service_mesh import (
     AppPolicy,
     Endpoint,
+    Policy,
     ServiceMeshConsumer,
+    UnitPolicy,
 )
 from charms.istio_ingress_k8s.v0.istio_ingress_route import (
     BackendRef,
@@ -495,7 +497,7 @@ class ParcaOperatorCharm(ops.CharmBase):
 
     # SERVICE MESH POLICIES
     @property
-    def _mesh_policies(self) -> List[AppPolicy]:
+    def _mesh_policies(self) -> List[AppPolicy | UnitPolicy | Policy]:
         """Return service mesh authorization policies for Parca.
 
         Parca exposes two consumer-facing endpoints via nginx:
