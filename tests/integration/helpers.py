@@ -167,3 +167,30 @@ def get_resources(root: Path | str = "./") -> dict[str, str] | None:
             return None
     logger.error("metadata/charmcraft.yaml not found at %s; unable to load resources", root)
     return None
+
+
+def pack(root: Path | str = "./", platform: str | None = None) -> Path:
+    """Pack a local charm and return the path to the packed .charm file."""
+    platform_arg = f" --platform {platform}" if platform else ""
+    cmd = f"charmcraft pack -p {root}{platform_arg}"
+    proc = subprocess.run(
+        shlex.split(cmd),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    # charmcraft prints "Packed <filename>" lines to stderr
+    packed_charms = [
+        line.split()[1] for line in proc.stderr.strip().splitlines() if line.startswith("Packed")
+    ]
+    if not packed_charms:
+        raise ValueError(
+            f"unable to get packed charm(s) ({cmd!r} completed with "
+            f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=})"
+        )
+    if len(packed_charms) > 1:
+        raise ValueError(
+            "This charm supports multiple platforms. "
+            "Pass a `platform` argument to control which charm you're getting instead."
+        )
+    return Path(packed_charms[0]).resolve()
