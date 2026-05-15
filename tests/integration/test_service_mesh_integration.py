@@ -48,7 +48,6 @@ ISTIO_BEACON = "istio-beacon-k8s"
 ISTIO_BEACON_CHANNEL = "dev/edge"
 GRAFANA = "graf"
 
-PARCA_SELF_PROFILING_RELATION = "self-profiling-endpoint"
 
 
 # ---------------------------------------------------------------------------
@@ -124,19 +123,6 @@ def test_http_port_reachable_from_grafana(juju: Juju):
 # Self-profiling: covers both HTTP scrape (7994) and gRPC store (7993) via mesh
 # ---------------------------------------------------------------------------
 
-
-@pytest.mark.setup
-def test_integrate_self_profiling(juju: Juju):
-    """Add self-profiling relation; parca must stay Active through the mesh."""
-    juju.integrate(
-        f"{PARCA}:{PARCA_SELF_PROFILING_RELATION}",
-        f"{PARCA}:parca-store-endpoint",
-    )
-    juju.wait(
-        lambda status: jubilant.all_active(status, PARCA),
-        error=jubilant.any_error,
-        timeout=300,
-    )
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 5), reraise=True)

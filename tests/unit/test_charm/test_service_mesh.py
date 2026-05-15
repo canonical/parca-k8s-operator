@@ -3,7 +3,7 @@
 """Unit tests for service mesh authorization policies."""
 
 import pytest
-from charms.istio_beacon_k8s.v0.service_mesh import AppPolicy, ServiceMeshConsumer
+from charmlibs.interfaces.service_mesh import AppPolicy, ServiceMeshConsumer
 from ops.testing import Container, Context, State
 
 from charm import ParcaOperatorCharm

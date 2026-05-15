@@ -13,27 +13,18 @@ from typing import Dict, FrozenSet, List, Optional
 import ops
 import ops_tracing
 import pydantic
-from charmlibs.interfaces.sloth import SlothProvider
-from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
-from charms.data_platform_libs.v0.s3 import S3Requirer
-from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
-from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
-from charms.istio_beacon_k8s.v0.service_mesh import (
+from charmlibs.interfaces.service_mesh import (
     AppPolicy,
     Endpoint,
     Policy,
     ServiceMeshConsumer,
     UnitPolicy,
 )
-from charms.istio_ingress_k8s.v0.istio_ingress_route import (
-    BackendRef,
-    GRPCRoute,
-    HTTPRoute,
-    IstioIngressRouteConfig,
-    IstioIngressRouteRequirer,
-    Listener,
-    ProtocolType,
-)
+from charmlibs.interfaces.sloth import SlothProvider
+from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
+from charms.data_platform_libs.v0.s3 import S3Requirer
+from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
+from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.loki_k8s.v1.loki_push_api import LogForwarder
 from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.parca_k8s.v0.parca_store import (
@@ -109,9 +100,7 @@ class ParcaOperatorCharm(ops.CharmBase):
                 EntryPoint("parca-http", Protocol.http, Nginx.parca_http_server_port),
             ),
         )
-        self.istio_ingress = IstioIngressRouteRequirer(
-            self, relation_name="istio-ingress"
-        )
+
         self.metrics_endpoint_provider = MetricsEndpointProvider(
             self,
             jobs=self._metrics_scrape_jobs,
@@ -248,7 +237,6 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_source_provider.update_source(source_url=self.http_server_url)
         self.parca_store_endpoint.set_remote_store_connection_data()
         self.ingress.reconcile()
-        self._reconcile_istio_ingress()
         self._reconcile_slos()
 
     def _reconcile_tls_config(self) -> None:
@@ -299,17 +287,10 @@ class ParcaOperatorCharm(ops.CharmBase):
         """Return True if the Traefik ingress is configured and ready."""
         return bool(self.ingress.is_ready and self.ingress.http_external_host)
 
-    @property
-    def _is_istio_ingress_ready(self) -> bool:
-        """Return True if the Istio ingress is configured and ready."""
-        return bool(self.istio_ingress.is_ready() and self.istio_ingress.external_host)
 
     @property
     def http_server_url(self):
         """Http server url; ingressed if available, else over fqdn."""
-        if self._is_istio_ingress_ready:
-            scheme = "https" if self.istio_ingress.tls_enabled else "http"
-            return f"{scheme}://{self.istio_ingress.external_host}:{Nginx.parca_http_server_port}"
         if external_host := self.ingress.http_external_host:
             # this already includes the scheme: http or https, depending on the ingress
             return f"{external_host}:{Nginx.parca_http_server_port}"
@@ -321,8 +302,6 @@ class ParcaOperatorCharm(ops.CharmBase):
 
         It will NOT include the scheme.
         """
-        if self._is_istio_ingress_ready:
-            return f"{self.istio_ingress.external_host}:{Nginx.parca_grpc_server_port}"
         if external_host := self.ingress.grpc_external_host:
             # this does not include any scheme.
             return f"{external_host}:{Nginx.parca_grpc_server_port}"
@@ -331,41 +310,9 @@ class ParcaOperatorCharm(ops.CharmBase):
     @property
     def _scheme(self):
         """Return ingress scheme if available, else return the internal scheme."""
-        if self._is_istio_ingress_ready:
-            return "https" if self.istio_ingress.tls_enabled else "http"
         return self.ingress.scheme or self._internal_scheme
 
-    def _reconcile_istio_ingress(self) -> None:
-        """Submit the istio ingress route config when the relation is ready."""
-        if not self.unit.is_leader():
-            return
-        if not self.istio_ingress.is_ready():
-            return
-        self.istio_ingress.submit_config(self._istio_ingress_config)
 
-    @property
-    def _istio_ingress_config(self) -> IstioIngressRouteConfig:
-        """Build a K8s Gateway configuration for the Istio ingress."""
-        http_listener = Listener(port=Nginx.parca_http_server_port, protocol=ProtocolType.HTTP)
-        grpc_listener = Listener(port=Nginx.parca_grpc_server_port, protocol=ProtocolType.GRPC)
-        return IstioIngressRouteConfig(
-            model=self.model.name,
-            listeners=[http_listener, grpc_listener],
-            http_routes=[
-                HTTPRoute(
-                    name=f"juju-{self.model.name}-{self.app.name}-parca-http",
-                    listener=http_listener,
-                    backends=[BackendRef(service=self.app.name, port=Nginx.parca_http_server_port)],
-                ),
-            ],
-            grpc_routes=[
-                GRPCRoute(
-                    name=f"juju-{self.model.name}-{self.app.name}-parca-grpc",
-                    listener=grpc_listener,
-                    backends=[BackendRef(service=self.app.name, port=Nginx.parca_grpc_server_port)],
-                ),
-            ],
-        )
 
     @property
     def _internal_scheme(self) -> str:
