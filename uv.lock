@@ -864,7 +864,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "charmlibs-interfaces-service-mesh" },
+    { name = "charmlibs-interfaces-service-mesh", specifier = "~=1.0" },
     { name = "charmlibs-interfaces-sloth", specifier = ">=0.1.0" },
     { name = "charmlibs-nginx-k8s" },
     { name = "cosl" },
