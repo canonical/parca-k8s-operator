@@ -282,10 +282,6 @@ class ParcaOperatorCharm(ops.CharmBase):
             logger.debug("No SLO spec to send")
 
     # INGRESS/ROUTING PROPERTIES
-    @property
-    def _is_traefik_ready(self) -> bool:
-        """Return True if the Traefik ingress is configured and ready."""
-        return bool(self.ingress.is_ready and self.ingress.http_external_host)
 
 
     @property
