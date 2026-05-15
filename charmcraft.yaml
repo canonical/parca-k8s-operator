@@ -138,6 +138,29 @@ requires:
     interface: loki_push_api
     description: |
         Enables sending workload logs to a loki-push-api compatible endpoint.
+  istio-ingress:
+    optional: true
+    limit: 1
+    interface: istio_ingress_route
+    description: |
+      Ingress integration for the Parca server and profiling ingestion endpoints via Istio,
+      so that cross-model workloads can reach Parca through an Istio gateway.
+      Uses `istio_ingress_route` to configure the istio-ingress-k8s charm.
+  service-mesh:
+    optional: true
+    limit: 1
+    interface: service_mesh
+    description: |
+      Subscribe this charm into a service mesh and create the necessary authorization policies.
+      This relation is a pre-requisite for using the `provide-cmr-mesh` relation, unless the
+      istio-beacon charm is set to `model-on-mesh=true`.
+  require-cmr-mesh:
+    optional: true
+    interface: cross_model_mesh
+    description: |
+      Allow a cross-model application access to Parca via the service mesh.
+      This relation provides additional data required by the service mesh to enforce
+      cross-model authorization policies.
 
 provides:
   grafana-dashboard:
@@ -170,6 +193,17 @@ provides:
     interface: sloth
     description: |
       Sends SLOs (Service Level Objectives) specifications to a Sloth charm.
+  provide-cmr-mesh:
+    optional: true
+    interface: cross_model_mesh
+    description: |
+      Allow cross-model applications to make HTTP or gRPC requests to Parca via the service mesh.
+      This relation provides additional data required by the service mesh to create cross-model
+      authorization policies.
+
+      To use this relation, you must also have either the `service-mesh` relation in place (e.g.
+      to an istio-beacon charm) OR have the istio-beacon charm configured with
+      `model-on-mesh=true`.
 
 peers:
   parca-peers:
