@@ -4,10 +4,12 @@ import json
 import logging
 import shlex
 import subprocess
+from pathlib import Path
 from subprocess import getoutput, getstatusoutput
 from typing import List, Tuple
 
 import jubilant
+import yaml
 from jubilant import Juju
 from minio import Minio
 
@@ -150,3 +152,18 @@ def get_parca_ingested_label_values(
     return json.loads(proc.stdout).get("labelValues", [])
 
 
+def get_resources(root: Path | str = "./") -> dict[str, str] | None:
+    """Obtain charm resources from metadata.yaml or charmcraft.yaml upstream-source fields."""
+    for meta_name in ("metadata.yaml", "charmcraft.yaml"):
+        meta_path = Path(root) / meta_name
+        if meta_path.exists():
+            meta = yaml.safe_load(meta_path.read_text())
+            if meta_resources := meta.get("resources"):
+                return {
+                    resource: res_meta["upstream-source"]
+                    for resource, res_meta in meta_resources.items()
+                }
+            logger.info("resources not found in %s; proceeding without resources", meta_name)
+            return None
+    logger.error("metadata/charmcraft.yaml not found at %s; unable to load resources", root)
+    return None
