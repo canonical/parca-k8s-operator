@@ -74,7 +74,7 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
         CATALOGUE,
         channel=INTEGRATION_TESTERS_CHANNEL,
     )
-    juju.integrate(PARCA, CATALOGUE)
+    juju.integrate(f"{PARCA}:catalogue", CATALOGUE)
 
     # GRAFANA
     juju.deploy(

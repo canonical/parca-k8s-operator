@@ -1,34 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
-"""Integration tests for the Istio service mesh integration.
-
-Topology
---------
-istio-k8s  (Istio control plane / istiod — provides CRDs and enforcement)
-parca      (charm under test)
-istio-beacon-k8s  (reads parca's policy databag, creates AuthorizationPolicy objects)
-grafana-k8s  (relates via grafana-source → AppPolicy allows it on HTTP port 7994)
-
-parca:service-mesh ────────── istio-beacon:service-mesh
-parca:grafana-source ───────── grafana:grafana-source
-parca:self-profiling-endpoint ─ parca:parca-store-endpoint  (added in a later test)
-
-istio-k8s and istio-beacon do NOT need a juju relation: beacon writes
-AuthorizationPolicy objects directly via the K8s API; istiod (from istio-k8s)
-reads and enforces them on pods that carry the ambient/sidecar mesh labels.
-
-Policy verification strategy
------------------------------
-Rather than exec-ing kubectl from the test host, we run Python socket probes
-*inside* related units via `juju exec`.  The charm containers are Ubuntu-based
-and always have Python3 available.  A successful TCP connection from a related
-app proves the AppPolicy for that relation is effective (once Istio is enforcing).
-
-  grafana-source relation  →  port 7994 (HTTP)  — exec from grafana/0
-  self-profiling + parca-store-endpoint  →  ports 7994 (HTTP scrape) and 7993
-      (gRPC store) — verified by parca staying Active with self-profiling enabled.
-"""
+"""Integration tests for the Istio service mesh integration."""
 
 import subprocess
 
@@ -47,6 +20,7 @@ ISTIO_K8S_CHANNEL = "dev/edge"
 ISTIO_BEACON = "istio-beacon-k8s"
 ISTIO_BEACON_CHANNEL = "dev/edge"
 GRAFANA = "graf"
+PARCA_TESTER = "parca-tester"
 
 
 
@@ -88,19 +62,49 @@ def test_deploy(juju: Juju, parca_charm, parca_resources):
     """Deploy the full mesh topology and wait for all apps to be Active."""
     juju.deploy(ISTIO_K8S, channel=ISTIO_K8S_CHANNEL, trust=True)
     juju.deploy(parca_charm, PARCA, resources=parca_resources, trust=True)
+    juju.deploy(parca_charm, PARCA_TESTER, resources=parca_resources, trust=True)
     juju.deploy(ISTIO_BEACON, channel=ISTIO_BEACON_CHANNEL, trust=True)
     juju.deploy("grafana-k8s", GRAFANA, channel=INTEGRATION_TESTERS_CHANNEL, trust=True)
 
-    juju.integrate(f"{PARCA}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
+
     juju.integrate(f"{PARCA}:grafana-source", GRAFANA)
+    juju.integrate(
+        f"{PARCA_TESTER}:external-parca-store-endpoint",
+        f"{PARCA}:parca-store-endpoint",
+    )
 
     juju.wait(
-        lambda status: jubilant.all_active(status, ISTIO_K8S, PARCA, ISTIO_BEACON, GRAFANA),
+        lambda status: jubilant.all_active(
+            status,
+            ISTIO_K8S,
+            PARCA,
+            PARCA_TESTER,
+            ISTIO_BEACON,
+            GRAFANA,
+        ),
         timeout=1200,
         successes=6,
         delay=10,
     )
 
+@pytest.mark.setup
+def test_integrate_with_mesh(juju: Juju):
+    juju.integrate(f"{PARCA}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
+    juju.integrate(f"{PARCA_TESTER}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
+    juju.integrate(f"{GRAFANA}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
+    juju.wait(
+        lambda status: jubilant.all_active(
+            status,
+            ISTIO_K8S,
+            PARCA,
+            PARCA_TESTER,
+            ISTIO_BEACON,
+            GRAFANA,
+        ),
+        timeout=1200,
+        successes=3,
+        delay=10,
+    )
 
 # ---------------------------------------------------------------------------
 # Policy verification: HTTP port reachable from grafana (grafana-source policy)
@@ -120,7 +124,7 @@ def test_http_port_reachable_from_grafana(juju: Juju):
 
 
 # ---------------------------------------------------------------------------
-# Self-profiling: covers both HTTP scrape (7994) and gRPC store (7993) via mesh
+# Self-profiling: covers gRPC store (7993) via mesh
 # ---------------------------------------------------------------------------
 
 
@@ -137,3 +141,26 @@ def test_grpc_port_reachable_via_self_profiling(juju: Juju):
     """
     parca_host = f"{PARCA}.{juju.model}.svc.cluster.local"
     _assert_tcp_reachable(juju.model, PARCA, 0, parca_host, Nginx.parca_grpc_server_port)
+
+
+# ---------------------------------------------------------------------------
+# parca-store-endpoint: gRPC store (7993) via mesh
+# ---------------------------------------------------------------------------
+
+
+@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 5), reraise=True)
+def test_grpc_port_reachable_from_other_parca(juju: Juju):
+    """Port 7993 must be reachable from a second Parca instance.
+
+    This validates the AppPolicy generated for the parca-store-endpoint relation:
+    traffic from PARCA_TESTER over external-parca-store-endpoint to PARCA's
+    parca-store-endpoint must be allowed by the service mesh.
+    """
+    parca_host = f"{PARCA}.{juju.model}.svc.cluster.local"
+    _assert_tcp_reachable(
+        juju.model,
+        PARCA_TESTER,
+        0,
+        parca_host,
+        Nginx.parca_grpc_server_port,
+    )
