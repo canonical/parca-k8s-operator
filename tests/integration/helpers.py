@@ -8,23 +8,14 @@ from pathlib import Path
 from subprocess import getoutput, getstatusoutput
 from typing import List, Tuple
 
-import jubilant
 import yaml
 from jubilant import Juju
-from minio import Minio
 
 from nginx import CA_CERT_PATH, Nginx
 
 PARCA = "parca"
+S3_APP = "s3-app"
 INTEGRATION_TESTERS_CHANNEL = "dev/edge"
-TESTING_MINIO_ACCESS_KEY = "accesskey"
-TESTING_MINIO_SECRET_KEY = "secretkey"
-MINIO = "minio"
-S3_INTEGRATOR = "s3-integrator"
-S3_INTEGRATOR_CHANNEL = "2/edge"
-BUCKET_NAME = "parca"
-ACCESS_KEY = "accesskey"
-SECRET_KEY = "secretkey"
 logger= logging.getLogger("helpers")
 
 
@@ -38,75 +29,6 @@ def get_unit_ip(model_name, app_name, unit_id):
 def get_unit_fqdn(model_name, app_name, unit_id):
     """Return a juju unit's K8s cluster FQDN."""
     return f"{app_name}-{unit_id}.{app_name}-endpoints.{model_name}.svc.cluster.local"
-
-def _deploy_and_configure_minio(juju: Juju):
-    if not juju.status().apps.get(MINIO):
-        juju.deploy(
-            MINIO,
-            channel="edge",
-            trust=True,
-            config={
-                "access-key": ACCESS_KEY,
-                "secret-key": SECRET_KEY,
-            }
-        )
-    juju.wait(
-        lambda status: status.apps[MINIO].is_active,
-        error=jubilant.any_error,
-        delay=5,
-        successes=3,
-        timeout=2000,
-    )
-
-def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
-    """Deploy minio and s3-integrator.
-
-    The S3 lib LIBAPI=0 does not support automatic bucket creation.
-    We must manually create the bucket before configuring s3-integrator.
-    """
-    _deploy_and_configure_minio(juju)
-
-    logger.info(f"deploying {s3_integrator_app=}")
-    juju.deploy(
-        "s3-integrator", s3_integrator_app, channel=S3_INTEGRATOR_CHANNEL
-    )
-
-    logger.info(f"provisioning {bucket_name=} on minio...")
-    # Get MinIO IP address and create bucket manually
-    # This is required because S3 lib LIBAPI=0 does not support automatic bucket creation
-    minio_addr = get_unit_ip_address(juju, MINIO, 0)
-    mc_client = Minio(
-        f"{minio_addr}:9000",
-        access_key=ACCESS_KEY,
-        secret_key=SECRET_KEY,
-        secure=False,
-    )
-    # Create bucket if it doesn't exist
-    if not mc_client.bucket_exists(bucket_name):
-        mc_client.make_bucket(bucket_name)
-        logger.info(f"Created bucket {bucket_name}")
-
-    logger.info("configuring s3 integrator...")
-
-    # Create and grant Juju secret with credentials
-    secret_uri = juju.cli(
-        "add-secret",
-        f"{s3_integrator_app}-creds",
-        f"access-key={ACCESS_KEY}",
-        f"secret-key={SECRET_KEY}",
-    ).strip()
-
-    juju.cli("grant-secret", secret_uri, s3_integrator_app)
-
-    # Configure s3-integrator with endpoint, bucket, and credentials secret URI
-    juju.config(
-        s3_integrator_app,
-        {
-            "endpoint": f"http://minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
-            "bucket": bucket_name,
-            "credentials": secret_uri,
-        },
-    )
 
 
 def get_app_ip_address(juju: Juju, app_name):
