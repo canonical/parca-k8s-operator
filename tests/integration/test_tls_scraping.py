@@ -29,14 +29,13 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
     juju.deploy(
         "self-signed-certificates",
         SSC,
-        channel="latest/edge",
         trust=True,
     )
     juju.integrate(f"{PARCA}:certificates", SSC)
 
     # Wait for the two apps to quiesce
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA, SSC), timeout=1000
+        lambda status: jubilant.all_active(status, PARCA, SSC), timeout=1000, successes=3, delay=10,
     )
 
 
