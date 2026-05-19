@@ -13,8 +13,6 @@ from tests.integration.helpers import (
     get_app_ip_address,
 )
 
-MINIO="minio"
-
 TEMPO = "tempo"
 TEMPO_WORKER = "tempo-worker"
 
@@ -45,6 +43,8 @@ def deploy_monolithic_tempo_cluster(
     juju.wait(
         lambda status: jubilant.all_active(status, TEMPO, TEMPO_WORKER, S3_APP),
         timeout=2000,
+        successes=6,
+        delay=10,
     )
 
 
@@ -70,6 +70,8 @@ def test_deploy_tempo_stack_monolithic(juju: Juju, parca_charm, parca_resources)
             for app in [PARCA, TEMPO, TEMPO_WORKER]
         ),
         timeout=1000,
+        successes=3,
+        delay=10,
     )
 
 
