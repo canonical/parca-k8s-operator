@@ -16,7 +16,7 @@ from minio import Minio
 from nginx import CA_CERT_PATH, Nginx
 
 PARCA = "parca"
-INTEGRATION_TESTERS_CHANNEL = "2/edge"
+INTEGRATION_TESTERS_CHANNEL = "dev/edge"
 TESTING_MINIO_ACCESS_KEY = "accesskey"
 TESTING_MINIO_SECRET_KEY = "secretkey"
 MINIO = "minio"
