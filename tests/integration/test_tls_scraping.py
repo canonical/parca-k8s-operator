@@ -35,7 +35,7 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
 
     # Wait for the two apps to quiesce
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA, SSC), timeout=1000, successes=3, delay=10,
+        lambda status: jubilant.all_active(status, PARCA, SSC), timeout=1000, successes=2, delay=60,
     )
 
 
@@ -67,7 +67,7 @@ def test_deploy_parca_tester(juju:Juju, parca_charm, parca_resources):
     juju.integrate(f"{PARCA_TESTER}:certificates", SSC),
 
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA, PARCA_TESTER), timeout=1000
+        lambda status: jubilant.all_active(status, PARCA, PARCA_TESTER), timeout=1000, successes=2, delay=60,
     )
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
@@ -81,7 +81,7 @@ def test_remove_tls(juju:Juju):
     juju.remove_relation(PARCA + ":certificates", SSC + ":certificates")
     # we need to wait for a while until parca's nginx loses the TLS connection
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA), timeout=1000
+        lambda status: jubilant.all_active(status, PARCA), timeout=1000, successes=2, delay=60
     )
 
 
