@@ -5,6 +5,13 @@ on:
       - main
       - track/**
 
+permissions:
+  # Required for all workflows
+  security-events: write
+  # Only required for workflows in private repositories
+  actions: read
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
