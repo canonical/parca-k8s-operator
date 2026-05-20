@@ -24,7 +24,7 @@ EXPECTED_OBJECT_PREFIX = "blocks/"
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju: Juju, parca_charm, parca_resources):
     """Deploy parca with s3 and a tester charm (another parca!) to scrape."""
     juju.deploy(
@@ -155,7 +155,7 @@ def test_s3_usage(juju: Juju):
     verify_objects_in_s3(juju, s3_info, EXPECTED_OBJECT_PREFIX)
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_teardown(juju: Juju):
     juju.remove_relation(f"{PARCA}:s3", S3_APP)
 

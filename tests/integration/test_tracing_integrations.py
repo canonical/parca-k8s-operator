@@ -41,14 +41,12 @@ def deploy_monolithic_tempo_cluster(
 
     # wait for all active
     juju.wait(
-        lambda status: jubilant.all_active(status, TEMPO, TEMPO_WORKER, S3_APP),
-        timeout=2000,
-        successes=6,
-        delay=10,
+        lambda status: jubilant.all_agents_idle(status, TEMPO, TEMPO_WORKER, S3_APP) and jubilant.all_active(status, TEMPO, TEMPO_WORKER, S3_APP),
+        timeout=1000,
     )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_tempo_stack_monolithic(juju: Juju, parca_charm, parca_resources):
     juju.deploy(
         parca_charm,

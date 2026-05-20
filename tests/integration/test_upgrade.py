@@ -8,7 +8,7 @@ from tests.integration.helpers import (
 )
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju:Juju):
     """Deploy parca from 1/stable."""
     juju.deploy(

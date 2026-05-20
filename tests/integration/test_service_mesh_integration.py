@@ -15,9 +15,6 @@ from tenacity.wait import wait_exponential as wexp
 
 from nginx import Nginx
 
-# TODO: skip until https://github.com/canonical/istio-beacon-k8s-operator/issues/161 is fixed
-pytest.skip(reason="skipped due to https://github.com/canonical/istio-beacon-k8s-operator/issues/161", allow_module_level=True)
-
 ISTIO_K8S = "istio-k8s"
 ISTIO_K8S_CHANNEL = "dev/edge"
 ISTIO_BEACON = "istio-beacon-k8s"
@@ -60,7 +57,7 @@ def _assert_tcp_reachable(model: str, from_app: str, from_unit: int, host: str, 
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy(juju: Juju, parca_charm, parca_resources):
     """Deploy the full mesh topology and wait for all apps to be Active."""
     juju.deploy(ISTIO_K8S, channel=ISTIO_K8S_CHANNEL, trust=True)
@@ -77,7 +74,7 @@ def test_deploy(juju: Juju, parca_charm, parca_resources):
     )
 
     juju.wait(
-        lambda status: jubilant.all_active(
+        lambda status: jubilant.all_agents_idle(status, ISTIO_K8S, PARCA, PARCA_TESTER, ISTIO_BEACON, GRAFANA) and jubilant.all_active(
             status,
             ISTIO_K8S,
             PARCA,
@@ -85,18 +82,19 @@ def test_deploy(juju: Juju, parca_charm, parca_resources):
             ISTIO_BEACON,
             GRAFANA,
         ),
-        timeout=1200,
-        successes=6,
-        delay=10,
+        timeout=1000,
     )
 
-@pytest.mark.setup
+
+# TODO: xfail until https://github.com/canonical/istio-beacon-k8s-operator/issues/161 is fixed
+@pytest.mark.juju_setup
+@pytest.mark.xfail(reason="xfailed due to https://github.com/canonical/istio-beacon-k8s-operator/issues/161")
 def test_integrate_with_mesh(juju: Juju):
     juju.integrate(f"{PARCA}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
     juju.integrate(f"{PARCA_TESTER}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
     juju.integrate(f"{GRAFANA}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
     juju.wait(
-        lambda status: jubilant.all_active(
+        lambda status: jubilant.all_agents_idle(status, ISTIO_K8S, PARCA, PARCA_TESTER, ISTIO_BEACON, GRAFANA) and jubilant.all_active(
             status,
             ISTIO_K8S,
             PARCA,
@@ -104,9 +102,7 @@ def test_integrate_with_mesh(juju: Juju):
             ISTIO_BEACON,
             GRAFANA,
         ),
-        timeout=1200,
-        successes=3,
-        delay=10,
+        timeout=1000,
     )
 
 # ---------------------------------------------------------------------------
