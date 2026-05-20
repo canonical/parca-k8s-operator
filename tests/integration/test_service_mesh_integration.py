@@ -56,7 +56,8 @@ def _assert_tcp_reachable(model: str, from_app: str, from_unit: int, host: str, 
 # Setup
 # ---------------------------------------------------------------------------
 
-
+# TODO: xfail until https://github.com/canonical/istio-beacon-k8s-operator/issues/161 is fixed
+@pytest.mark.xfail(reason="xfailed due to https://github.com/canonical/istio-beacon-k8s-operator/issues/161")
 @pytest.mark.juju_setup
 def test_deploy(juju: Juju, parca_charm, parca_resources):
     """Deploy the full mesh topology and wait for all apps to be Active."""
@@ -86,9 +87,7 @@ def test_deploy(juju: Juju, parca_charm, parca_resources):
     )
 
 
-# TODO: xfail until https://github.com/canonical/istio-beacon-k8s-operator/issues/161 is fixed
 @pytest.mark.juju_setup
-@pytest.mark.xfail(reason="xfailed due to https://github.com/canonical/istio-beacon-k8s-operator/issues/161")
 def test_integrate_with_mesh(juju: Juju):
     juju.integrate(f"{PARCA}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
     juju.integrate(f"{PARCA_TESTER}:service-mesh", f"{ISTIO_BEACON}:service-mesh")
