@@ -5,6 +5,13 @@ on:
     branches:
       - main
 
+permissions:
+  # Required for all workflows
+  security-events: write
+  # Only required for workflows in private repositories
+  actions: read
+  contents: read
+
 jobs:
   release:
     uses: canonical/observability/.github/workflows/charm-release.yaml@78f655bd7446ee040b26cfe5d2e095b6dfdc3423 # v1
