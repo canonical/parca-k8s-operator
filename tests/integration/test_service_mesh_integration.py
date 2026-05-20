@@ -15,6 +15,9 @@ from tenacity.wait import wait_exponential as wexp
 
 from nginx import Nginx
 
+# TODO: skip until https://github.com/canonical/istio-beacon-k8s-operator/issues/161 is fixed
+pytest.skip(reason="skipped due to https://github.com/canonical/istio-beacon-k8s-operator/issues/161", allow_module_level=True)
+
 ISTIO_K8S = "istio-k8s"
 ISTIO_K8S_CHANNEL = "dev/edge"
 ISTIO_BEACON = "istio-beacon-k8s"
