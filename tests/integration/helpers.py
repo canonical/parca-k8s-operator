@@ -4,25 +4,18 @@ import json
 import logging
 import shlex
 import subprocess
+from pathlib import Path
 from subprocess import getoutput, getstatusoutput
 from typing import List, Tuple
 
-import jubilant
+import yaml
 from jubilant import Juju
-from minio import Minio
 
 from nginx import CA_CERT_PATH, Nginx
 
 PARCA = "parca"
-INTEGRATION_TESTERS_CHANNEL = "2/edge"
-TESTING_MINIO_ACCESS_KEY = "accesskey"
-TESTING_MINIO_SECRET_KEY = "secretkey"
-MINIO = "minio"
-S3_INTEGRATOR = "s3-integrator"
-S3_INTEGRATOR_CHANNEL = "2/edge"
-BUCKET_NAME = "parca"
-ACCESS_KEY = "accesskey"
-SECRET_KEY = "secretkey"
+S3_APP = "s3-app"
+INTEGRATION_TESTERS_CHANNEL = "dev/edge"
 logger= logging.getLogger("helpers")
 
 
@@ -36,75 +29,6 @@ def get_unit_ip(model_name, app_name, unit_id):
 def get_unit_fqdn(model_name, app_name, unit_id):
     """Return a juju unit's K8s cluster FQDN."""
     return f"{app_name}-{unit_id}.{app_name}-endpoints.{model_name}.svc.cluster.local"
-
-def _deploy_and_configure_minio(juju: Juju):
-    if not juju.status().apps.get(MINIO):
-        juju.deploy(
-            MINIO,
-            channel="edge",
-            trust=True,
-            config={
-                "access-key": ACCESS_KEY,
-                "secret-key": SECRET_KEY,
-            }
-        )
-    juju.wait(
-        lambda status: status.apps[MINIO].is_active,
-        error=jubilant.any_error,
-        delay=5,
-        successes=3,
-        timeout=2000,
-    )
-
-def deploy_s3(juju, bucket_name: str, s3_integrator_app: str=S3_INTEGRATOR):
-    """Deploy minio and s3-integrator.
-
-    The S3 lib LIBAPI=0 does not support automatic bucket creation.
-    We must manually create the bucket before configuring s3-integrator.
-    """
-    _deploy_and_configure_minio(juju)
-
-    logger.info(f"deploying {s3_integrator_app=}")
-    juju.deploy(
-        "s3-integrator", s3_integrator_app, channel=S3_INTEGRATOR_CHANNEL
-    )
-
-    logger.info(f"provisioning {bucket_name=} on minio...")
-    # Get MinIO IP address and create bucket manually
-    # This is required because S3 lib LIBAPI=0 does not support automatic bucket creation
-    minio_addr = get_unit_ip_address(juju, MINIO, 0)
-    mc_client = Minio(
-        f"{minio_addr}:9000",
-        access_key=ACCESS_KEY,
-        secret_key=SECRET_KEY,
-        secure=False,
-    )
-    # Create bucket if it doesn't exist
-    if not mc_client.bucket_exists(bucket_name):
-        mc_client.make_bucket(bucket_name)
-        logger.info(f"Created bucket {bucket_name}")
-
-    logger.info("configuring s3 integrator...")
-
-    # Create and grant Juju secret with credentials
-    secret_uri = juju.cli(
-        "add-secret",
-        f"{s3_integrator_app}-creds",
-        f"access-key={ACCESS_KEY}",
-        f"secret-key={SECRET_KEY}",
-    ).strip()
-
-    juju.cli("grant-secret", secret_uri, s3_integrator_app)
-
-    # Configure s3-integrator with endpoint, bucket, and credentials secret URI
-    juju.config(
-        s3_integrator_app,
-        {
-            "endpoint": f"http://minio-0.minio-endpoints.{juju.model}.svc.cluster.local:9000",
-            "bucket": bucket_name,
-            "credentials": secret_uri,
-        },
-    )
 
 
 def get_app_ip_address(juju: Juju, app_name):
@@ -150,3 +74,45 @@ def get_parca_ingested_label_values(
     return json.loads(proc.stdout).get("labelValues", [])
 
 
+def get_resources(root: Path | str = "./") -> dict[str, str] | None:
+    """Obtain charm resources from metadata.yaml or charmcraft.yaml upstream-source fields."""
+    for meta_name in ("metadata.yaml", "charmcraft.yaml"):
+        meta_path = Path(root) / meta_name
+        if meta_path.exists():
+            meta = yaml.safe_load(meta_path.read_text())
+            if meta_resources := meta.get("resources"):
+                return {
+                    resource: res_meta["upstream-source"]
+                    for resource, res_meta in meta_resources.items()
+                }
+            logger.info("resources not found in %s; proceeding without resources", meta_name)
+            return None
+    logger.error("metadata/charmcraft.yaml not found at %s; unable to load resources", root)
+    return None
+
+
+def pack(root: Path | str = "./", platform: str | None = None) -> Path:
+    """Pack a local charm and return the path to the packed .charm file."""
+    platform_arg = f" --platform {platform}" if platform else ""
+    cmd = f"charmcraft pack -p {root}{platform_arg}"
+    proc = subprocess.run(
+        shlex.split(cmd),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    # charmcraft prints "Packed <filename>" lines to stderr
+    packed_charms = [
+        line.split()[1] for line in proc.stderr.strip().splitlines() if line.startswith("Packed")
+    ]
+    if not packed_charms:
+        raise ValueError(
+            f"unable to get packed charm(s) ({cmd!r} completed with "
+            f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=})"
+        )
+    if len(packed_charms) > 1:
+        raise ValueError(
+            "This charm supports multiple platforms. "
+            "Pass a `platform` argument to control which charm you're getting instead."
+        )
+    return Path(packed_charms[0]).resolve()

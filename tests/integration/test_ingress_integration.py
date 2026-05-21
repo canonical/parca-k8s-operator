@@ -21,7 +21,7 @@ TRAEFIK = "traefik"
 PARCA = "parca"
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju:Juju, parca_charm, parca_resources):
     """Test that Parca can be related with Traefik for ingress."""
     juju.deploy(

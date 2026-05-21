@@ -26,7 +26,7 @@ ZINC = "zinc-k8s"
 PARCA_TESTER = "parca-tester"
 
 
-@mark.setup
+@mark.juju_setup
 def test_deploy(juju: Juju, parca_charm, parca_resources):
     juju.deploy(
         parca_charm,

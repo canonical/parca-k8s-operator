@@ -13,6 +13,13 @@ from typing import Dict, FrozenSet, List, Optional
 import ops
 import ops_tracing
 import pydantic
+from charmlibs.interfaces.service_mesh import (
+    AppPolicy,
+    Endpoint,
+    Policy,
+    ServiceMeshConsumer,
+    UnitPolicy,
+)
 from charmlibs.interfaces.sloth import SlothProvider
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
@@ -93,6 +100,7 @@ class ParcaOperatorCharm(ops.CharmBase):
                 EntryPoint("parca-http", Protocol.http, Nginx.parca_http_server_port),
             ),
         )
+
         self.metrics_endpoint_provider = MetricsEndpointProvider(
             self,
             jobs=self._metrics_scrape_jobs,
@@ -146,6 +154,14 @@ class ParcaOperatorCharm(ops.CharmBase):
         )
 
         self.sloth = SlothProvider(self, SLOS_RELATION_NAME)
+
+        self.service_mesh = ServiceMeshConsumer(
+            self,
+            policies=self._mesh_policies,
+            mesh_relation_name="service-mesh",
+            cross_model_mesh_provides_name="provide-cmr-mesh",
+            cross_model_mesh_requires_name="require-cmr-mesh",
+        )
 
         # WORKLOADS
         # these need to be instantiated after `ingress` is, as it accesses self._external_url_path
@@ -266,6 +282,8 @@ class ParcaOperatorCharm(ops.CharmBase):
             logger.debug("No SLO spec to send")
 
     # INGRESS/ROUTING PROPERTIES
+
+
     @property
     def http_server_url(self):
         """Http server url; ingressed if available, else over fqdn."""
@@ -289,6 +307,8 @@ class ParcaOperatorCharm(ops.CharmBase):
     def _scheme(self):
         """Return ingress scheme if available, else return the internal scheme."""
         return self.ingress.scheme or self._internal_scheme
+
+
 
     @property
     def _internal_scheme(self) -> str:
@@ -417,6 +437,53 @@ class ParcaOperatorCharm(ops.CharmBase):
             endpoint = self.workload_tracing.get_endpoint("otlp_grpc")
             return endpoint
         return None
+
+    # SERVICE MESH POLICIES
+    @property
+    def _mesh_policies(self) -> List[AppPolicy | UnitPolicy | Policy]:
+        """Return service mesh authorization policies for Parca.
+
+        Parca exposes two consumer-facing endpoints via nginx:
+        - HTTP/UI on parca_http_server_port (7994) — used by grafana-source consumers and the UI
+        - gRPC profiling ingestion on parca_grpc_server_port (7993) — used by parca-store consumers
+          and by profiling agents (parca-agent) pushing profiles
+
+        All other traffic policies (metrics scraping etc.) are handled internally and do not
+        need cross-application authorization policies.
+
+        Note: no peer (unit-to-unit) policy is required.  Parca does not support horizontal
+        scaling — the charm raises BlockedStatus when a second unit is added — so there is
+        never any inter-unit gRPC or HTTP traffic to authorise.
+        """
+        return [
+            # Allow grafana-source consumers to reach the Parca HTTP API for datasource queries.
+            AppPolicy(
+                relation="grafana-source",
+                endpoints=[
+                    Endpoint(
+                        ports=[Nginx.parca_http_server_port],
+                    )
+                ],
+            ),
+            # Allow charms sending profiles to Parca via the parca-store gRPC endpoint.
+            AppPolicy(
+                relation="parca-store-endpoint",
+                endpoints=[
+                    Endpoint(
+                        ports=[Nginx.parca_grpc_server_port],
+                    )
+                ],
+            ),
+            # Allow charms scraping Parca's own profiles via the profiling HTTP endpoint.
+            AppPolicy(
+                relation="self-profiling-endpoint",
+                endpoints=[
+                    Endpoint(
+                        ports=[Nginx.parca_http_server_port],
+                    )
+                ],
+            ),
+        ]
 
     # EVENT HANDLERS
     def _on_collect_unit_status(self, event: ops.CollectStatusEvent):

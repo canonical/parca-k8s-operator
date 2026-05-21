@@ -17,7 +17,7 @@ SSC = "ssc"
 SSC_CA_CERT_PATH = "/tmp/ca-cert.pem"
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_setup(juju:Juju, parca_charm, parca_resources):
     """Test that Parca can be related with Self Signed Certificates for TLS."""
     juju.deploy(
@@ -29,15 +29,13 @@ def test_setup(juju:Juju, parca_charm, parca_resources):
     juju.deploy(
         "self-signed-certificates",
         SSC,
-        channel="latest/edge",
         trust=True,
     )
     juju.integrate(f"{PARCA}:certificates", SSC)
 
     # Wait for the two apps to quiesce
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA, SSC), timeout=1000
-    )
+        lambda status: jubilant.all_agents_idle(status, PARCA, SSC) and jubilant.all_active(status, PARCA, SSC), timeout=1000)
 
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
@@ -54,7 +52,7 @@ def test_parca_is_scraping_itself(juju:Juju):
     assert "parca" in label_values
 
 
-@pytest.mark.setup
+@pytest.mark.juju_setup
 def test_deploy_parca_tester(juju:Juju, parca_charm, parca_resources):
     # Deploy and integrate tester charm
     juju.deploy(
@@ -68,7 +66,7 @@ def test_deploy_parca_tester(juju:Juju, parca_charm, parca_resources):
     juju.integrate(f"{PARCA_TESTER}:certificates", SSC),
 
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA, PARCA_TESTER), timeout=1000
+        lambda status: jubilant.all_agents_idle(status, PARCA, SSC) and jubilant.all_active(status, PARCA, PARCA_TESTER), timeout=1000
     )
 
 @retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_attempt(10), reraise=True)
@@ -77,12 +75,12 @@ def test_parca_is_scraping_parca_tester(juju:Juju):
     assert "parca-tester" in label_values
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_remove_tls(juju:Juju):
     juju.remove_relation(PARCA + ":certificates", SSC + ":certificates")
     # we need to wait for a while until parca's nginx loses the TLS connection
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA), timeout=1000
+        lambda status: jubilant.all_agents_idle(status, PARCA, SSC) and jubilant.all_active(status, PARCA), timeout=1000,
     )
 
 
@@ -94,6 +92,6 @@ def test_direct_url_400(juju:Juju):
     assert exit_code != 0
 
 
-@pytest.mark.teardown
+@pytest.mark.juju_teardown
 def test_remove_parca(juju:Juju):
     juju.remove_application(PARCA)

@@ -9,10 +9,12 @@ dependencies = [
     "pydantic <3",
     "charmlibs-nginx-k8s",
     "cosl",
+    "charmlibs-interfaces-sloth>=0.1.0",
+    # service_mesh
+    "charmlibs-interfaces-service-mesh~=1.0",  
     # ---PYDEPS---
     # lib/charms/tls_certificates_interface/v4/tls_certificates.py
     "cryptography",
-    "charmlibs-interfaces-sloth>=0.1.0",
 ]
 
 [project.optional-dependencies]
