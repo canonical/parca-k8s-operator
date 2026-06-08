@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import shlex
+import subprocess
 from subprocess import check_call
 
 import jubilant
@@ -85,7 +86,8 @@ def get_s3_connection_info(juju: Juju) -> dict:
 def restart_parca_to_flush(model_name: str):
     """Restart Parca to force flush profiles to S3."""
     logger.info("restarting parca to force profile flush to S3...")
-    check_call(
+    # pkill returns 1 if no processes matched, so we ignore the exit code
+    subprocess.run(
         shlex.split(
             f"juju exec --model {model_name} --unit {PARCA}/0 -- pkill -f parca"
         )
