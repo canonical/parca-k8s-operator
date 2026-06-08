@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import shlex
-from subprocess import check_call, check_output
+from subprocess import check_call
 
 import jubilant
 import pytest
