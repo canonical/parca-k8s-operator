@@ -6,7 +6,8 @@ import json
 import logging
 import re
 import shlex
-from subprocess import check_call, check_output
+import subprocess
+from subprocess import check_call
 
 import jubilant
 import pytest
@@ -46,104 +47,102 @@ def test_setup(juju: Juju, parca_charm, parca_resources):
     juju.integrate(PARCA, f"{PARCA_TESTER}:self-profiling-endpoint")
 
     juju.wait(
-        lambda status: jubilant.all_active(status, PARCA, PARCA_TESTER, S3_APP), timeout=1000, successes=3, delay=10,
+        lambda status: jubilant.all_active(status, PARCA, S3_APP, PARCA_TESTER),
+        error=jubilant.any_error,
+        delay=5,
+        successes=3,
+        timeout=2000,
     )
+
+
+def get_s3_connection_info(juju: Juju) -> dict:
+    """Get connection info from s3 relation.
+
+    We need to get the endpoint from juju to be able to connect to minio from the
+    runner (outside of the k8s cluster).
+    """
+    result = juju.cli("show-unit", f"{PARCA}/0", "--format=json")
+    data = json.loads(result)
+    unit_data = data[f"{PARCA}/0"]
+    relation_info = unit_data.get("relation-info", [])
+
+    s3_info = {}
+    for rel in relation_info:
+        if rel.get("endpoint") == "s3":
+            app_data = rel.get("application-data", {})
+            s3_info = {
+                "access_key": app_data.get("access-key"),
+                "secret_key": app_data.get("secret-key"),
+                "bucket": app_data.get("bucket"),
+                "endpoint": app_data.get("endpoint"),
+            }
+            break
+
+    # endpoint is a cluster address, we need to convert it to a node address
+    s3_info["endpoint"] = f"http://{get_unit_ip_address(juju, S3_APP, 0)}:8333"
+    return s3_info
 
 
 def restart_parca_to_flush(model_name: str):
-    """Restart parca once to force flush in-memory buffer to S3."""
-    check_call(shlex.split(f"juju ssh -m {model_name} --container parca {PARCA}/0 pebble restart parca"))
-
-
-@retry(wait=wexp(multiplier=1, min=5, max=10), stop=stop_after_delay(60), reraise=True)
-def wait_for_parca_ready(model_name: str):
-    """Wait for parca to be fully started and responsive after restart."""
-    # Check that parca service is active
-    check_call(shlex.split(f"juju ssh -m {model_name} --container parca {PARCA}/0 pebble services parca"))
-
-
-def _get_parca_s3_connection_info(model_name: str) -> dict[str, str]:
-    """Read S3 endpoint and credentials from parca's relation data."""
-    show_unit_raw = check_output(
-        shlex.split(f"juju show-unit -m {model_name} {PARCA}/0 --format json"),
-        text=True,
+    """Restart Parca to force flush profiles to S3."""
+    logger.info("restarting parca to force profile flush to S3...")
+    # pkill returns 1 if no processes matched, so we ignore the exit code
+    subprocess.run(
+        shlex.split(
+            f"juju exec --model {model_name} --unit {PARCA}/0 -- pkill -f parca"
+        )
     )
-    show_unit = json.loads(show_unit_raw)
-
-    relation_info = show_unit.get(f"{PARCA}/0", {}).get("relation-info", [])
-    for relation in relation_info:
-        if relation.get("endpoint") != "s3":
-            continue
-        app_data = relation.get("application-data", {})
-        required_fields = ("endpoint", "bucket", "access-key", "secret-key")
-        if all(app_data.get(field) for field in required_fields):
-            return {
-                "endpoint": app_data["endpoint"],
-                "bucket": app_data["bucket"],
-                "access_key": app_data["access-key"],
-                "secret_key": app_data["secret-key"],
-            }
-
-    raise AssertionError(f"unable to find S3 credentials in {PARCA}/0 relation data")
 
 
-@retry(wait=wexp(multiplier=2, min=1, max=30), stop=stop_after_delay(60 * 3), reraise=True)
-def verify_objects_in_s3(juju: Juju, s3_info: dict[str, str], expected_prefix: str):
-    """Verify that expected objects exist in the S3 backend.
+def wait_for_parca_ready(model_name: str, timeout: int = 300) -> None:
+    """Wait for Parca to be ready again after restart."""
+    check_call(
+        shlex.split(
+            f"juju wait-for unit {PARCA}/0 --model {model_name} --timeout={timeout}s"
+        )
+    )
 
-    This function retries checking the S3 API without restarting parca on each attempt,
-    allowing parca time to flush its in-memory buffer to object storage.
-    """
-    bucket_name = s3_info["bucket"]
-    unit_ip = get_unit_ip_address(juju, S3_APP, 0)
 
-    # Parse port from s3_info["endpoint"] (format: host:port or http(s)://host:port)
-    endpoint_str = s3_info["endpoint"]
-    # Remove scheme if present
-    endpoint_no_scheme = re.sub(r"^https?://", "", endpoint_str)
-    # Extract port
-    match = re.match(r"[^:]+:(\d+)", endpoint_no_scheme)
-    if not match:
-        raise AssertionError(f"Could not parse port from endpoint: {endpoint_str}")
-    port = match.group(1)
-    endpoint = f"{unit_ip}:{port}"
-
-    client = Minio(
-        endpoint=endpoint,
+@retry(wait=wexp(multiplier=1, min=4, max=10), stop=stop_after_delay(300))
+def verify_objects_in_s3(juju: Juju, s3_info: dict, expected_prefix: str) -> None:
+    """Verify objects exist in S3 with the expected prefix."""
+    logger.info("attempting to list objects in minio bucket")
+    minio_client = Minio(
+        re.sub(r"^https?://", "", s3_info["endpoint"]),  # minio client doesn't like the scheme
         access_key=s3_info["access_key"],
         secret_key=s3_info["secret_key"],
         secure=False,
     )
+    bucket_name = s3_info["bucket"]
+    objects = list(minio_client.list_objects(bucket_name, recursive=True))
 
-    bucket_names = {bucket.name for bucket in client.list_buckets()}
-    assert bucket_name in bucket_names, f"bucket {bucket_name!r} was not created"
+    if not objects:
+        raise AssertionError(f"No objects found in bucket {bucket_name}")
 
-    objects = list(client.list_objects(bucket_name, recursive=True))
-    assert objects, f"no objects in {bucket_name!r} bucket"
+    has_prefix = any(obj.object_name.startswith(expected_prefix) for obj in objects)
+    if not has_prefix:
+        raise AssertionError(
+            f"No objects with prefix '{expected_prefix}' found. "
+            f"Objects: {[obj.object_name for obj in objects]}"
+        )
+    logger.info(
+        f"Found {len(objects)} objects in bucket, including expected prefix '{expected_prefix}'"
+    )
 
-    found_prefix = any(obj.object_name.startswith(expected_prefix) for obj in objects)
-    assert found_prefix, f"no objects with prefix {expected_prefix!r} in bucket {bucket_name!r}"
 
+def test_parca_data_ingestion(juju: Juju, parca_charm, parca_resources):
+    """Verify Parca receives and stores data in S3.
 
-def test_s3_usage(juju: Juju):
-    """Verify that parca is using S3-backed storage via SeaweedFS.
-
-    This test:
-    1. First checks if parca has already written data to S3 naturally
-    2. If no data found, restarts parca once to trigger flush of in-memory buffer
-    3. Waits for parca to be ready after restart
-    4. Retries checking the S3 endpoint for bucket/object presence
+    Steps:
+    1. Get S3 connection info from the relation
+    2. Restart Parca to force flushing profiles to S3
+    3. Wait for Parca to come back up
+    4. Check S3 for objects with expected prefix
     """
-    s3_info = _get_parca_s3_connection_info(juju.model)
-
-    # Step 1: First check if data is already in S3 (parca may write naturally)
-    try:
-        logger.info("Checking if parca has already written data to S3...")
-        verify_objects_in_s3(juju, s3_info, EXPECTED_OBJECT_PREFIX)
-        logger.info("Data found in S3 without restart!")
-        return  # Test passed, no restart needed
-    except AssertionError:
-        logger.info("No data in S3 yet, will restart parca to trigger flush...")
+    # Step 1: Get S3 connection info
+    s3_info = get_s3_connection_info(juju)
+    assert all(s3_info.values()), f"Missing S3 connection info: {s3_info}"
+    logger.info(f"S3 connection info: {s3_info}")
 
     # Step 2: Restart parca to trigger flush
     restart_parca_to_flush(juju.model)
