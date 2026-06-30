@@ -24,7 +24,7 @@ from charmlibs.interfaces.sloth import SlothProvider
 from charms.catalogue_k8s.v1.catalogue import CatalogueConsumer, CatalogueItem
 from charms.data_platform_libs.v0.s3 import S3Requirer
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
-from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
+from charms.grafana_k8s.v1.grafana_source import GrafanaSourceProvider
 from charms.loki_k8s.v1.loki_push_api import LogForwarder
 from charms.parca_k8s.v0.parca_scrape import ProfilingEndpointConsumer, ProfilingEndpointProvider
 from charms.parca_k8s.v0.parca_store import (
@@ -143,7 +143,7 @@ class ParcaOperatorCharm(ops.CharmBase):
         self.grafana_source_provider = GrafanaSourceProvider(
             self,
             source_type="parca",
-            source_url=self.http_server_url,
+            app_datasource_url=self.ingress.http_external_host and self.http_server_url or self._service_url,
             # no need to use refresh_events logic as we refresh on reconcile.
         )
 
@@ -234,7 +234,9 @@ class ParcaOperatorCharm(ops.CharmBase):
         # and it's a cheap operation to push it, so we always do it.
         self.metrics_endpoint_provider.set_scrape_job_spec()
         self.self_profiling_endpoint_provider.set_scrape_job_spec()
-        self.grafana_source_provider.update_source(source_url=self.http_server_url)
+        self.grafana_source_provider.update_app_source(
+            app_datasource_url=self.ingress.http_external_host and self.http_server_url or self._service_url
+        )
         self.parca_store_endpoint.set_remote_store_connection_data()
         self.ingress.reconcile()
         self._reconcile_slos()
@@ -291,6 +293,13 @@ class ParcaOperatorCharm(ops.CharmBase):
             # this already includes the scheme: http or https, depending on the ingress
             return f"{external_host}:{Nginx.parca_http_server_port}"
         return f"{self._internal_scheme}://{self._fqdn}:{Nginx.parca_http_server_port}"
+
+    @property
+    def _service_url(self) -> str:
+        """Return the K8s service URL (without unit prefix) for app-level datasources."""
+        # _fqdn is e.g. "parca-0.parca-k8s-endpoints..."; strip unit prefix for service URL
+        service_hostname = self._fqdn.split(".", 1)[-1]
+        return f"{self._internal_scheme}://{service_hostname}:{Nginx.parca_http_server_port}"
 
     @property
     def grpc_server_url(self):
