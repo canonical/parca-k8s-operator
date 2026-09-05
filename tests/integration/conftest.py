@@ -25,4 +25,4 @@ def parca_charm():
 
 @fixture(scope="module")
 def parca_resources():
-    return get_resources("./")
+    return get_resources()
